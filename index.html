@@ -261,6 +261,7 @@ var CARDS=[];
 var PAGES=[];
 var GEM_URL='';
 var _statsData={};
+var _totalVisits=0;
 var _activeTab='';
 var _adminCards=[];
 var _adminEmails=[];
@@ -317,8 +318,9 @@ function toast(msg){
 }
 
 function totalViews(){
+  if(_totalVisits) return _totalVisits;
   var n=0;
-  if(_statsData){for(var k in _statsData){if(_statsData.hasOwnProperty(k))n+=(_statsData[k]||0)}}
+  if(_statsData){for(var k in _statsData){if(_statsData.hasOwnProperty(k))n+=(parseInt(_statsData[k])||0)}}
   return n;
 }
 
@@ -447,7 +449,7 @@ function buildSlider(imgs,card){
 function renderCards(){
   var grid=$('toolsGrid');
   grid.innerHTML='';
-  var filtered=CARDS.filter(function(c){return c.page===_activeTab&&c.visible!==false});
+  var filtered=CARDS.filter(function(c){return (c.page||c.category)===_activeTab&&c.visible!==false});
   $('toolsHead').innerHTML=esc(_activeTab)+' <span>\u2014 \u5DE5\u5177\u5217\u8868\uFF08'+filtered.length+' \u9805\uFF09</span>';
   if(!filtered.length){
     grid.innerHTML='<div class="tools-empty">\uD83D\uDD0D \u6B64\u5206\u985E\u66AB\u7121\u5DE5\u5177</div>';
@@ -792,7 +794,7 @@ function refreshMainData(){
     CARDS=data.cards||[];
     PAGES=data.pages||[];
     GEM_URL=data.gemUrl||'';
-    _statsData=data.stats||{};
+    var _s=data.stats||{};_statsData=_s.tools||_s;_totalVisits=_s.total||0;
     buildNavTabs();
     updateVisit();
     renderCards();
@@ -811,7 +813,7 @@ function init(){
     CARDS=data.cards||[];
     PAGES=data.pages||[];
     GEM_URL=data.gemUrl||'';
-    _statsData=data.stats||{};
+    var _s=data.stats||{};_statsData=_s.tools||_s;_totalVisits=_s.total||0;
 
     buildNavTabs();
     buildHeroGrid();
