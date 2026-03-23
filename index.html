@@ -384,12 +384,13 @@ function esc(s){
 
 function getCardImages(card){
   var imgs=[];
-  if(card.imageUrl){
-    card.imageUrl.split('\n').forEach(function(line){
-      var trimmed=line.trim();
-      if(trimmed)imgs.push(parseImgSpec(trimmed));
-    });
-  }
+  var raw=card.imageUrl||card.imageUrls;
+  if(!raw)return imgs;
+  var lines=Array.isArray(raw)?raw:(typeof raw==='string'?raw.split('\n'):[]);
+  lines.forEach(function(line){
+    var trimmed=(typeof line==='string')?line.trim():'';
+    if(trimmed)imgs.push(parseImgSpec(trimmed));
+  });
   return imgs.filter(Boolean);
 }
 
