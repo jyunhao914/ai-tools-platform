@@ -505,13 +505,22 @@ function copyText(text){
 
 /* ====== ADMIN ====== */
 function openAdmin(){
-  gasAPI('checkAdmin',null,function(res){
-    if(!res||!res.ok){toast('\u7121\u7BA1\u7406\u54E1\u6B0A\u9650');return}
-    $('adminOverlay').classList.add('show');
-    _adminTab='cards';
-    updateAdminTabs();
-    loadAdminCards();
-  });
+  var savedPw=sessionStorage.getItem('admin_pw')||'';
+  function tryAuth(pw){
+    gasAPI('checkAdmin',{pw:pw},function(res){
+      if(res&&res.ok){
+        sessionStorage.setItem('admin_pw',pw);
+        $('adminOverlay').classList.add('show');
+        _adminTab='cards';
+        updateAdminTabs();
+        loadAdminCards();
+      }else{
+        var input=prompt('\u8ACB\u8F38\u5165\u7BA1\u7406\u5BC6\u78BC\uFF1A');
+        if(input)tryAuth(input);
+      }
+    });
+  }
+  tryAuth(savedPw);
 }
 
 $('adminGear').onclick=openAdmin;
