@@ -3202,8 +3202,40 @@ function init(){
   buildNavTabs();
   buildHeroGrid();
 
-  /* Load real data immediately (no delay) */
+  /* Load both APIs in PARALLEL for speed */
+  var _gotData=false,_gotAdmin=false,_adminCards=null;
+
+  function mergeAndRender(){
+    /* Merge extra from admin data into CARDS */
+    if(_adminCards){
+      var adminMap={};
+      _adminCards.forEach(function(ac){if(ac.id)adminMap[ac.id]=ac;if(ac.title)adminMap['t_'+ac.title]=ac;});
+      CARDS.forEach(function(c){
+        var full=adminMap[c.id]||adminMap['t_'+c.title];
+        if(full){
+          if(full.extra){
+            var ex=(typeof full.extra==='string')?JSON.parse(full.extra||'{}'):full.extra;
+            c.extra=ex;
+            if(ex.linkBehavior)c.linkBehavior=ex.linkBehavior;
+            if(ex.linkBtnLabel)c.linkBtnLabel=ex.linkBtnLabel;
+            if(ex.linkBtnIcon)c.linkBtnIcon=ex.linkBtnIcon;
+            if(ex.copyContent)c.copyContent=ex.copyContent;
+            if(ex.btnStyle)c.btnStyle=ex.btnStyle;
+          }
+          if(full.meta1)c.meta1=full.meta1;
+          if(full.copyContent)c.copyContent=full.copyContent;
+          if(full.btnLabel)c.btnLabel=full.btnLabel;
+          if(full.btnIcon)c.btnIcon=full.btnIcon;
+          if(full.btnStyle)c.btnStyle=full.btnStyle;
+        }
+      });
+    }
+    updateVisit();renderCards();buildNavTabs();buildHeroGrid();observeCards();
+    checkArticleHash();
+  }
+
   gasAPI('getData',null,function(data){
+    _gotData=true;
     if(data){
       if(data.cards&&data.cards.length)CARDS=data.cards;
       if(data.pages&&data.pages.length)PAGES=data.pages;
@@ -3211,35 +3243,13 @@ function init(){
       var _s=data.stats||{};_statsData=_s.tools||_s;
       if(data.settings){_settings=data.settings;applyAnnouncement();applySEO();}
     }
-    /* Fetch full card data (with extra) then render once */
-    gasAPI('getCardsAdmin',null,function(adminRes){
-      if(adminRes&&adminRes.ok&&adminRes.cards){
-        var adminMap={};
-        adminRes.cards.forEach(function(ac){if(ac.id)adminMap[ac.id]=ac;if(ac.title)adminMap['t_'+ac.title]=ac;});
-        CARDS.forEach(function(c){
-          var full=adminMap[c.id]||adminMap['t_'+c.title];
-          if(full){
-            if(full.extra){
-              var ex=(typeof full.extra==='string')?JSON.parse(full.extra||'{}'):full.extra;
-              c.extra=ex;
-              if(ex.linkBehavior)c.linkBehavior=ex.linkBehavior;
-              if(ex.linkBtnLabel)c.linkBtnLabel=ex.linkBtnLabel;
-              if(ex.linkBtnIcon)c.linkBtnIcon=ex.linkBtnIcon;
-              if(ex.copyContent)c.copyContent=ex.copyContent;
-              if(ex.btnStyle)c.btnStyle=ex.btnStyle;
-            }
-            if(full.meta1)c.meta1=full.meta1;
-            if(full.copyContent)c.copyContent=full.copyContent;
-            if(full.btnLabel)c.btnLabel=full.btnLabel;
-            if(full.btnIcon)c.btnIcon=full.btnIcon;
-            if(full.btnStyle)c.btnStyle=full.btnStyle;
-          }
-        });
-      }
-      /* Render everything once with complete data */
-      updateVisit();renderCards();buildNavTabs();buildHeroGrid();observeCards();
-      checkArticleHash();
-    });
+    if(_gotAdmin)mergeAndRender();
+  });
+
+  gasAPI('getCardsAdmin',null,function(adminRes){
+    _gotAdmin=true;
+    if(adminRes&&adminRes.ok&&adminRes.cards)_adminCards=adminRes.cards;
+    if(_gotData)mergeAndRender();
   });
 
   window.addEventListener('hashchange',function(){
