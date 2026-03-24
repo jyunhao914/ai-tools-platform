@@ -464,7 +464,7 @@ function renderCards(){
     var body=ce('div','card-body');
     if(card.tag)body.appendChild(ce('div','card-tag',esc(card.tag)));
     body.appendChild(ce('div','card-title',esc(card.title)));
-    if(card.description)body.appendChild(ce('div','card-desc',esc(card.description)));
+    var _desc=card.description||card.desc;if(_desc)body.appendChild(ce('div','card-desc',esc(_desc)));
     if(card.meta1||card.meta2||card.meta3){
       var meta=ce('div','card-meta');
       if(card.meta1&&card.meta1!=='copy')meta.appendChild(ce('span','',esc(card.meta1)));
