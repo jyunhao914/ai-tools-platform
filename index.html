@@ -2089,14 +2089,24 @@ function openEditModal(card,defaultPage){
   /* Button behavior */
   var behaviorField=ce('div','modal-field');
   behaviorField.appendChild(ce('label','','\u6309\u9215\u884C\u70BA'));
-  var behaviorSel=ce('div','type-selector');
-  var existingBehavior=(card&&card.linkBehavior)||'open';
+  var behaviorSel=ce('div','');
+  behaviorSel.id='mf_behaviorSelector';
+  behaviorSel.style.cssText='display:flex;gap:8px';
+  /* Detect existing behavior from multiple sources */
+  var _existExtra=(card&&card.extra)?((typeof card.extra==='string')?JSON.parse(card.extra||'{}'):card.extra):{};
+  var existingBehavior=(card&&card.linkBehavior)||_existExtra.linkBehavior||((card&&card.meta1==='copy')?'copy':'open');
   [{val:'open',label:'\u2197 \u958B\u555F\u9023\u7D50'},{val:'copy',label:'\uD83D\uDCCB \u8907\u88FD\u9023\u7D50'}].forEach(function(t){
-    var btn=ce('button',''+(existingBehavior===t.val?' active':''),t.label);
+    var btn=ce('button','');
+    btn.textContent=t.label;
     btn.setAttribute('data-behavior',t.val);
-    btn.onclick=function(){
-      behaviorSel.querySelectorAll('button').forEach(function(b){b.classList.remove('active')});
-      this.classList.add('active');
+    btn.style.cssText='flex:1;padding:10px;border-radius:8px;font-size:13px;cursor:pointer;border:2px solid var(--border);background:var(--card);color:var(--text);transition:all .15s';
+    if(existingBehavior===t.val){btn.style.borderColor='var(--accent)';btn.style.color='var(--accent)'}
+    btn.onclick=function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      behaviorSel.querySelectorAll('button').forEach(function(b){b.style.borderColor='var(--border)';b.style.color='var(--text)'});
+      this.style.borderColor='var(--accent)';
+      this.style.color='var(--accent)';
     };
     behaviorSel.appendChild(btn);
   });
@@ -2109,7 +2119,7 @@ function openEditModal(card,defaultPage){
   var btnLabelInp=ce('input');
   btnLabelInp.id='mf_linkBtnLabel';
   btnLabelInp.type='text';
-  btnLabelInp.value=card?card.linkBtnLabel||'':'';
+  btnLabelInp.value=card?(card.linkBtnLabel||_existExtra.linkBtnLabel||''):'';
   btnLabelInp.placeholder='\u7559\u7A7A\u5247\u81EA\u52D5\uFF1A\u958B\u555F\u5DE5\u5177 / \u8907\u88FD\u9023\u7D50';
   btnLabelField.appendChild(btnLabelInp);
   linkDiv.appendChild(btnLabelField);
@@ -2120,7 +2130,7 @@ function openEditModal(card,defaultPage){
   var btnIconInp=ce('input');
   btnIconInp.id='mf_linkBtnIcon';
   btnIconInp.type='text';
-  btnIconInp.value=card?card.linkBtnIcon||'':'';
+  btnIconInp.value=card?(card.linkBtnIcon||_existExtra.linkBtnIcon||''):'';
   btnIconInp.placeholder='\u7559\u7A7A\u5247\u81EA\u52D5\uFF1AEmoji \u5716\u793A';
   btnIconField.appendChild(btnIconInp);
   linkDiv.appendChild(btnIconField);
@@ -2668,7 +2678,7 @@ $('modalSave').onclick=function(){
     card.linkUrl=document.getElementById('mf_linkUrl').value;
     card.iconUrl=(document.getElementById('mf_iconUrl')||{}).value||'';
     /* Button behavior & customization */
-    var activeBehavior=document.querySelector('#mf_linkFields .type-selector button.active');
+    var activeBehavior=document.querySelector('#mf_behaviorSelector button[style*="var(--accent)"]');
     card.linkBehavior=activeBehavior?activeBehavior.getAttribute('data-behavior'):'open';
     card.linkBtnLabel=(document.getElementById('mf_linkBtnLabel')||{}).value||'';
     card.linkBtnIcon=(document.getElementById('mf_linkBtnIcon')||{}).value||'';
