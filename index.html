@@ -600,8 +600,8 @@ img{display:block;max-width:100%}
   <div class="hero-bg" id="heroBg"></div>
   <div class="hero-content">
     <div class="hero-badge">&#10022; AI-Powered</div>
-    <h1 class="hero-title">AI 工具資源平台</h1>
-    <p class="hero-sub">為臨床教師、學生、行政與影音製作人員
+    <h1 class="hero-title" id="heroTitle">AI 工具資源平台</h1>
+    <p class="hero-sub" id="heroSub">為臨床教師、學生、行政與影音製作人員
 整合最新 AI 科技工具，提升每日工作效能</p>
     <div class="hero-grid" id="heroGrid"></div>
   </div>
@@ -3269,17 +3269,13 @@ function init(){
   buildStars();
 
   initSearch();
-
-  /* Record page visit */
   gasAPI('recordClick',{title:'_page_view'},null);
 
-  /* Don't render cards yet — wait for backend data to avoid flash of stale content */
-  /* Show skeleton loading while waiting */
+  /* Render immediately with hardcoded data for speed */
   var hash=decodeURIComponent(location.hash.replace('#',''));
-  _activeTab=(hash&&PAGES.indexOf(hash)>=0)?hash:(PAGES.length?PAGES[0]:'');
-  location.hash=_activeTab;
-  buildNavTabs();
-  buildHeroGrid();
+  if(hash&&PAGES.indexOf(hash)>=0){switchTab(hash);}
+  else if(PAGES.length){switchTab(PAGES[0]);}
+  buildNavTabs();buildHeroGrid();updateVisit();
 
   /* Load both APIs in PARALLEL for speed */
   var _gotData=false,_gotAdmin=false,_adminCards=null;
