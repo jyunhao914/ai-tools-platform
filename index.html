@@ -3264,14 +3264,19 @@ function renderAboutPage(){
 }
 
 /* ====== CACHE LAYER ====== */
-var CACHE_KEY='aitools_cache';
+var CACHE_KEY='aitools_v2';
 var CACHE_TTL=300000; /* 5 min */
 
 function saveCache(obj){
-  try{obj._ts=Date.now();localStorage.setItem(CACHE_KEY,JSON.stringify(obj))}catch(e){}
+  try{obj._ts=Date.now();localStorage.setItem(CACHE_KEY,JSON.stringify(obj));
+  /* clear old cache keys */
+  try{localStorage.removeItem('aitools_cache')}catch(e2){}
+  }catch(e){}
 }
 function loadCache(){
   try{
+    /* clear legacy cache */
+    try{localStorage.removeItem('aitools_cache')}catch(e2){}
     var raw=localStorage.getItem(CACHE_KEY);
     if(!raw)return null;
     var obj=JSON.parse(raw);
