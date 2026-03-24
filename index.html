@@ -423,6 +423,26 @@ img{display:block;max-width:100%}
 .rte-editor .inline-copy-btn:hover{outline:2px solid var(--accent)}
 .rte-editor .inline-copy-btn::before{content:'📋';position:absolute;top:4px;right:4px;font-size:11px;opacity:.5}
 
+/* === Image Edit Toolbar === */
+.img-edit-toolbar{position:absolute;z-index:300;display:flex;gap:3px;padding:6px 8px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.4);flex-wrap:wrap;max-width:360px}
+.img-edit-toolbar button{padding:5px 8px;border-radius:6px;font-size:11px;font-weight:500;color:var(--text);background:var(--card);border:1px solid var(--border);cursor:pointer;white-space:nowrap;transition:all .15s}
+.img-edit-toolbar button:hover{background:var(--card-h);border-color:var(--border2)}
+.img-edit-toolbar button.active{color:var(--accent);border-color:var(--accent);background:rgba(56,189,248,0.1)}
+.img-edit-toolbar .iet-sep{width:1px;background:var(--border);margin:0 2px;align-self:stretch}
+.img-edit-toolbar button.iet-danger{color:#ef4444}
+.img-edit-toolbar button.iet-danger:hover{background:rgba(239,68,68,0.15)}
+.rte-editor img{cursor:pointer;outline:2px solid transparent;transition:outline .15s;border-radius:8px;margin:8px 0}
+.rte-editor img:hover{outline:2px solid rgba(56,189,248,0.3)}
+.rte-editor img.img-selected{outline:2px solid var(--accent)}
+/* Image float/alignment classes */
+.rte-editor img.img-float-left,.article-content img.img-float-left{float:left;margin:4px 16px 8px 0;max-width:50%}
+.rte-editor img.img-float-right,.article-content img.img-float-right{float:right;margin:4px 0 8px 16px;max-width:50%}
+.rte-editor img.img-center,.article-content img.img-center{display:block;margin:12px auto;float:none}
+.rte-editor img.img-size-small,.article-content img.img-size-small{max-width:200px}
+.rte-editor img.img-size-medium,.article-content img.img-size-medium{max-width:400px}
+.rte-editor img.img-size-large,.article-content img.img-size-large{max-width:600px}
+.rte-editor img.img-size-full,.article-content img.img-size-full{max-width:100%;width:100%}
+
 /* Insert-copy-btn dialog */
 .icb-dialog-overlay{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center}
 .icb-dialog-overlay.show{display:flex}
@@ -1038,9 +1058,10 @@ $('adminClose').onclick=function(){$('adminOverlay').classList.remove('show')};
 (function(){
   var gear=$('adminGear');
 
-  // 方1：鍵盤快捷鍵 Ctrl+Shift+A
+  // 方1：鍵盤快捷鍵 Ctrl+Shift+A 或 Cmd+Shift+A (Mac)
   document.addEventListener('keydown',function(e){
-    if(e.ctrlKey&&e.shiftKey&&e.key==='A'){
+    if((e.ctrlKey||e.metaKey)&&e.shiftKey&&(e.key==='A'||e.key==='a')){
+      e.preventDefault();
       gear.classList.toggle('visible');
     }
   });
@@ -1728,7 +1749,6 @@ function openEditModal(card,defaultPage){
     {cmd:'formatBlock',html:'H2',val:'h2'},
     {cmd:'formatBlock',html:'H3',val:'h3'},
     {cmd:'createLink',html:'\uD83D\uDD17'},
-    {cmd:'insertImage',html:'\uD83D\uDDBC\uFE0F'},
     {cmd:'removeFormat',html:'\u2715'}
   ];
   cmds.forEach(function(c){
@@ -1739,9 +1759,6 @@ function openEditModal(card,defaultPage){
       if(c.cmd==='createLink'){
         var url=prompt('\u8ACB\u8F38\u5165\u9023\u7D50 URL:','https://');
         if(url)document.execCommand('createLink',false,url);
-      }else if(c.cmd==='insertImage'){
-        var url=prompt('\u8ACB\u8F38\u5165\u5716\u7247 URL:','https://');
-        if(url)document.execCommand('insertImage',false,url);
       }else if(c.val){
         document.execCommand(c.cmd,false,c.val);
       }else{
@@ -1750,6 +1767,73 @@ function openEditModal(card,defaultPage){
     };
     rtToolbar.appendChild(btn);
   });
+
+  /* Image insert button with upload + URL options */
+  var imgBtnWrap=ce('div','');
+  imgBtnWrap.style.cssText='position:relative;display:inline-block';
+  var imgBtn=ce('button','','\uD83D\uDDBC\uFE0F');
+  imgBtn.onmousedown=function(e){e.preventDefault()};
+  var imgMenu=ce('div','');
+  imgMenu.style.cssText='display:none;position:absolute;top:100%;left:0;z-index:20;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:6px;min-width:140px;box-shadow:0 4px 12px rgba(0,0,0,.3)';
+  var imgUploadOpt=ce('button','','\uD83D\uDCE4 上傳圖片');
+  imgUploadOpt.style.cssText='display:block;width:100%;text-align:left;padding:8px 10px;border-radius:6px;font-size:13px;color:var(--text);background:none;border:none;cursor:pointer';
+  imgUploadOpt.onmouseover=function(){this.style.background='var(--card-h)'};
+  imgUploadOpt.onmouseout=function(){this.style.background='none'};
+  var imgUrlOpt=ce('button','','\uD83D\uDD17 輸入圖片 URL');
+  imgUrlOpt.style.cssText='display:block;width:100%;text-align:left;padding:8px 10px;border-radius:6px;font-size:13px;color:var(--text);background:none;border:none;cursor:pointer';
+  imgUrlOpt.onmouseover=function(){this.style.background='var(--card-h)'};
+  imgUrlOpt.onmouseout=function(){this.style.background='none'};
+
+  /* Hidden file input */
+  var imgFileInput=ce('input');
+  imgFileInput.type='file';
+  imgFileInput.accept='image/*';
+  imgFileInput.style.display='none';
+  imgFileInput.onchange=function(){
+    var file=this.files[0];
+    if(!file)return;
+    if(file.size>5*1024*1024){toast('圖片不可超過 5MB');return;}
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      var editor=$('articleEditor');
+      if(editor)editor.focus();
+      document.execCommand('insertHTML',false,'<img src="'+ev.target.result+'" style="max-width:100%;border-radius:8px;margin:8px 0" alt="uploaded image">');
+    };
+    reader.readAsDataURL(file);
+    imgFileInput.value='';
+    imgMenu.style.display='none';
+  };
+
+  imgUploadOpt.onclick=function(e){
+    e.preventDefault();
+    imgFileInput.click();
+  };
+  imgUrlOpt.onclick=function(e){
+    e.preventDefault();
+    imgMenu.style.display='none';
+    var url=prompt('\u8ACB\u8F38\u5165\u5716\u7247 URL:','https://');
+    if(url){
+      var editor=$('articleEditor');
+      if(editor)editor.focus();
+      document.execCommand('insertImage',false,url);
+    }
+  };
+
+  imgMenu.appendChild(imgUploadOpt);
+  imgMenu.appendChild(imgUrlOpt);
+  imgMenu.appendChild(imgFileInput);
+  imgBtnWrap.appendChild(imgBtn);
+  imgBtnWrap.appendChild(imgMenu);
+
+  imgBtn.onclick=function(e){
+    e.preventDefault();
+    imgMenu.style.display=imgMenu.style.display==='none'?'block':'none';
+  };
+  /* Close menu on outside click */
+  document.addEventListener('click',function(e){
+    if(!imgBtnWrap.contains(e.target))imgMenu.style.display='none';
+  });
+  rtToolbar.appendChild(imgBtnWrap);
 
   /* Text color button */
   var colorWrap=ce('div','');
@@ -2519,6 +2603,110 @@ function init(){
     }
   });
 }
+
+/* ====== IMAGE EDIT TOOLBAR IN EDITOR ====== */
+var _imgToolbar=null;
+var _imgSelected=null;
+
+function createImgToolbar(){
+  if(_imgToolbar)return _imgToolbar;
+  var tb=document.createElement('div');
+  tb.className='img-edit-toolbar';
+  tb.style.display='none';
+
+  function addBtn(text,cls,fn){
+    var b=document.createElement('button');
+    b.textContent=text;
+    if(cls)b.className=cls;
+    b.onmousedown=function(e){e.preventDefault()};
+    b.onclick=function(e){e.preventDefault();fn(b)};
+    tb.appendChild(b);
+    return b;
+  }
+  function addSep(){var s=document.createElement('div');s.className='iet-sep';tb.appendChild(s)}
+
+  /* Size */
+  addBtn('小','',function(){applyImgClass('img-size-','img-size-small')});
+  addBtn('中','',function(){applyImgClass('img-size-','img-size-medium')});
+  addBtn('大','',function(){applyImgClass('img-size-','img-size-large')});
+  addBtn('滿版','',function(){applyImgClass('img-size-','img-size-full')});
+  addSep();
+  /* Alignment / Float */
+  addBtn('⬅ 左浮','',function(){applyImgClass('img-float-|img-center','img-float-left')});
+  addBtn('置中','',function(){applyImgClass('img-float-|img-center','img-center')});
+  addBtn('右浮 ➡','',function(){applyImgClass('img-float-|img-center','img-float-right')});
+  addSep();
+  /* Delete */
+  addBtn('🗑 刪除','iet-danger',function(){
+    if(_imgSelected){_imgSelected.remove();hideImgToolbar()}
+  });
+
+  document.body.appendChild(tb);
+  _imgToolbar=tb;
+  return tb;
+}
+
+function applyImgClass(removePrefix,addClass){
+  if(!_imgSelected)return;
+  /* Remove classes matching prefix patterns (pipe-separated) */
+  removePrefix.split('|').forEach(function(pf){
+    var toRemove=[];
+    _imgSelected.classList.forEach(function(c){if(c.indexOf(pf)===0)toRemove.push(c)});
+    toRemove.forEach(function(c){_imgSelected.classList.remove(c)});
+  });
+  if(addClass)_imgSelected.classList.add(addClass);
+  positionImgToolbar();
+  updateImgToolbarActive();
+}
+
+function showImgToolbar(img){
+  if(_imgSelected)_imgSelected.classList.remove('img-selected');
+  _imgSelected=img;
+  img.classList.add('img-selected');
+  var tb=createImgToolbar();
+  tb.style.display='flex';
+  positionImgToolbar();
+  updateImgToolbarActive();
+}
+
+function positionImgToolbar(){
+  if(!_imgToolbar||!_imgSelected)return;
+  var rect=_imgSelected.getBoundingClientRect();
+  _imgToolbar.style.left=Math.max(8,rect.left)+'px';
+  _imgToolbar.style.top=Math.max(8,rect.top-44)+'px';
+  _imgToolbar.style.position='fixed';
+}
+
+function hideImgToolbar(){
+  if(_imgSelected){_imgSelected.classList.remove('img-selected');_imgSelected=null}
+  if(_imgToolbar)_imgToolbar.style.display='none';
+}
+
+function updateImgToolbarActive(){
+  if(!_imgToolbar||!_imgSelected)return;
+  var btns=_imgToolbar.querySelectorAll('button');
+  var cls=_imgSelected.className;
+  var map={'小':'img-size-small','中':'img-size-medium','大':'img-size-large','滿版':'img-size-full','⬅ 左浮':'img-float-left','置中':'img-center','右浮 ➡':'img-float-right'};
+  btns.forEach(function(b){
+    var expected=map[b.textContent];
+    if(expected)b.classList.toggle('active',cls.indexOf(expected)>=0);
+  });
+}
+
+/* Delegate click on images inside editor */
+document.addEventListener('click',function(e){
+  var editor=$('articleEditor');
+  if(!editor)return;
+  if(e.target.tagName==='IMG'&&editor.contains(e.target)){
+    e.preventDefault();
+    showImgToolbar(e.target);
+    return;
+  }
+  /* Click outside image: hide toolbar (but not if clicking toolbar itself) */
+  if(_imgToolbar&&!_imgToolbar.contains(e.target)){
+    hideImgToolbar();
+  }
+});
 
 /* ====== INLINE COPY BUTTON (ICB) SYSTEM ====== */
 var _icbEditTarget=null; /* the .inline-copy-btn element being edited, or null for new insert */
