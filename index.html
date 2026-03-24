@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AI 工具資源平台</title>
+<meta name="description" content="AI 工具資源平台 — 整合最新 AI 科技工具">
+<meta property="og:title" content="AI 工具資源平台">
+<meta property="og:description" content="AI 工具資源平台 — 整合最新 AI 科技工具">
+<meta property="og:image" content="">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
@@ -34,6 +38,12 @@ img{display:block;max-width:100%}
 .nav-tab:hover{color:var(--text);background:var(--card)}
 .nav-tab.active{color:var(--accent);background:rgba(56,189,248,0.1)}
 .nav-visit{font-size:13px;color:var(--text3);white-space:nowrap;flex-shrink:0}
+
+/* ANNOUNCEMENT BANNER */
+.announcement-banner{display:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;text-align:center;padding:10px 48px 10px 24px;font-size:14px;font-weight:500;position:relative;z-index:99}
+.announcement-banner.show{display:block}
+.announcement-banner .dismiss-btn{position:absolute;right:16px;top:50%;transform:translateY(-50%);background:none;border:none;color:#fff;font-size:18px;cursor:pointer;opacity:.7}
+.announcement-banner .dismiss-btn:hover{opacity:1}
 
 /* HERO */
 .hero{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px 60px;overflow:hidden}
@@ -107,7 +117,7 @@ img{display:block;max-width:100%}
 .admin-header h2{font-size:18px;font-weight:700}
 .admin-close{font-size:22px;color:var(--text3);cursor:pointer;transition:color .2s}
 .admin-close:hover{color:var(--text)}
-.admin-tabs{display:flex;gap:4px;padding:12px 24px 0;border-bottom:1px solid var(--border)}
+.admin-tabs{display:flex;gap:4px;padding:12px 24px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .admin-tab{padding:8px 16px;border-radius:8px 8px 0 0;font-size:14px;font-weight:500;color:var(--text3);transition:all .2s;border-bottom:2px solid transparent}
 .admin-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(56,189,248,0.06)}
 .admin-body{flex:1;overflow-y:auto;padding:20px 24px}
@@ -120,12 +130,15 @@ img{display:block;max-width:100%}
 .admin-cat-label:first-child{margin-top:0}
 .admin-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:rgba(255,255,255,0.03);margin-bottom:6px;transition:background .15s}
 .admin-row:hover{background:rgba(255,255,255,0.06)}
+.admin-row-thumb{width:32px;height:32px;border-radius:4px;object-fit:cover;flex-shrink:0;background:var(--bg3)}
+.admin-row-thumb-placeholder{width:32px;height:32px;border-radius:4px;flex-shrink:0;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text3)}
 .admin-row-title{flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .admin-row-title.hidden-card{opacity:.4}
 .admin-row button{padding:5px 10px;border-radius:6px;font-size:12px;background:rgba(255,255,255,0.06);color:var(--text2);transition:all .15s}
 .admin-row button:hover{background:rgba(255,255,255,0.12);color:var(--text)}
 .admin-row button.del{color:#f87171}
 .admin-row button.del:hover{background:rgba(248,113,113,0.15)}
+.link-status{font-size:11px;margin-left:4px}
 
 /* TOGGLE */
 .toggle{position:relative;width:40px;height:22px;border-radius:99px;background:#475569;cursor:pointer;transition:background .2s;flex-shrink:0}
@@ -160,6 +173,28 @@ img{display:block;max-width:100%}
 .admin-email-add input{flex:1;padding:8px 13px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:14px;outline:none}
 .admin-email-add button{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;color:#fff;background:linear-gradient(135deg,var(--accent3),var(--accent))}
 
+/* PAGES ADMIN (category tab) */
+.pages-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:rgba(255,255,255,0.03);margin-bottom:6px}
+.pages-row span{flex:1;font-size:14px}
+.pages-row button{padding:5px 10px;border-radius:6px;font-size:12px;background:rgba(255,255,255,0.06);color:var(--text2);transition:all .15s}
+.pages-row button:hover{background:rgba(255,255,255,0.12);color:var(--text)}
+.pages-row button.del{color:#f87171}
+
+/* STATS DASHBOARD */
+.stats-big-number{font-size:48px;font-weight:700;color:var(--accent);text-align:center;margin:16px 0 8px}
+.stats-big-label{font-size:14px;color:var(--text2);text-align:center;margin-bottom:24px}
+.stats-section-title{font-size:15px;font-weight:600;color:var(--text);margin:20px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.stats-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.stats-bar-label{font-size:13px;color:var(--text2);min-width:120px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stats-bar-track{flex:1;height:20px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden}
+.stats-bar-fill{height:100%;border-radius:4px;background:linear-gradient(135deg,var(--accent),var(--accent2));transition:width .3s}
+.stats-bar-value{font-size:12px;color:var(--text3);min-width:40px;text-align:right}
+.stats-daily-chart{display:flex;align-items:flex-end;gap:8px;height:120px;padding:12px 0;margin-bottom:8px}
+.stats-daily-bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.stats-daily-bar-fill{width:100%;min-width:24px;border-radius:4px 4px 0 0;background:linear-gradient(180deg,var(--accent),var(--accent2));transition:height .3s}
+.stats-daily-bar-label{font-size:10px;color:var(--text3)}
+.stats-daily-bar-count{font-size:11px;color:var(--text2)}
+
 /* TOAST */
 .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);padding:10px 24px;border-radius:10px;background:#334155;color:var(--text);font-size:14px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
 .toast.show{opacity:1}
@@ -191,6 +226,12 @@ img{display:block;max-width:100%}
 </style>
 </head>
 <body>
+
+<div class="announcement-banner" id="announcementBanner">
+  <span id="announcementText"></span>
+  <button class="dismiss-btn" id="announcementDismiss">&times;</button>
+</div>
+
 <nav class="nav" id="nav">
   <div class="nav-logo">
     <div class="nav-logo-icon">+</div>
@@ -229,7 +270,9 @@ img{display:block;max-width:100%}
       <span class="admin-close" id="adminClose">&times;</span>
     </div>
     <div class="admin-tabs" id="adminTabs">
-      <button class="admin-tab active" data-atab="cards">工具卡片</button>
+      <button class="admin-tab active" data-atab="cards">工具管理</button>
+      <button class="admin-tab" data-atab="pages">分類</button>
+      <button class="admin-tab" data-atab="stats">統計</button>
       <button class="admin-tab" data-atab="admins">管理員</button>
     </div>
     <div class="admin-body" id="adminBody"></div>
@@ -239,7 +282,7 @@ img{display:block;max-width:100%}
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <div class="modal-head">
-      <h3 id="modalTitle">編輯卡片</h3>
+      <h3 id="modalTitle">編輯工具</h3>
       <span class="admin-close" id="modalClose">&times;</span>
     </div>
     <div class="modal-body" id="modalBody"></div>
@@ -267,6 +310,7 @@ var _adminCards=[];
 var _adminEmails=[];
 var _adminTab='cards';
 var _editCard=null;
+var _settings={};
 
 var HERO_META=[
   {ico:'\uD83D\uDCCA',desc:'AI \u7C21\u5831\u751F\u6210\u5DE5\u5177\uFF0C\u4E00\u9375\u88FD\u4F5C\u7CBE\u7F8E\u6295\u5F71\u7247'},
@@ -507,6 +551,40 @@ function copyText(text){
   else{var ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta)}
 }
 
+/* ====== ANNOUNCEMENT ====== */
+function applyAnnouncement(){
+  var banner=$('announcementBanner');
+  var textEl=$('announcementText');
+  if(_settings.announcement && _settings.announcement_visible==='true'){
+    textEl.textContent=_settings.announcement;
+    banner.classList.add('show');
+  }else{
+    banner.classList.remove('show');
+  }
+}
+$('announcementDismiss').onclick=function(){
+  $('announcementBanner').classList.remove('show');
+};
+
+/* ====== SEO ====== */
+function applySEO(){
+  if(_settings.seo_title) document.title=_settings.seo_title;
+  if(_settings.seo_description){
+    var meta=document.querySelector('meta[name="description"]');
+    if(meta) meta.setAttribute('content',_settings.seo_description);
+    var ogDesc=document.querySelector('meta[property="og:description"]');
+    if(ogDesc) ogDesc.setAttribute('content',_settings.seo_description);
+  }
+  if(_settings.seo_og_image){
+    var ogImg=document.querySelector('meta[property="og:image"]');
+    if(ogImg) ogImg.setAttribute('content',_settings.seo_og_image);
+  }
+  if(_settings.seo_title){
+    var ogTitle=document.querySelector('meta[property="og:title"]');
+    if(ogTitle) ogTitle.setAttribute('content',_settings.seo_title);
+  }
+}
+
 /* ====== ADMIN ====== */
 function openAdmin(){
   var savedPw=sessionStorage.getItem('admin_pw')||'';
@@ -536,7 +614,9 @@ document.querySelectorAll('#adminTabs .admin-tab').forEach(function(btn){
     _adminTab=btn.getAttribute('data-atab');
     updateAdminTabs();
     if(_adminTab==='cards')loadAdminCards();
-    else loadAdminEmails();
+    else if(_adminTab==='admins')loadAdminEmails();
+    else if(_adminTab==='pages')loadAdminPages();
+    else if(_adminTab==='stats')loadAdminStats();
   };
 });
 
@@ -562,6 +642,8 @@ function renderAdminCards(filter){
   var body=$('adminBody');
   body.innerHTML='';
   var toolbar=ce('div','admin-toolbar');
+
+  /* Visit count button */
   var visitBtn=ce('button','admin-add-btn','\uD83D\uDC41 \u7E3D\u700F\u89BD: '+(_totalVisits||0));
   visitBtn.title='\u9EDE\u64CA\u4FEE\u6539\u7E3D\u700F\u89BD\u6B21\u6578';
   visitBtn.style.cssText='margin-right:8px;font-size:13px';
@@ -576,11 +658,50 @@ function renderAdminCards(filter){
     });
   };
   toolbar.appendChild(visitBtn);
+
+  /* Search */
   var search=ce('input','admin-search');
-  search.placeholder='\u641C\u5C0B\u5361\u7247...';
+  search.placeholder='\u641C\u5C0B\u5DE5\u5177...';
   search.value=filter||'';
   search.oninput=function(){renderAdminCards(this.value)};
   toolbar.appendChild(search);
+
+  /* Link checker button (Feature 3) */
+  var linkCheckBtn=ce('button','admin-add-btn','\uD83D\uDD17 \u6AA2\u67E5\u9023\u7D50');
+  linkCheckBtn.style.cssText='font-size:13px';
+  linkCheckBtn.onclick=function(){checkAllLinks()};
+  toolbar.appendChild(linkCheckBtn);
+
+  /* Export button (Feature 7) */
+  var exportBtn=ce('button','admin-add-btn','\uD83D\uDCBE \u532F\u51FA');
+  exportBtn.style.cssText='font-size:13px';
+  exportBtn.onclick=function(){exportCards()};
+  toolbar.appendChild(exportBtn);
+
+  /* Import button (Feature 7) */
+  var importBtn=ce('button','admin-add-btn','\uD83D\uDCBE \u532F\u5165');
+  importBtn.style.cssText='font-size:13px';
+  importBtn.onclick=function(){importInput.click()};
+  toolbar.appendChild(importBtn);
+  var importInput=ce('input');
+  importInput.type='file';
+  importInput.accept='.json';
+  importInput.style.display='none';
+  importInput.onchange=function(e){importCards(e)};
+  toolbar.appendChild(importInput);
+
+  /* Announcement section (Feature 5) */
+  var announceBtn=ce('button','admin-add-btn','\uD83D\uDCE2 \u516C\u544A');
+  announceBtn.style.cssText='font-size:13px';
+  announceBtn.onclick=function(){openAnnouncementModal()};
+  toolbar.appendChild(announceBtn);
+
+  /* SEO button (Feature 6) */
+  var seoBtn=ce('button','admin-add-btn','\uD83D\uDD0D SEO');
+  seoBtn.style.cssText='font-size:13px';
+  seoBtn.onclick=function(){openSEOModal()};
+  toolbar.appendChild(seoBtn);
+
   body.appendChild(toolbar);
 
   var groups={};
@@ -608,6 +729,19 @@ function renderAdminCards(filter){
 
     cards.forEach(function(card){
       var row=ce('div','admin-row');
+
+      /* Feature 8: Thumbnail */
+      var thumbUrl=card.imageUrls&&card.imageUrls.length?toDriveImg((card.imageUrls[0]||'').split('|')[0]):'';
+      if(thumbUrl){
+        var thumb=ce('img','admin-row-thumb');
+        thumb.src=thumbUrl;
+        thumb.onerror=function(){this.style.display='none'};
+        row.appendChild(thumb);
+      }else{
+        var pholder=ce('div','admin-row-thumb-placeholder','\uD83D\uDDBC');
+        row.appendChild(pholder);
+      }
+
       var toggle=ce('div','toggle'+(card.visible!==false?' on':''));
       toggle.onclick=function(){
         card.visible=!this.classList.contains('on');
@@ -619,8 +753,9 @@ function renderAdminCards(filter){
       };
       row.appendChild(toggle);
 
-      var title=ce('span','admin-row-title'+(card.visible===false?' hidden-card':''),esc(card.title));
-      row.appendChild(title);
+      var titleSpan=ce('span','admin-row-title'+(card.visible===false?' hidden-card':''),esc(card.title));
+      titleSpan.id='card-title-'+card.id;
+      row.appendChild(titleSpan);
 
       var upBtn=ce('button','','\u25B2');
       upBtn.title='\u4E0A\u79FB';
@@ -635,6 +770,12 @@ function renderAdminCards(filter){
       var editBtn=ce('button','','\u270F');
       editBtn.onclick=function(){openEditModal(card)};
       row.appendChild(editBtn);
+
+      /* Feature 1: Duplicate button */
+      var dupBtn=ce('button','','\uD83D\uDCCB');
+      dupBtn.title='\u8907\u88FD\u5DE5\u5177';
+      dupBtn.onclick=function(){duplicateCard(card)};
+      row.appendChild(dupBtn);
 
       var viewBtn=ce('button','admin-view-btn','\uD83D\uDC41 '+(card.views||0));
       viewBtn.title='\u9EDE\u64CA\u4FEE\u6539\u700F\u89BD\u6578';
@@ -663,10 +804,161 @@ function renderAdminCards(filter){
   });
 }
 
+/* ====== Feature 1: Duplicate Card ====== */
+function duplicateCard(card){
+  var copy=JSON.parse(JSON.stringify(card));
+  copy.title=(copy.title||'')+' (\u526F\u672C)';
+  delete copy.id;
+  copy.views=0;
+  gasAPI('saveCard',{data:JSON.stringify(copy)},function(r){
+    if(r&&r.ok){toast('\u5DF2\u8907\u88FD');loadAdminCards();refreshMainData()}
+    else toast('\u8907\u88FD\u5931\u6557');
+  });
+}
+
+/* ====== Feature 3: Link Checker ====== */
+function checkAllLinks(){
+  toast('\u6B63\u5728\u6AA2\u67E5\u9023\u7D50...');
+  var cardsWithLink=_adminCards.filter(function(c){return c.linkUrl});
+  var remaining=cardsWithLink.length;
+  if(!remaining){toast('\u6C92\u6709\u9023\u7D50\u53EF\u6AA2\u67E5');return}
+  cardsWithLink.forEach(function(card){
+    var titleEl=document.getElementById('card-title-'+card.id);
+    if(!titleEl)return;
+    /* Remove old status */
+    var oldStatus=titleEl.querySelector('.link-status');
+    if(oldStatus)oldStatus.remove();
+    var statusSpan=ce('span','link-status','...');
+    statusSpan.style.color='var(--text3)';
+    titleEl.appendChild(statusSpan);
+    /* Use img trick to check if URL is reachable */
+    var img=new Image();
+    var done=false;
+    var timer=setTimeout(function(){
+      if(!done){done=true;statusSpan.textContent=' \u26A0';statusSpan.style.color='#f87171';remaining--;if(!remaining)toast('\u9023\u7D50\u6AA2\u67E5\u5B8C\u6210')}
+    },6000);
+    img.onload=function(){
+      if(!done){done=true;clearTimeout(timer);statusSpan.textContent=' \u2713';statusSpan.style.color='#34d399';remaining--;if(!remaining)toast('\u9023\u7D50\u6AA2\u67E5\u5B8C\u6210')}
+    };
+    img.onerror=function(){
+      /* img error doesn't always mean broken link — try fetch as fallback */
+      var f=new Image();
+      var done2=false;
+      f.onload=function(){
+        if(!done){done=true;clearTimeout(timer);statusSpan.textContent=' \u2713';statusSpan.style.color='#34d399';remaining--;if(!remaining)toast('\u9023\u7D50\u6AA2\u67E5\u5B8C\u6210')}
+      };
+      f.onerror=function(){
+        /* For cross-origin URLs, img always errors. Use a generous approach: mark as "?" */
+        if(!done){done=true;clearTimeout(timer);statusSpan.textContent=' \u2753';statusSpan.style.color='#fbbf24';statusSpan.title='\u7121\u6CD5\u78BA\u8A8D (\u8DE8\u57DF\u9650\u5236)';remaining--;if(!remaining)toast('\u9023\u7D50\u6AA2\u67E5\u5B8C\u6210')}
+      };
+      var url=card.linkUrl;
+      try{var u=new URL(url);f.src=u.origin+'/favicon.ico'}catch(e){
+        if(!done){done=true;clearTimeout(timer);statusSpan.textContent=' \u26A0';statusSpan.style.color='#f87171';remaining--;if(!remaining)toast('\u9023\u7D50\u6AA2\u67E5\u5B8C\u6210')}
+      }
+    };
+    img.src=card.linkUrl;
+  });
+}
+
+/* ====== Feature 7: Export/Import ====== */
+function exportCards(){
+  var data=JSON.stringify(_adminCards,null,2);
+  var blob=new Blob([data],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var a=ce('a');
+  a.href=url;
+  a.download='ai-tools-export-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('\u5DF2\u532F\u51FA');
+}
+
+function importCards(e){
+  var file=e.target.files[0];
+  if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      var arr=JSON.parse(ev.target.result);
+      if(!Array.isArray(arr)){toast('\u683C\u5F0F\u932F\u8AA4\uFF1A\u9700\u8981\u9663\u5217');return}
+      if(!confirm('\u5373\u5C07\u532F\u5165 '+arr.length+' \u500B\u5DE5\u5177\uFF0C\u662F\u5426\u7E7C\u7E8C\uFF1F'))return;
+      var idx=0;
+      function saveNext(){
+        if(idx>=arr.length){toast('\u532F\u5165\u5B8C\u6210');loadAdminCards();refreshMainData();return}
+        var card=arr[idx];
+        delete card.id;
+        delete card.views;
+        gasAPI('saveCard',{data:JSON.stringify(card)},function(r){
+          idx++;
+          saveNext();
+        });
+      }
+      saveNext();
+    }catch(err){toast('\u89E3\u6790 JSON \u5931\u6557');}
+  };
+  reader.readAsText(file);
+  e.target.value='';
+}
+
+/* ====== Feature 5: Announcement Modal ====== */
+function openAnnouncementModal(){
+  $('modalTitle').textContent='\u516C\u544A\u6A6B\u5E45\u8A2D\u5B9A';
+  var body=$('modalBody');
+  body.innerHTML='';
+
+  var div1=ce('div','modal-field');
+  div1.appendChild(ce('label','','\u516C\u544A\u5167\u5BB9'));
+  var inp=ce('input');
+  inp.id='mf_announcement';
+  inp.type='text';
+  inp.value=_settings.announcement||'';
+  div1.appendChild(inp);
+  body.appendChild(div1);
+
+  var div2=ce('div','modal-field');
+  div2.appendChild(ce('label','','\u986F\u793A\u516C\u544A'));
+  var tog=ce('div','toggle'+(_settings.announcement_visible==='true'?' on':''));
+  tog.id='mf_announcement_visible';
+  tog.onclick=function(){this.classList.toggle('on')};
+  div2.appendChild(tog);
+  body.appendChild(div2);
+
+  $('modalOverlay').classList.add('show');
+  _editCard='__announcement__';
+}
+
+/* ====== Feature 6: SEO Modal ====== */
+function openSEOModal(){
+  $('modalTitle').textContent='SEO \u8A2D\u5B9A';
+  var body=$('modalBody');
+  body.innerHTML='';
+
+  var fields=[
+    {key:'seo_title',label:'\u7DB2\u7AD9\u6A19\u984C (title)'},
+    {key:'seo_description',label:'\u7DB2\u7AD9\u63CF\u8FF0 (description)'},
+    {key:'seo_og_image',label:'OG Image URL'}
+  ];
+  fields.forEach(function(f){
+    var div=ce('div','modal-field');
+    div.appendChild(ce('label','',f.label));
+    var inp=ce('input');
+    inp.id='mf_'+f.key;
+    inp.type='text';
+    inp.value=_settings[f.key]||'';
+    div.appendChild(inp);
+    body.appendChild(div);
+  });
+
+  $('modalOverlay').classList.add('show');
+  _editCard='__seo__';
+}
+
 /* ====== EDIT MODAL ====== */
 function openEditModal(card,defaultPage){
   _editCard=card?JSON.parse(JSON.stringify(card)):null;
-  $('modalTitle').textContent=card?'\u7DE8\u8F2F\u5361\u7247':'\u65B0\u589E\u5361\u7247';
+  $('modalTitle').textContent=card?'\u7DE8\u8F2F\u5DE5\u5177':'\u65B0\u589E\u5DE5\u5177';
   var body=$('modalBody');
   body.innerHTML='';
 
@@ -746,11 +1038,49 @@ function updateImgPreview(container,val){
   });
 }
 
-$('modalClose').onclick=function(){$('modalOverlay').classList.remove('show')};
-$('modalCancel').onclick=function(){$('modalOverlay').classList.remove('show')};
-$('modalOverlay').onclick=function(e){if(e.target===this)this.classList.remove('show')};
+$('modalClose').onclick=function(){$('modalOverlay').classList.remove('show');_editCard=null};
+$('modalCancel').onclick=function(){$('modalOverlay').classList.remove('show');_editCard=null};
+$('modalOverlay').onclick=function(e){if(e.target===this){this.classList.remove('show');_editCard=null}};
 
 $('modalSave').onclick=function(){
+  /* Feature 5: Announcement save */
+  if(_editCard==='__announcement__'){
+    var annText=(document.getElementById('mf_announcement')||{}).value||'';
+    var annVisible=document.getElementById('mf_announcement_visible').classList.contains('on')?'true':'false';
+    gasAPI('saveSetting',{key:'announcement',value:annText},function(r1){
+      gasAPI('saveSetting',{key:'announcement_visible',value:annVisible},function(r2){
+        _settings.announcement=annText;
+        _settings.announcement_visible=annVisible;
+        applyAnnouncement();
+        toast('\u516C\u544A\u5DF2\u5132\u5B58');
+        $('modalOverlay').classList.remove('show');
+        _editCard=null;
+      });
+    });
+    return;
+  }
+  /* Feature 6: SEO save */
+  if(_editCard==='__seo__'){
+    var seoFields=['seo_title','seo_description','seo_og_image'];
+    var idx=0;
+    function saveNextSEO(){
+      if(idx>=seoFields.length){
+        applySEO();
+        toast('SEO \u5DF2\u5132\u5B58');
+        $('modalOverlay').classList.remove('show');
+        _editCard=null;
+        return;
+      }
+      var key=seoFields[idx];
+      var val=(document.getElementById('mf_'+key)||{}).value||'';
+      _settings[key]=val;
+      gasAPI('saveSetting',{key:key,value:val},function(){idx++;saveNextSEO()});
+    }
+    saveNextSEO();
+    return;
+  }
+
+  /* Normal card save */
   var card=_editCard||{};
   card.page=document.getElementById('mf_page').value;
   card.category=card.page;
@@ -772,6 +1102,7 @@ $('modalSave').onclick=function(){
     if(r&&r.ok){
       toast('\u5DF2\u5132\u5B58');
       $('modalOverlay').classList.remove('show');
+      _editCard=null;
       loadAdminCards();
       refreshMainData();
     }else{
@@ -829,6 +1160,165 @@ function saveAdminEmails(){
   });
 }
 
+/* ====== Feature 2: Pages/Category Management ====== */
+function loadAdminPages(){
+  var body=$('adminBody');
+  body.innerHTML='';
+
+  var title=ce('div','stats-section-title','\u5206\u985E\u7BA1\u7406');
+  body.appendChild(title);
+
+  var addRow=ce('div','admin-email-add');
+  var inp=ce('input');
+  inp.placeholder='\u65B0\u5206\u985E\u540D\u7A31...';
+  inp.id='newPageInput';
+  addRow.appendChild(inp);
+  var addBtn=ce('button','','+\u65B0\u589E');
+  addBtn.onclick=function(){
+    var v=document.getElementById('newPageInput').value.trim();
+    if(!v)return;
+    if(PAGES.indexOf(v)>=0){toast('\u5206\u985E\u5DF2\u5B58\u5728');return}
+    PAGES.push(v);
+    savePagesAndRefresh();
+  };
+  addRow.appendChild(addBtn);
+  body.appendChild(addRow);
+
+  PAGES.forEach(function(page,i){
+    var row=ce('div','pages-row');
+    row.appendChild(ce('span','',esc(page)));
+
+    var upBtn=ce('button','','\u25B2');
+    upBtn.title='\u4E0A\u79FB';
+    upBtn.onclick=function(){
+      if(i===0)return;
+      var tmp=PAGES[i];PAGES[i]=PAGES[i-1];PAGES[i-1]=tmp;
+      savePagesAndRefresh();
+    };
+    row.appendChild(upBtn);
+
+    var downBtn=ce('button','','\u25BC');
+    downBtn.title='\u4E0B\u79FB';
+    downBtn.onclick=function(){
+      if(i>=PAGES.length-1)return;
+      var tmp=PAGES[i];PAGES[i]=PAGES[i+1];PAGES[i+1]=tmp;
+      savePagesAndRefresh();
+    };
+    row.appendChild(downBtn);
+
+    var renameBtn=ce('button','','\u270F');
+    renameBtn.title='\u91CD\u65B0\u547D\u540D';
+    renameBtn.onclick=function(){
+      var newName=prompt('\u65B0\u540D\u7A31\uFF1A',page);
+      if(!newName||newName===page)return;
+      PAGES[i]=newName;
+      /* Update cards that reference this category */
+      _adminCards.forEach(function(c){
+        if(c.page===page||c.category===page){
+          c.page=newName;c.category=newName;
+          gasAPI('saveCard',{data:JSON.stringify(c)},null);
+        }
+      });
+      savePagesAndRefresh();
+    };
+    row.appendChild(renameBtn);
+
+    var delBtn=ce('button','del','\u2716');
+    delBtn.onclick=function(){
+      if(!confirm('\u78BA\u5B9A\u522A\u9664\u5206\u985E\u300C'+page+'\u300D\uFF1F'))return;
+      PAGES.splice(i,1);
+      savePagesAndRefresh();
+    };
+    row.appendChild(delBtn);
+
+    body.appendChild(row);
+  });
+}
+
+function savePagesAndRefresh(){
+  gasAPI('savePages',{data:JSON.stringify(PAGES)},function(r){
+    if(r&&r.ok)toast('\u5206\u985E\u5DF2\u5132\u5B58');
+    buildNavTabs();
+    buildHeroGrid();
+    loadAdminPages();
+    refreshMainData();
+  });
+}
+
+/* ====== Feature 4: Stats Dashboard ====== */
+function loadAdminStats(){
+  var body=$('adminBody');
+  body.innerHTML='<div class="loading-placeholder"><span class="spinner"></span>\u8F09\u5165\u7D71\u8A08...</div>';
+
+  /* Total visits */
+  gasAPI('getAnalytics',null,function(res){
+    body.innerHTML='';
+
+    /* Big number */
+    body.appendChild(ce('div','stats-big-number',String(_totalVisits||0)));
+    body.appendChild(ce('div','stats-big-label','\u7E3D\u700F\u89BD\u6B21\u6578'));
+
+    /* Daily chart */
+    if(res&&res.ok&&res.analytics&&res.analytics.daily&&res.analytics.daily.length){
+      body.appendChild(ce('div','stats-section-title','\u8FD1 7 \u5929\u700F\u89BD\u8DA8\u52E2'));
+      var daily=res.analytics.daily;
+      var maxCount=1;
+      daily.forEach(function(d){if(d.count>maxCount)maxCount=d.count});
+      var chart=ce('div','stats-daily-chart');
+      daily.forEach(function(d){
+        var bar=ce('div','stats-daily-bar');
+        var fill=ce('div','stats-daily-bar-fill');
+        var h=Math.max(4,Math.round((d.count/maxCount)*100));
+        fill.style.height=h+'px';
+        bar.appendChild(ce('div','stats-daily-bar-count',String(d.count)));
+        bar.appendChild(fill);
+        bar.appendChild(ce('div','stats-daily-bar-label',d.date.slice(5)));
+        chart.appendChild(bar);
+      });
+      body.appendChild(chart);
+    }
+
+    /* Top 5 tools by views */
+    body.appendChild(ce('div','stats-section-title','Top 5 \u5DE5\u5177 (\u700F\u89BD\u6578)'));
+    var sorted=_adminCards.slice().sort(function(a,b){return (b.views||0)-(a.views||0)}).slice(0,5);
+    var maxViews=sorted.length?(sorted[0].views||1):1;
+    sorted.forEach(function(c){
+      var row=ce('div','stats-bar-row');
+      row.appendChild(ce('div','stats-bar-label',esc(c.title)));
+      var track=ce('div','stats-bar-track');
+      var fill=ce('div','stats-bar-fill');
+      fill.style.width=Math.max(2,Math.round(((c.views||0)/maxViews)*100))+'%';
+      track.appendChild(fill);
+      row.appendChild(track);
+      row.appendChild(ce('div','stats-bar-value',String(c.views||0)));
+      body.appendChild(row);
+    });
+
+    /* Category breakdown */
+    body.appendChild(ce('div','stats-section-title','\u5206\u985E\u7D71\u8A08'));
+    var catCounts={};
+    _adminCards.forEach(function(c){
+      var cat=c.page||c.category||'\u672A\u5206\u985E';
+      catCounts[cat]=(catCounts[cat]||0)+1;
+    });
+    var maxCat=1;
+    for(var k in catCounts){if(catCounts[k]>maxCat)maxCat=catCounts[k]}
+    PAGES.forEach(function(p){
+      var count=catCounts[p]||0;
+      var row=ce('div','stats-bar-row');
+      row.appendChild(ce('div','stats-bar-label',esc(p)));
+      var track=ce('div','stats-bar-track');
+      var fill=ce('div','stats-bar-fill');
+      fill.style.width=Math.max(2,Math.round((count/maxCat)*100))+'%';
+      fill.style.background='linear-gradient(135deg,var(--accent3),var(--accent))';
+      track.appendChild(fill);
+      row.appendChild(track);
+      row.appendChild(ce('div','stats-bar-value',String(count)+' \u500B'));
+      body.appendChild(row);
+    });
+  });
+}
+
 /* ====== REFRESH MAIN DATA ====== */
 function refreshMainData(){
   gasAPI('getData',null,function(data){
@@ -837,6 +1327,11 @@ function refreshMainData(){
     PAGES=data.pages||[];
     GEM_URL=data.gemUrl||'';
     var _s=data.stats||{};_statsData=_s.tools||_s;_totalVisits=_s.total||0;
+    if(data.settings){
+      _settings=data.settings;
+      applyAnnouncement();
+      applySEO();
+    }
     buildNavTabs();
     updateVisit();
     renderCards();
@@ -867,7 +1362,12 @@ function init(){
       if(data.pages&&data.pages.length)PAGES=data.pages;
       if(data.gemUrl)GEM_URL=data.gemUrl;
       var _s=data.stats||{};_statsData=_s.tools||_s;_totalVisits=_s.total||0;
-      updateVisit();renderCards();
+      if(data.settings){
+        _settings=data.settings;
+        applyAnnouncement();
+        applySEO();
+      }
+      updateVisit();renderCards();buildNavTabs();buildHeroGrid();
     });
   },3000);
 
