@@ -1006,11 +1006,14 @@ function renderOneLinkCard(grid,card){
     body.appendChild(meta);
   }
   var foot=ce('div','card-foot');
-  var isCopy=card.meta1==='copy';
-  var link=ce('a','card-link',isCopy?'\uD83D\uDCCB \u8907\u88FD\u9023\u7D50':'\u2197 \u958B\u555F\u5DE5\u5177');
+  var extra=(typeof card.extra==='string')?JSON.parse(card.extra||'{}'):(card.extra||{});
+  var isCopy=(card.linkBehavior||extra.linkBehavior||card.meta1)==='copy';
+  var btnIcon=card.linkBtnIcon||extra.linkBtnIcon||(isCopy?'\uD83D\uDCCB':'\u2197');
+  var btnLabel=card.linkBtnLabel||extra.linkBtnLabel||(isCopy?'\u8907\u88FD\u9023\u7D50':'\u958B\u555F\u5DE5\u5177');
+  var link=ce('a','card-link',btnIcon+' '+btnLabel);
   if(isCopy){
     link.href='javascript:void(0)';
-    link.onclick=function(e){e.preventDefault();copyText(card.linkUrl);toast('\u5DF2\u8907\u88FD\u9023\u7D50');trackClick(card.title,viewsSpan);};
+    link.onclick=function(e){e.preventDefault();copyText(card.linkUrl);toast('\u5DF2\u8907\u88FD');trackClick(card.title,viewsSpan);};
   }else{
     link.href=card.linkUrl||'#';link.target='_blank';link.rel='noopener';
     link.onclick=function(){trackClick(card.title,viewsSpan)};
@@ -2071,27 +2074,68 @@ function openEditModal(card,defaultPage){
   });
 
   /* LINK-specific fields */
-  var linkDiv=ce('div','modal-field');
+  var linkDiv=ce('div','');
   linkDiv.id='mf_linkFields';
-  linkDiv.appendChild(ce('label','','\u9023\u7D50 URL'));
+
+  var linkUrlField=ce('div','modal-field');
+  linkUrlField.appendChild(ce('label','','\u9023\u7D50 URL'));
   var linkInp=ce('input');
   linkInp.id='mf_linkUrl';
   linkInp.type='text';
   linkInp.value=card?card.linkUrl||'':'';
-  linkDiv.appendChild(linkInp);
-  body.appendChild(linkDiv);
+  linkUrlField.appendChild(linkInp);
+  linkDiv.appendChild(linkUrlField);
 
-  /* Meta fields for link */
-  ['meta1','meta2','meta3','iconUrl'].forEach(function(key){
-    var div=ce('div','modal-field mf-link-only');
-    div.appendChild(ce('label','',key==='iconUrl'?'\u5716\u793A URL':key));
-    var inp=ce('input');
-    inp.id='mf_'+key;
-    inp.type='text';
-    inp.value=card?card[key]||'':'';
-    div.appendChild(inp);
-    body.appendChild(div);
+  /* Button behavior */
+  var behaviorField=ce('div','modal-field');
+  behaviorField.appendChild(ce('label','','\u6309\u9215\u884C\u70BA'));
+  var behaviorSel=ce('div','type-selector');
+  var existingBehavior=(card&&card.linkBehavior)||'open';
+  [{val:'open',label:'\u2197 \u958B\u555F\u9023\u7D50'},{val:'copy',label:'\uD83D\uDCCB \u8907\u88FD\u9023\u7D50'}].forEach(function(t){
+    var btn=ce('button',''+(existingBehavior===t.val?' active':''),t.label);
+    btn.setAttribute('data-behavior',t.val);
+    btn.onclick=function(){
+      behaviorSel.querySelectorAll('button').forEach(function(b){b.classList.remove('active')});
+      this.classList.add('active');
+    };
+    behaviorSel.appendChild(btn);
   });
+  behaviorField.appendChild(behaviorSel);
+  linkDiv.appendChild(behaviorField);
+
+  /* Button label */
+  var btnLabelField=ce('div','modal-field');
+  btnLabelField.appendChild(ce('label','','\u6309\u9215\u540D\u7A31 (\u9078\u586B)'));
+  var btnLabelInp=ce('input');
+  btnLabelInp.id='mf_linkBtnLabel';
+  btnLabelInp.type='text';
+  btnLabelInp.value=card?card.linkBtnLabel||'':'';
+  btnLabelInp.placeholder='\u7559\u7A7A\u5247\u81EA\u52D5\uFF1A\u958B\u555F\u5DE5\u5177 / \u8907\u88FD\u9023\u7D50';
+  btnLabelField.appendChild(btnLabelInp);
+  linkDiv.appendChild(btnLabelField);
+
+  /* Button icon */
+  var btnIconField=ce('div','modal-field');
+  btnIconField.appendChild(ce('label','','\u6309\u9215\u5716\u793A (\u9078\u586B)'));
+  var btnIconInp=ce('input');
+  btnIconInp.id='mf_linkBtnIcon';
+  btnIconInp.type='text';
+  btnIconInp.value=card?card.linkBtnIcon||'':'';
+  btnIconInp.placeholder='\u7559\u7A7A\u5247\u81EA\u52D5\uFF1AEmoji \u5716\u793A';
+  btnIconField.appendChild(btnIconInp);
+  linkDiv.appendChild(btnIconField);
+
+  /* Icon URL (card thumbnail) */
+  var iconUrlField=ce('div','modal-field');
+  iconUrlField.appendChild(ce('label','','\u5716\u793A URL'));
+  var iconUrlInp=ce('input');
+  iconUrlInp.id='mf_iconUrl';
+  iconUrlInp.type='text';
+  iconUrlInp.value=card?card.iconUrl||'':'';
+  iconUrlField.appendChild(iconUrlInp);
+  linkDiv.appendChild(iconUrlField);
+
+  body.appendChild(linkDiv);
 
   /* FILE-specific fields */
   var fileDiv=ce('div','');
@@ -2544,14 +2588,11 @@ function toggleTypeFields(){
   var linkFields=document.getElementById('mf_linkFields');
   var fileFields=document.getElementById('mf_fileFields');
   var articleFields=document.getElementById('mf_articleFields');
-  var linkOnlyFields=document.querySelectorAll('.mf-link-only');
-
   var copyFields=document.getElementById('mf_copyFields');
   if(linkFields)linkFields.style.display=_editType==='link'?'':'none';
   if(fileFields)fileFields.style.display=_editType==='file'?'':'none';
   if(articleFields)articleFields.style.display=_editType==='article'?'':'none';
   if(copyFields)copyFields.style.display=_editType==='copy'?'':'none';
-  linkOnlyFields.forEach(function(el){el.style.display=_editType==='link'?'':'none'});
 }
 
 function updateImgPreview(container,val){
@@ -2626,10 +2667,14 @@ $('modalSave').onclick=function(){
   if(_editType==='link'){
     card.linkUrl=document.getElementById('mf_linkUrl').value;
     card.iconUrl=(document.getElementById('mf_iconUrl')||{}).value||'';
-    card.meta1=(document.getElementById('mf_meta1')||{}).value||'';
-    card.meta2=(document.getElementById('mf_meta2')||{}).value||'';
-    card.meta3=(document.getElementById('mf_meta3')||{}).value||'';
-    card.extra=JSON.stringify({});
+    /* Button behavior & customization */
+    var activeBehavior=document.querySelector('#mf_linkFields .type-selector button.active');
+    card.linkBehavior=activeBehavior?activeBehavior.getAttribute('data-behavior'):'open';
+    card.linkBtnLabel=(document.getElementById('mf_linkBtnLabel')||{}).value||'';
+    card.linkBtnIcon=(document.getElementById('mf_linkBtnIcon')||{}).value||'';
+    /* Keep meta1 for backward compat */
+    card.meta1=card.linkBehavior==='copy'?'copy':'';
+    card.extra=JSON.stringify({linkBehavior:card.linkBehavior,linkBtnLabel:card.linkBtnLabel,linkBtnIcon:card.linkBtnIcon});
     gasAPI('saveCard',{data:JSON.stringify(card)},function(r){
       if(r&&r.ok){toast('\u5DF2\u5132\u5B58');$('modalOverlay').classList.remove('show');_editCard=null;loadAdminCards();refreshMainData()}
       else toast('\u5132\u5B58\u5931\u6557');
