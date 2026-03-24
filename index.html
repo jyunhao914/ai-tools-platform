@@ -389,6 +389,58 @@ img{display:block;max-width:100%}
 .card-copy-preview::after{content:'';position:absolute;bottom:0;left:0;right:0;height:24px;background:linear-gradient(transparent,rgba(0,0,0,0.18))}
 [data-theme="light"] .card-copy-preview{background:rgba(0,0,0,0.05);color:#15803d;border-color:rgba(0,0,0,0.08)}
 [data-theme="light"] .card-copy-preview::after{background:linear-gradient(transparent,rgba(0,0,0,0.05))}
+
+/* === Inline Copy Button (article embedded) === */
+.inline-copy-btn{margin:16px 0;border-radius:var(--r);border:1px solid var(--border2);overflow:hidden;user-select:none}
+.inline-copy-btn .icb-preview{padding:10px 14px;font-size:0.82rem;line-height:1.6;max-height:120px;overflow:hidden;white-space:pre-wrap;word-break:break-all;position:relative;color:var(--text2);background:rgba(0,0,0,0.15);border-bottom:1px solid var(--border)}
+.inline-copy-btn .icb-preview.expandable::after{content:'';position:absolute;bottom:0;left:0;right:0;height:28px;background:linear-gradient(transparent,rgba(0,0,0,0.18));pointer-events:none}
+.inline-copy-btn .icb-preview.expanded{max-height:none}
+.inline-copy-btn .icb-preview.expanded::after{display:none}
+.inline-copy-btn .icb-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--card)}
+.inline-copy-btn .icb-bar .icb-label{font-size:12px;color:var(--text3)}
+.inline-copy-btn .icb-bar .icb-action{display:inline-flex;align-items:center;gap:5px;padding:6px 16px;border-radius:8px;font-size:13px;font-weight:600;color:#fff;border:none;cursor:pointer;transition:opacity .2s}
+.inline-copy-btn .icb-bar .icb-action:hover{opacity:.85}
+.inline-copy-btn .icb-bar .icb-action.style-primary{background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.inline-copy-btn .icb-bar .icb-action.style-success{background:linear-gradient(135deg,#22c55e,#16a34a)}
+.inline-copy-btn .icb-bar .icb-action.style-warning{background:linear-gradient(135deg,#f59e0b,#d97706)}
+.inline-copy-btn .icb-bar .icb-action.style-danger{background:linear-gradient(135deg,#ef4444,#dc2626)}
+/* content type variants */
+.inline-copy-btn[data-content-type="code"] .icb-preview{font-family:'Fira Code','Courier New',monospace;font-size:0.78rem;color:#a6e3a1;background:rgba(0,0,0,0.28)}
+.inline-copy-btn[data-content-type="link"] .icb-preview{color:var(--accent);font-size:0.85rem}
+/* inline (compact) mode */
+.inline-copy-btn[data-mode="inline"]{display:inline-flex;align-items:center;margin:0 4px;border-radius:8px;vertical-align:middle}
+.inline-copy-btn[data-mode="inline"] .icb-preview{display:none}
+.inline-copy-btn[data-mode="inline"] .icb-bar{padding:0}
+.inline-copy-btn[data-mode="inline"] .icb-bar .icb-label{display:none}
+.inline-copy-btn[data-mode="inline"] .icb-bar .icb-action{padding:4px 12px;font-size:12px;border-radius:6px}
+/* light theme */
+[data-theme="light"] .inline-copy-btn{border-color:rgba(0,0,0,0.12)}
+[data-theme="light"] .inline-copy-btn .icb-preview{background:rgba(0,0,0,0.04);color:var(--text2)}
+[data-theme="light"] .inline-copy-btn[data-content-type="code"] .icb-preview{background:rgba(0,0,0,0.06);color:#15803d}
+[data-theme="light"] .inline-copy-btn .icb-bar{background:rgba(0,0,0,0.02)}
+/* editor placeholder look */
+.rte-editor .inline-copy-btn{cursor:pointer;outline:2px solid transparent;transition:outline .15s}
+.rte-editor .inline-copy-btn:hover{outline:2px solid var(--accent)}
+.rte-editor .inline-copy-btn::before{content:'📋';position:absolute;top:4px;right:4px;font-size:11px;opacity:.5}
+
+/* Insert-copy-btn dialog */
+.icb-dialog-overlay{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center}
+.icb-dialog-overlay.show{display:flex}
+.icb-dialog{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);padding:24px;width:90%;max-width:480px;max-height:80vh;overflow-y:auto}
+.icb-dialog h3{font-size:17px;font-weight:700;margin-bottom:16px}
+.icb-dialog .icb-field{margin-bottom:14px}
+.icb-dialog .icb-field label{display:block;font-size:13px;font-weight:600;color:var(--text2);margin-bottom:4px}
+.icb-dialog .icb-field input,.icb-dialog .icb-field textarea,.icb-dialog .icb-field select{width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:14px;font-family:inherit}
+.icb-dialog .icb-field textarea{min-height:100px;resize:vertical}
+.icb-dialog .icb-style-row{display:flex;gap:8px}
+.icb-dialog .icb-style-opt{flex:1;padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:600;cursor:pointer;border:2px solid transparent;transition:all .15s}
+.icb-dialog .icb-style-opt.active{border-color:#fff}
+.icb-dialog .icb-mode-row{display:flex;gap:8px;margin-bottom:14px}
+.icb-dialog .icb-mode-opt{flex:1;padding:10px;border-radius:8px;text-align:center;font-size:13px;cursor:pointer;border:2px solid var(--border);transition:all .15s;background:var(--card)}
+.icb-dialog .icb-mode-opt.active{border-color:var(--accent);color:var(--accent)}
+.icb-dialog .icb-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+.icb-dialog .icb-actions button{padding:8px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--card);color:var(--text);transition:all .15s}
+.icb-dialog .icb-actions button.icb-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none}
 </style>
 </head>
 <body>
@@ -474,6 +526,35 @@ img{display:block;max-width:100%}
     <h1 id="articleTitle"></h1>
     <div class="article-meta" id="articleMeta"></div>
     <div class="article-content" id="articleContent"></div>
+  </div>
+</div>
+
+<!-- Insert Copy Button Dialog -->
+<div class="icb-dialog-overlay" id="icbDialogOverlay">
+  <div class="icb-dialog">
+    <h3 id="icbDialogTitle">插入複製按鈕</h3>
+    <div class="icb-mode-row">
+      <div class="icb-mode-opt active" data-mode="block">📦 區塊模式</div>
+      <div class="icb-mode-opt" data-mode="inline">✏️ 行內模式</div>
+    </div>
+    <div class="icb-field"><label>按鈕名稱</label><input type="text" id="icbLabel" placeholder="例：複製 Prompt / 複製連結" value="點我複製"></div>
+    <div class="icb-field"><label>按鈕圖示</label><input type="text" id="icbIcon" placeholder="Emoji 圖示" value="📋"></div>
+    <div class="icb-field"><label>內容類型</label>
+      <select id="icbContentType"><option value="text">📝 一般文字</option><option value="code">💻 程式碼</option><option value="link">🔗 連結</option></select>
+    </div>
+    <div class="icb-field"><label>按鈕樣式</label>
+      <div class="icb-style-row">
+        <div class="icb-style-opt active" data-style="primary" style="background:linear-gradient(135deg,#38bdf8,#818cf8);color:#fff">藍</div>
+        <div class="icb-style-opt" data-style="success" style="background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff">綠</div>
+        <div class="icb-style-opt" data-style="warning" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff">橘</div>
+        <div class="icb-style-opt" data-style="danger" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff">紅</div>
+      </div>
+    </div>
+    <div class="icb-field"><label>複製內容</label><textarea id="icbCopyContent" placeholder="貼入要複製的文字、連結、程式碼..."></textarea></div>
+    <div class="icb-actions">
+      <button id="icbCancel">取消</button>
+      <button class="icb-primary" id="icbConfirm">插入</button>
+    </div>
   </div>
 </div>
 
@@ -919,6 +1000,7 @@ function openArticleReader(card){
     }else{
       $('articleContent').innerHTML=card.content||card.desc||'';
     }
+    hydrateInlineCopyBtns($('articleContent'));
   });
   overlay.classList.add('show');
   document.body.style.overflow='hidden';
@@ -1741,6 +1823,16 @@ function openEditModal(card,defaultPage){
   };
   rtToolbar.appendChild(sizeSelect);
 
+  /* Insert Copy Button toolbar button */
+  var icbBtn=ce('button','','📋 複製按鈕');
+  icbBtn.style.cssText='font-size:12px;background:rgba(56,189,248,0.15);border-radius:6px;padding:4px 8px;color:var(--accent);font-weight:600';
+  icbBtn.onmousedown=function(e){e.preventDefault()};
+  icbBtn.onclick=function(e){
+    e.preventDefault();
+    openIcbDialog(null);
+  };
+  rtToolbar.appendChild(icbBtn);
+
   editorDiv.appendChild(rtToolbar);
 
   var editor=ce('div','rte-editor');
@@ -2424,6 +2516,186 @@ function init(){
     var hash=decodeURIComponent(location.hash.replace('#',''));
     if(hash&&PAGES.indexOf(hash)>=0&&hash!==_activeTab){
       switchTab(hash);
+    }
+  });
+}
+
+/* ====== INLINE COPY BUTTON (ICB) SYSTEM ====== */
+var _icbEditTarget=null; /* the .inline-copy-btn element being edited, or null for new insert */
+var _icbMode='block';
+var _icbStyle='primary';
+
+function openIcbDialog(existingEl){
+  _icbEditTarget=existingEl;
+  var overlay=$('icbDialogOverlay');
+  $('icbDialogTitle').textContent=existingEl?'編輯複製按鈕':'插入複製按鈕';
+  $('icbConfirm').textContent=existingEl?'更新':'插入';
+
+  /* Populate from existing or defaults */
+  var data={label:'點我複製',icon:'📋',contentType:'text',style:'primary',mode:'block',copy:''};
+  if(existingEl){
+    data.label=existingEl.getAttribute('data-label')||data.label;
+    data.icon=existingEl.getAttribute('data-icon')||data.icon;
+    data.contentType=existingEl.getAttribute('data-content-type')||data.contentType;
+    data.style=existingEl.getAttribute('data-style')||data.style;
+    data.mode=existingEl.getAttribute('data-mode')||data.mode;
+    data.copy=existingEl.getAttribute('data-copy')||data.copy;
+  }
+  $('icbLabel').value=data.label;
+  $('icbIcon').value=data.icon;
+  $('icbContentType').value=data.contentType;
+  $('icbCopyContent').value=data.copy;
+  _icbMode=data.mode;
+  _icbStyle=data.style;
+
+  /* Update UI selections */
+  overlay.querySelectorAll('.icb-mode-opt').forEach(function(el){
+    el.classList.toggle('active',el.getAttribute('data-mode')===_icbMode);
+  });
+  overlay.querySelectorAll('.icb-style-opt').forEach(function(el){
+    el.classList.toggle('active',el.getAttribute('data-style')===_icbStyle);
+  });
+  overlay.classList.add('show');
+}
+
+/* Mode toggle */
+$('icbDialogOverlay').querySelectorAll('.icb-mode-opt').forEach(function(el){
+  el.onclick=function(){
+    _icbMode=this.getAttribute('data-mode');
+    $('icbDialogOverlay').querySelectorAll('.icb-mode-opt').forEach(function(b){b.classList.remove('active')});
+    this.classList.add('active');
+  };
+});
+
+/* Style toggle */
+$('icbDialogOverlay').querySelectorAll('.icb-style-opt').forEach(function(el){
+  el.onclick=function(){
+    _icbStyle=this.getAttribute('data-style');
+    $('icbDialogOverlay').querySelectorAll('.icb-style-opt').forEach(function(b){b.classList.remove('active')});
+    this.classList.add('active');
+  };
+});
+
+/* Cancel */
+$('icbCancel').onclick=function(){
+  $('icbDialogOverlay').classList.remove('show');
+  _icbEditTarget=null;
+};
+
+/* Confirm insert/update */
+$('icbConfirm').onclick=function(){
+  var label=$('icbLabel').value.trim()||'點我複製';
+  var icon=$('icbIcon').value.trim()||'📋';
+  var contentType=$('icbContentType').value||'text';
+  var copyContent=$('icbCopyContent').value||'';
+  if(!copyContent){toast('請輸入複製內容');return;}
+
+  var html=buildIcbHtml({label:label,icon:icon,contentType:contentType,style:_icbStyle,mode:_icbMode,copy:copyContent});
+
+  if(_icbEditTarget){
+    /* Update existing */
+    _icbEditTarget.outerHTML=html;
+  }else{
+    /* Insert at cursor in articleEditor */
+    var editor=$('articleEditor');
+    if(editor){editor.focus();}
+    document.execCommand('insertHTML',false,'<br>'+html+'<br>');
+  }
+  $('icbDialogOverlay').classList.remove('show');
+  _icbEditTarget=null;
+};
+
+function buildIcbHtml(d){
+  var previewText=esc(d.copy);
+  if(d.mode==='block'){
+    return '<div class="inline-copy-btn" data-label="'+esc(d.label)+'" data-icon="'+esc(d.icon)+'" data-content-type="'+d.contentType+'" data-style="'+d.style+'" data-mode="block" data-copy="'+previewText+'" contenteditable="false">'
+      +'<div class="icb-preview">'+previewText+'</div>'
+      +'<div class="icb-bar"><span class="icb-label">'+({text:'📝 文字',code:'💻 程式碼',link:'🔗 連結'}[d.contentType]||'📝 文字')+'</span>'
+      +'<span class="icb-action style-'+d.style+'">'+esc(d.icon)+' '+esc(d.label)+'</span></div></div>';
+  }else{
+    return '<span class="inline-copy-btn" data-label="'+esc(d.label)+'" data-icon="'+esc(d.icon)+'" data-content-type="'+d.contentType+'" data-style="'+d.style+'" data-mode="inline" data-copy="'+previewText+'" contenteditable="false">'
+      +'<span class="icb-bar"><span class="icb-action style-'+d.style+'">'+esc(d.icon)+' '+esc(d.label)+'</span></span></span>';
+  }
+}
+
+/* Click-to-edit in editor: delegate from articleEditor */
+document.addEventListener('click',function(e){
+  var target=e.target.closest('.inline-copy-btn');
+  if(!target)return;
+  /* Only allow edit if inside the rte-editor */
+  var editor=$('articleEditor');
+  if(editor&&editor.contains(target)){
+    e.preventDefault();
+    e.stopPropagation();
+    openIcbDialog(target);
+  }
+});
+
+/* ====== HYDRATE inline-copy-btn in article reader ====== */
+function hydrateInlineCopyBtns(container){
+  var btns=container.querySelectorAll('.inline-copy-btn');
+  btns.forEach(function(el){
+    var copyContent=el.getAttribute('data-copy')||'';
+    var label=el.getAttribute('data-label')||'點我複製';
+    var icon=el.getAttribute('data-icon')||'📋';
+    var style=el.getAttribute('data-style')||'primary';
+    var contentType=el.getAttribute('data-content-type')||'text';
+    var mode=el.getAttribute('data-mode')||'block';
+
+    /* Rebuild interactive version */
+    el.innerHTML='';
+    el.removeAttribute('contenteditable');
+
+    if(mode==='block'){
+      /* Preview area */
+      var preview=document.createElement('div');
+      preview.className='icb-preview';
+      preview.textContent=copyContent;
+      /* Check if expandable */
+      el.appendChild(preview);
+      setTimeout(function(){
+        if(preview.scrollHeight>preview.clientHeight+4){
+          preview.classList.add('expandable');
+          preview.onclick=function(){this.classList.toggle('expanded');this.classList.toggle('expandable')};
+          preview.style.cursor='pointer';
+        }
+      },50);
+
+      /* Bar */
+      var bar=document.createElement('div');
+      bar.className='icb-bar';
+      var lbl=document.createElement('span');
+      lbl.className='icb-label';
+      lbl.textContent={text:'📝 文字',code:'💻 程式碼',link:'🔗 連結'}[contentType]||'📝 文字';
+      bar.appendChild(lbl);
+
+      var btn=document.createElement('button');
+      btn.className='icb-action style-'+style;
+      btn.textContent=icon+' '+label;
+      btn.onclick=function(){
+        copyText(copyContent);
+        var orig=btn.textContent;
+        btn.textContent='✅ 已複製！';
+        setTimeout(function(){btn.textContent=orig;},2000);
+      };
+      bar.appendChild(btn);
+      el.appendChild(bar);
+    }else{
+      /* Inline mode */
+      var bar=document.createElement('span');
+      bar.className='icb-bar';
+      var btn=document.createElement('button');
+      btn.className='icb-action style-'+style;
+      btn.textContent=icon+' '+label;
+      btn.onclick=function(e){
+        e.stopPropagation();
+        copyText(copyContent);
+        var orig=btn.textContent;
+        btn.textContent='✅ 已複製！';
+        setTimeout(function(){btn.textContent=orig;},2000);
+      };
+      bar.appendChild(btn);
+      el.appendChild(bar);
     }
   });
 }
