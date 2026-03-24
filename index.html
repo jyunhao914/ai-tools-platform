@@ -610,12 +610,12 @@ function renderAdminCards(filter){
 
       var upBtn=ce('button','','\u25B2');
       upBtn.title='\u4E0A\u79FB';
-      upBtn.onclick=function(){gasAPI('reorderCard',{id:card.id,dir:'up'},function(){loadAdminCards()})};
+      upBtn.onclick=function(){gasAPI('reorderCard',{id:card.id,dir:'up'},function(){loadAdminCards();refreshMainData()})};
       row.appendChild(upBtn);
 
       var downBtn=ce('button','','\u25BC');
       downBtn.title='\u4E0B\u79FB';
-      downBtn.onclick=function(){gasAPI('reorderCard',{id:card.id,dir:'down'},function(){loadAdminCards()})};
+      downBtn.onclick=function(){gasAPI('reorderCard',{id:card.id,dir:'down'},function(){loadAdminCards();refreshMainData()})};
       row.appendChild(downBtn);
 
       var editBtn=ce('button','','\u270F');
@@ -834,8 +834,17 @@ function init(){
     switchTab(PAGES[0]);
   }
 
-  /* 不呼叫 GAS API — 預嵌資料已足夠，避免頁面凍結 */
-  /* 只在後台管理時才透過 API 操作 */
+  /* 延遲 3 秒背景拉取最新資料（不阻塞首屏） */
+  setTimeout(function(){
+    gasAPI('getData',null,function(data){
+      if(!data)return;
+      if(data.cards&&data.cards.length)CARDS=data.cards;
+      if(data.pages&&data.pages.length)PAGES=data.pages;
+      if(data.gemUrl)GEM_URL=data.gemUrl;
+      var _s=data.stats||{};_statsData=_s.tools||_s;_totalVisits=_s.total||0;
+      updateVisit();renderCards();
+    });
+  },3000);
 
   window.addEventListener('hashchange',function(){
     var hash=decodeURIComponent(location.hash.replace('#',''));
