@@ -443,6 +443,25 @@ img{display:block;max-width:100%}
 .rte-editor img.img-size-large,.article-content img.img-size-large{max-width:600px}
 .rte-editor img.img-size-full,.article-content img.img-size-full{max-width:100%;width:100%}
 
+/* ICB description */
+.inline-copy-btn .icb-desc{padding:10px 14px 4px;font-size:13px;color:var(--text2);line-height:1.5}
+[data-theme="light"] .inline-copy-btn .icb-desc{color:#475569}
+
+/* RTE Table */
+.rte-table,.article-content table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px}
+.rte-table th,.rte-table td,.article-content table th,.article-content table td{border:1px solid var(--border2);padding:8px 12px;text-align:left}
+.rte-table th,.article-content table th{background:rgba(56,189,248,0.08);font-weight:600;color:var(--text)}
+.rte-table td,.article-content table td{background:var(--card)}
+[data-theme="light"] .rte-table th,[data-theme="light"] .article-content table th{background:rgba(56,189,248,0.06)}
+[data-theme="light"] .rte-table td,[data-theme="light"] .article-content table td{background:#fff}
+
+/* RTE Code Block */
+.rte-codeblock,.article-content pre{background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin:16px 0;overflow-x:auto;position:relative}
+.rte-codeblock code,.article-content pre code{font-family:'Fira Code','Courier New',monospace;font-size:0.82rem;color:#a6e3a1;line-height:1.7;white-space:pre-wrap;word-break:break-all}
+.rte-codeblock::before,.article-content pre[data-lang]::before{content:attr(data-lang);position:absolute;top:6px;right:10px;font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600}
+[data-theme="light"] .rte-codeblock,[data-theme="light"] .article-content pre{background:rgba(0,0,0,0.04);border-color:rgba(0,0,0,0.1)}
+[data-theme="light"] .rte-codeblock code,[data-theme="light"] .article-content pre code{color:#15803d}
+
 /* Insert-copy-btn dialog */
 .icb-dialog-overlay{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center}
 .icb-dialog-overlay.show{display:flex}
@@ -570,6 +589,7 @@ img{display:block;max-width:100%}
         <div class="icb-style-opt" data-style="danger" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff">紅</div>
       </div>
     </div>
+    <div class="icb-field"><label>說明文字 <small style="color:var(--text3)">(選填，顯示在按鈕上方)</small></label><input type="text" id="icbDesc" placeholder="例：以下 Prompt 可用於 ChatGPT 生成摘要"></div>
     <div class="icb-field"><label>複製內容</label><textarea id="icbCopyContent" placeholder="貼入要複製的文字、連結、程式碼..."></textarea></div>
     <div class="icb-actions">
       <button id="icbCancel">取消</button>
@@ -1917,12 +1937,113 @@ function openEditModal(card,defaultPage){
   };
   rtToolbar.appendChild(icbBtn);
 
+  /* Table insert button */
+  var tblBtnWrap=ce('div','');
+  tblBtnWrap.style.cssText='position:relative;display:inline-block';
+  var tblBtn=ce('button','','📊 表格');
+  tblBtn.style.cssText='font-size:12px;background:rgba(34,197,94,0.15);border-radius:6px;padding:4px 8px;color:#22c55e;font-weight:600';
+  tblBtn.onmousedown=function(e){e.preventDefault()};
+  var tblMenu=ce('div','');
+  tblMenu.style.cssText='display:none;position:absolute;top:100%;left:0;z-index:20;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;box-shadow:0 4px 12px rgba(0,0,0,.3);min-width:200px';
+  tblMenu.innerHTML='<div style="font-size:13px;font-weight:600;margin-bottom:8px">插入表格</div>'
+    +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><label style="font-size:12px;color:var(--text2);min-width:28px">列</label><input id="tblRows" type="number" min="1" max="20" value="3" style="width:60px;padding:4px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:13px"></div>'
+    +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><label style="font-size:12px;color:var(--text2);min-width:28px">欄</label><input id="tblCols" type="number" min="1" max="10" value="3" style="width:60px;padding:4px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:13px"></div>'
+    +'<button id="tblInsertBtn" style="width:100%;padding:6px;border-radius:6px;font-size:13px;font-weight:600;color:#fff;background:linear-gradient(135deg,#22c55e,#16a34a);border:none;cursor:pointer">插入</button>';
+  tblBtnWrap.appendChild(tblBtn);
+  tblBtnWrap.appendChild(tblMenu);
+  tblBtn.onclick=function(e){e.preventDefault();tblMenu.style.display=tblMenu.style.display==='none'?'block':'none'};
+  document.addEventListener('click',function(e){if(!tblBtnWrap.contains(e.target))tblMenu.style.display='none'});
+  rtToolbar.appendChild(tblBtnWrap);
+
+  /* Wire up table insert after DOM ready */
+  setTimeout(function(){
+    var insertBtn=document.getElementById('tblInsertBtn');
+    if(insertBtn)insertBtn.onclick=function(e){
+      e.preventDefault();
+      var rows=parseInt(document.getElementById('tblRows').value)||3;
+      var cols=parseInt(document.getElementById('tblCols').value)||3;
+      rows=Math.min(Math.max(rows,1),20);
+      cols=Math.min(Math.max(cols,1),10);
+      var html='<table class="rte-table"><thead><tr>';
+      for(var c=0;c<cols;c++)html+='<th>標題'+(c+1)+'</th>';
+      html+='</tr></thead><tbody>';
+      for(var r=0;r<rows-1;r++){
+        html+='<tr>';
+        for(var c2=0;c2<cols;c2++)html+='<td></td>';
+        html+='</tr>';
+      }
+      html+='</tbody></table><p><br></p>';
+      var ed=$('articleEditor');
+      if(ed)ed.focus();
+      document.execCommand('insertHTML',false,html);
+      tblMenu.style.display='none';
+    };
+  },0);
+
+  /* Code block insert button */
+  var codeBtn=ce('button','','&lt;/&gt; 程式碼');
+  codeBtn.style.cssText='font-size:12px;background:rgba(139,92,246,0.15);border-radius:6px;padding:4px 8px;color:#8b5cf6;font-weight:600';
+  codeBtn.onmousedown=function(e){e.preventDefault()};
+  codeBtn.onclick=function(e){
+    e.preventDefault();
+    var code=prompt('貼入程式碼：');
+    if(!code)return;
+    var lang=prompt('語言（可留空）：','')|| '';
+    var html='<pre class="rte-codeblock" data-lang="'+esc(lang)+'"><code>'+esc(code)+'</code></pre><p><br></p>';
+    var ed=$('articleEditor');
+    if(ed)ed.focus();
+    document.execCommand('insertHTML',false,html);
+  };
+  rtToolbar.appendChild(codeBtn);
+
   editorDiv.appendChild(rtToolbar);
 
   var editor=ce('div','rte-editor');
   editor.contentEditable='true';
   editor.id='articleEditor';
   if(card&&card.type==='article'&&existingExtra.content)editor.innerHTML=existingExtra.content;
+
+  /* Drag & drop image support */
+  editor.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='copy';this.style.outline='2px dashed var(--accent)'});
+  editor.addEventListener('dragleave',function(){this.style.outline=''});
+  editor.addEventListener('drop',function(e){
+    e.preventDefault();
+    this.style.outline='';
+    var files=e.dataTransfer.files;
+    if(!files||!files.length)return;
+    for(var i=0;i<files.length;i++){
+      (function(file){
+        if(!file.type.startsWith('image/'))return;
+        if(file.size>5*1024*1024){toast('圖片不可超過 5MB');return;}
+        var reader=new FileReader();
+        reader.onload=function(ev){
+          var ed=$('articleEditor');
+          if(ed)ed.focus();
+          document.execCommand('insertHTML',false,'<img src="'+ev.target.result+'" style="max-width:100%;border-radius:8px;margin:8px 0" alt="uploaded image">');
+        };
+        reader.readAsDataURL(file);
+      })(files[i]);
+    }
+  });
+  /* Paste image support */
+  editor.addEventListener('paste',function(e){
+    var items=e.clipboardData&&e.clipboardData.items;
+    if(!items)return;
+    for(var i=0;i<items.length;i++){
+      if(items[i].type.indexOf('image')>=0){
+        e.preventDefault();
+        var file=items[i].getAsFile();
+        if(file.size>5*1024*1024){toast('圖片不可超過 5MB');return;}
+        var reader=new FileReader();
+        reader.onload=function(ev){
+          document.execCommand('insertHTML',false,'<img src="'+ev.target.result+'" style="max-width:100%;border-radius:8px;margin:8px 0" alt="pasted image">');
+        };
+        reader.readAsDataURL(file);
+        break;
+      }
+    }
+  });
+
   editorDiv.appendChild(editor);
   articleDiv.appendChild(editorDiv);
   body.appendChild(articleDiv);
@@ -2720,7 +2841,7 @@ function openIcbDialog(existingEl){
   $('icbConfirm').textContent=existingEl?'更新':'插入';
 
   /* Populate from existing or defaults */
-  var data={label:'點我複製',icon:'📋',contentType:'text',style:'primary',mode:'block',copy:''};
+  var data={label:'點我複製',icon:'📋',contentType:'text',style:'primary',mode:'block',copy:'',desc:''};
   if(existingEl){
     data.label=existingEl.getAttribute('data-label')||data.label;
     data.icon=existingEl.getAttribute('data-icon')||data.icon;
@@ -2728,11 +2849,13 @@ function openIcbDialog(existingEl){
     data.style=existingEl.getAttribute('data-style')||data.style;
     data.mode=existingEl.getAttribute('data-mode')||data.mode;
     data.copy=existingEl.getAttribute('data-copy')||data.copy;
+    data.desc=existingEl.getAttribute('data-desc')||data.desc;
   }
   $('icbLabel').value=data.label;
   $('icbIcon').value=data.icon;
   $('icbContentType').value=data.contentType;
   $('icbCopyContent').value=data.copy;
+  $('icbDesc').value=data.desc;
   _icbMode=data.mode;
   _icbStyle=data.style;
 
@@ -2776,9 +2899,10 @@ $('icbConfirm').onclick=function(){
   var icon=$('icbIcon').value.trim()||'📋';
   var contentType=$('icbContentType').value||'text';
   var copyContent=$('icbCopyContent').value||'';
+  var desc=$('icbDesc').value.trim();
   if(!copyContent){toast('請輸入複製內容');return;}
 
-  var html=buildIcbHtml({label:label,icon:icon,contentType:contentType,style:_icbStyle,mode:_icbMode,copy:copyContent});
+  var html=buildIcbHtml({label:label,icon:icon,contentType:contentType,style:_icbStyle,mode:_icbMode,copy:copyContent,desc:desc});
 
   if(_icbEditTarget){
     /* Update existing */
@@ -2795,13 +2919,16 @@ $('icbConfirm').onclick=function(){
 
 function buildIcbHtml(d){
   var previewText=esc(d.copy);
+  var descAttr=d.desc?' data-desc="'+esc(d.desc)+'"':'';
+  var descHtml=d.desc?'<div class="icb-desc">'+esc(d.desc)+'</div>':'';
   if(d.mode==='block'){
-    return '<div class="inline-copy-btn" data-label="'+esc(d.label)+'" data-icon="'+esc(d.icon)+'" data-content-type="'+d.contentType+'" data-style="'+d.style+'" data-mode="block" data-copy="'+previewText+'" contenteditable="false">'
+    return '<div class="inline-copy-btn" data-label="'+esc(d.label)+'" data-icon="'+esc(d.icon)+'" data-content-type="'+d.contentType+'" data-style="'+d.style+'" data-mode="block" data-copy="'+previewText+'"'+descAttr+' contenteditable="false">'
+      +descHtml
       +'<div class="icb-preview">'+previewText+'</div>'
       +'<div class="icb-bar"><span class="icb-label">'+({text:'📝 文字',code:'💻 程式碼',link:'🔗 連結'}[d.contentType]||'📝 文字')+'</span>'
       +'<span class="icb-action style-'+d.style+'">'+esc(d.icon)+' '+esc(d.label)+'</span></div></div>';
   }else{
-    return '<span class="inline-copy-btn" data-label="'+esc(d.label)+'" data-icon="'+esc(d.icon)+'" data-content-type="'+d.contentType+'" data-style="'+d.style+'" data-mode="inline" data-copy="'+previewText+'" contenteditable="false">'
+    return '<span class="inline-copy-btn" data-label="'+esc(d.label)+'" data-icon="'+esc(d.icon)+'" data-content-type="'+d.contentType+'" data-style="'+d.style+'" data-mode="inline" data-copy="'+previewText+'"'+descAttr+' contenteditable="false">'
       +'<span class="icb-bar"><span class="icb-action style-'+d.style+'">'+esc(d.icon)+' '+esc(d.label)+'</span></span></span>';
   }
 }
@@ -2829,12 +2956,20 @@ function hydrateInlineCopyBtns(container){
     var style=el.getAttribute('data-style')||'primary';
     var contentType=el.getAttribute('data-content-type')||'text';
     var mode=el.getAttribute('data-mode')||'block';
+    var desc=el.getAttribute('data-desc')||'';
 
     /* Rebuild interactive version */
     el.innerHTML='';
     el.removeAttribute('contenteditable');
 
     if(mode==='block'){
+      /* Description */
+      if(desc){
+        var descEl=document.createElement('div');
+        descEl.className='icb-desc';
+        descEl.textContent=desc;
+        el.appendChild(descEl);
+      }
       /* Preview area */
       var preview=document.createElement('div');
       preview.className='icb-preview';
