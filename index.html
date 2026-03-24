@@ -402,7 +402,7 @@ img{display:block;max-width:100%}
   .nav-tabs{overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;flex-shrink:1;min-width:0}
   .nav-tabs::-webkit-scrollbar{display:none}
   .nav-tab{padding:6px 10px;font-size:12px}
-  .nav-visit{display:none}
+  .nav-visit{display:block;font-size:11px;position:absolute;right:50px;top:4px}
   .global-search-wrap{display:none}
   .mobile-search-wrap{display:block}
   .hero{padding:48px 14px 32px;min-height:auto}
@@ -592,7 +592,7 @@ img{display:block;max-width:100%}
   <div class="global-search-wrap">
     <input type="search" id="globalSearch" class="global-search" placeholder="搜尋工具...">
   </div>
-  <div class="nav-visit" id="navVisit"></div>
+  <div class="nav-visit" id="navVisit" style="visibility:hidden"></div>
   <button class="theme-toggle" id="themeToggle" title="切換主題">&#127769;</button>
 </nav>
 
@@ -720,7 +720,7 @@ img{display:block;max-width:100%}
 var GAS_API='https://script.google.com/macros/s/AKfycbx6qfQFbhAwiqA4AdRisH2HuZDw8iLQEEw-pxraTYCCoMInj0O9cpygBSsB6ii32j21/exec';
 var _cbId=0;
 var CARDS=[];
-var PAGES=["簡報生成","海報製作","工具箱","關於我們"];
+var PAGES=[];
 var GEM_URL="https://gemini.google.com/gem/1-I-HEXLdgeStt9PmL-dla2q8Blq3Omop?usp=sharing";
 var _statsData={};
 var _totalVisits=0;
@@ -863,7 +863,12 @@ function buildNavTabs(){
 }
 
 function updateVisit(){
-  $('navVisit').innerHTML='\uD83D\uDC41 '+totalViews()+' \u6B21\u700F\u89BD';
+  var n=totalViews();
+  var el=$('navVisit');
+  if(n>0){
+    el.innerHTML='\uD83D\uDC41 '+n.toLocaleString()+' \u6B21\u700F\u89BD';
+    el.style.visibility='visible';
+  }
 }
 
 /* ====== HERO CARDS ====== */
@@ -3264,19 +3269,19 @@ function renderAboutPage(){
 }
 
 /* ====== CACHE LAYER ====== */
-var CACHE_KEY='aitools_v2';
+var CACHE_KEY='aitools_v3';
 var CACHE_TTL=300000; /* 5 min */
 
 function saveCache(obj){
   try{obj._ts=Date.now();localStorage.setItem(CACHE_KEY,JSON.stringify(obj));
   /* clear old cache keys */
-  try{localStorage.removeItem('aitools_cache')}catch(e2){}
+  try{localStorage.removeItem('aitools_cache');localStorage.removeItem('aitools_v2')}catch(e2){}
   }catch(e){}
 }
 function loadCache(){
   try{
     /* clear legacy cache */
-    try{localStorage.removeItem('aitools_cache')}catch(e2){}
+    try{localStorage.removeItem('aitools_cache');localStorage.removeItem('aitools_v2')}catch(e2){}
     var raw=localStorage.getItem(CACHE_KEY);
     if(!raw)return null;
     var obj=JSON.parse(raw);
@@ -3305,11 +3310,17 @@ function applyFullData(data,adminCards){
     if(data.cards&&data.cards.length)CARDS=data.cards;
     if(data.pages&&data.pages.length)PAGES=data.pages;
     if(data.gemUrl)GEM_URL=data.gemUrl;
-    var _s=data.stats||{};_statsData=_s.tools||_s;
+    var _s=data.stats||{};_statsData=_s.tools||_s;_totalVisits=_s.total||0;
     if(data.settings){_settings=data.settings;applyAnnouncement();applySEO();applySiteInfo();}
   }
   mergeAdminExtra(CARDS,adminCards);
-  updateVisit();renderCards();buildNavTabs();buildHeroGrid();observeCards();
+  /* Set active tab if not yet set */
+  if(!_activeTab&&PAGES.length){
+    var hash=decodeURIComponent(location.hash.replace('#',''));
+    if(hash&&PAGES.indexOf(hash)>=0)_activeTab=hash;
+    else{_activeTab=PAGES[0];location.hash=PAGES[0];}
+  }
+  buildNavTabs();buildHeroGrid();renderCards();updateVisit();observeCards();
   checkArticleHash();
 }
 
@@ -3333,8 +3344,10 @@ function init(){
   var hash=decodeURIComponent(location.hash.replace('#',''));
   if(hash&&PAGES.indexOf(hash)>=0){_activeTab=hash;location.hash=hash;}
   else if(PAGES.length){_activeTab=PAGES[0];location.hash=PAGES[0];}
-  buildNavTabs();buildHeroGrid();
-  if(_hasCache){renderCards();updateVisit();observeCards();}
+  if(_hasCache){
+    buildNavTabs();buildHeroGrid();renderCards();updateVisit();observeCards();
+  }
+  /* If no cache: skeleton stays, nav/hero/counter all wait for API */
   /* If no cache, skeleton stays visible until API returns */
 
   /* 2. Fetch fresh data in background (parallel) */
