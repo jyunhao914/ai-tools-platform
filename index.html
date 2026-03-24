@@ -562,6 +562,20 @@ function renderAdminCards(filter){
   var body=$('adminBody');
   body.innerHTML='';
   var toolbar=ce('div','admin-toolbar');
+  var visitBtn=ce('button','admin-add-btn','\uD83D\uDC41 \u7E3D\u700F\u89BD: '+(_totalVisits||0));
+  visitBtn.title='\u9EDE\u64CA\u4FEE\u6539\u7E3D\u700F\u89BD\u6B21\u6578';
+  visitBtn.style.cssText='margin-right:8px;font-size:13px';
+  visitBtn.onclick=function(){
+    var v=prompt('\u8A2D\u5B9A\u7E3D\u700F\u89BD\u6B21\u6578\uFF1A',_totalVisits||0);
+    if(v===null)return;
+    var num=parseInt(v,10);
+    if(isNaN(num)||num<0){toast('\u8ACB\u8F38\u5165\u6709\u6548\u6578\u5B57');return}
+    gasAPI('setVisitCount',{count:num},function(r){
+      if(r&&r.ok){_totalVisits=num;updateVisit();visitBtn.innerHTML='\uD83D\uDC41 \u7E3D\u700F\u89BD: '+num;toast('\u5DF2\u66F4\u65B0')}
+      else toast('\u66F4\u65B0\u5931\u6557');
+    });
+  };
+  toolbar.appendChild(visitBtn);
   var search=ce('input','admin-search');
   search.placeholder='\u641C\u5C0B\u5361\u7247...';
   search.value=filter||'';
