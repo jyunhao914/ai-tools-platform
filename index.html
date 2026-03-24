@@ -644,29 +644,26 @@ function gasAPI(action,params,callback){
 /* POST version for large payloads (articles with images) */
 function gasAPIPost(action,params,callback){
   var pw=sessionStorage.getItem('admin_pw')||'';
-  /* Put auth and action in URL query string (Apps Script reads e.parameter from URL) */
-  var url=GAS_API+'?action='+encodeURIComponent(action);
-  if(pw)url+='&pw='+encodeURIComponent(pw);
-  /* Put large data in POST body */
-  var bodyParams=new URLSearchParams();
-  if(params){for(var k in params){if(params.hasOwnProperty(k))bodyParams.set(k,params[k])}}
+  if(!params)params={};
+  params.action=action;
+  if(pw)params.pw=pw;
   var done=false;
   var timer=setTimeout(function(){if(!done){done=true;if(callback)callback(null)}},30000);
-  /* Use form POST via hidden iframe to avoid CORS redirect issues */
+  /* Use form POST via hidden iframe — all fields as hidden inputs */
   var frameName='_gasPostFrame';
   var iframe=document.getElementById(frameName);
   if(!iframe){iframe=document.createElement('iframe');iframe.id=frameName;iframe.name=frameName;iframe.style.display='none';document.body.appendChild(iframe)}
   var form=document.createElement('form');
-  form.method='POST';form.action=url;form.target=frameName;form.style.display='none';
-  if(params){for(var k in params){if(params.hasOwnProperty(k)){var inp=document.createElement('input');inp.type='hidden';inp.name=k;inp.value=params[k];form.appendChild(inp)}}}
+  form.method='POST';form.action=GAS_API;form.target=frameName;form.style.display='none';
+  for(var k in params){if(params.hasOwnProperty(k)){var inp=document.createElement('input');inp.type='hidden';inp.name=k;inp.value=params[k];form.appendChild(inp)}}
   document.body.appendChild(form);
   form.submit();
   document.body.removeChild(form);
-  /* Since we can't read cross-origin iframe response, poll with JSONP to verify save */
+  /* Can't read cross-origin iframe response, wait then verify via GET */
   setTimeout(function(){
     if(done)return;done=true;clearTimeout(timer);
     if(callback)callback({ok:true});
-  },3000);
+  },4000);
 }
 
 /* ====== UTILS ====== */
@@ -2322,24 +2319,55 @@ $('modalSave').onclick=function(){
       coverImage:coverImage
     };
 
-    /* Use POST for article save (content may contain large base64 images) */
+    /* Save article: try POST first, fallback to chunked GET */
     var contentB64=btoa(unescape(encodeURIComponent(content)));
-    var params={
-      data:JSON.stringify({id:articleData.id,title:articleData.title,desc:articleData.desc,
+    var cardData=JSON.stringify({id:articleData.id,title:articleData.title,desc:articleData.desc,
         category:articleData.category,tag:articleData.tag,visible:articleData.visible,
-        coverImage:coverImage}),
-      contentB64:contentB64
-    };
+        coverImage:coverImage});
     toast('儲存中...');
-    gasAPIPost('saveArticle',params,function(r){
-      if(r&&r.ok){
-        toast('\u6587\u7AE0\u5DF2\u5132\u5B58');
-        $('modalOverlay').classList.remove('show');
-        _editCard=null;
-        loadAdminCards();
-        refreshMainData();
-      }else{toast('\u5132\u5B58\u5931\u6557'+(r&&r.error?': '+r.error:''))}
-    });
+
+    /* Check total size — if under 6000 chars, use JSONP GET directly */
+    if(contentB64.length<6000){
+      gasAPI('saveArticle',{data:cardData,contentB64:contentB64},function(r){
+        if(r&&r.ok){
+          toast('\u6587\u7AE0\u5DF2\u5132\u5B58');
+          $('modalOverlay').classList.remove('show');_editCard=null;loadAdminCards();refreshMainData();
+        }else{toast('\u5132\u5B58\u5931\u6557'+(r&&r.error?': '+r.error:''))}
+      });
+    }else{
+      /* Large content: split into chunks and send via multiple JSONP calls */
+      var CHUNK=5000;
+      var chunks=[];
+      for(var ci=0;ci<contentB64.length;ci+=CHUNK){chunks.push(contentB64.substring(ci,ci+CHUNK))}
+      var totalChunks=chunks.length;
+      var savedChunks=0;
+      var articleId=articleData.id||('art_'+Date.now());
+
+      /* First save card metadata + first chunk */
+      gasAPI('saveArticle',{data:cardData,contentB64:chunks[0],chunkIndex:'0',totalChunks:String(totalChunks),articleId:articleId},function(r){
+        if(!r||!r.ok){toast('\u5132\u5B58\u5931\u6557'+(r&&r.error?': '+r.error:''));return;}
+        savedChunks++;
+        if(totalChunks===1){
+          toast('\u6587\u7AE0\u5DF2\u5132\u5B58');
+          $('modalOverlay').classList.remove('show');_editCard=null;loadAdminCards();refreshMainData();
+          return;
+        }
+        /* Send remaining chunks */
+        function sendNextChunk(){
+          if(savedChunks>=totalChunks){
+            toast('\u6587\u7AE0\u5DF2\u5132\u5B58');
+            $('modalOverlay').classList.remove('show');_editCard=null;loadAdminCards();refreshMainData();
+            return;
+          }
+          gasAPI('saveArticle',{contentB64:chunks[savedChunks],chunkIndex:String(savedChunks),totalChunks:String(totalChunks),articleId:articleId},function(r2){
+            if(!r2||!r2.ok){toast('\u5132\u5B58\u5931\u6557 (chunk '+savedChunks+')');return;}
+            savedChunks++;
+            sendNextChunk();
+          });
+        }
+        sendNextChunk();
+      });
+    }
 
   }else if(_editType==='copy'){
     card.btnLabel=(document.getElementById('mf_btnLabel')||{}).value||'點我複製';
