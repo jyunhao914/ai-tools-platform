@@ -73,9 +73,8 @@ img{display:block;max-width:100%}
 .tools-empty{text-align:center;padding:80px 24px;color:var(--text3);font-size:16px}
 
 /* CARD */
-.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;transition:all .28s;display:flex;flex-direction:column;animation:fadeUp .45s ease both}
-.card:hover{border-color:var(--border2);background:var(--card-h);transform:translateY(-3px)}
-@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;display:flex;flex-direction:column}
+.card:hover{border-color:var(--border2);background:var(--card-h)}
 
 /* SLIDER */
 .card-slider{position:relative;width:100%;aspect-ratio:16/9;background:var(--bg3);overflow:hidden}
@@ -204,24 +203,81 @@ img{display:block;max-width:100%}
 .spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;margin-right:10px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* SCROLL ANIMATION */
+.card{opacity:0;transform:translateY(20px);transition:opacity 0.4s ease,transform 0.4s ease}
+.card.visible{opacity:1;transform:translateY(0)}
+.card.visible:hover{transform:translateY(-3px)}
+
+/* LIGHT THEME */
+[data-theme="light"]{
+  --bg:#f8fafc;--bg2:#ffffff;--bg3:#f1f5f9;
+  --card:rgba(0,0,0,0.03);--card-h:rgba(0,0,0,0.06);
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.12);
+  --text:#0f172a;--text2:#475569;--text3:#94a3b8;
+}
+[data-theme="light"] .nav{background:rgba(248,250,252,0.88);border-bottom-color:rgba(0,0,0,0.08)}
+[data-theme="light"] .hero-title{background:linear-gradient(135deg,#0f172a 30%,var(--accent));-webkit-background-clip:text;background-clip:text}
+[data-theme="light"] .hero-blob{opacity:.08}
+[data-theme="light"] .star{background:#94a3b8}
+[data-theme="light"] .admin-panel{background:#ffffff}
+[data-theme="light"] .modal{background:#ffffff}
+[data-theme="light"] .footer{border-top-color:rgba(0,0,0,0.08)}
+[data-theme="light"] .toast{background:#e2e8f0;color:#0f172a}
+[data-theme="light"] .admin-row{background:rgba(0,0,0,0.02)}
+[data-theme="light"] .admin-row:hover{background:rgba(0,0,0,0.04)}
+[data-theme="light"] .slider-dot{background:rgba(0,0,0,.25)}
+[data-theme="light"] .slider-dot.active{background:#0f172a}
+
+/* SEARCH BAR */
+.global-search-wrap{display:flex;align-items:center;margin-left:auto;margin-right:12px}
+.global-search{width:180px;padding:6px 14px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px;outline:none;transition:border-color .2s,width .2s}
+.global-search:focus{border-color:var(--accent);width:220px}
+.global-search::placeholder{color:var(--text3)}
+
+.mobile-search-wrap{display:none}
+
+/* THEME TOGGLE */
+.theme-toggle{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;background:var(--card);border:1px solid var(--border);transition:all .2s;flex-shrink:0;margin-left:8px}
+.theme-toggle:hover{background:var(--card-h);border-color:var(--border2)}
+
+/* ABOUT SECTION */
+.about-section{max-width:680px;margin:0 auto;padding:40px 0}
+.about-section h3{font-size:26px;font-weight:700;margin-bottom:20px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.about-section p{font-size:15px;color:var(--text2);line-height:1.8;margin-bottom:24px}
+.about-section h4{font-size:18px;font-weight:600;margin-bottom:12px;color:var(--text)}
+.about-section ul{list-style:none;padding:0;margin-bottom:28px}
+.about-section ul li{font-size:14px;color:var(--text2);line-height:1.8;padding-left:8px}
+.about-section .about-contact{padding:20px 24px;border-radius:var(--r2);background:var(--card);border:1px solid var(--border);font-size:14px;color:var(--text2);line-height:1.8}
+.about-section .about-contact a{color:var(--accent);text-decoration:underline}
+
 /* RESPONSIVE */
 @media(max-width:600px){
-  .nav{padding:0 12px;height:52px}
+  .nav{padding:0 10px;height:52px;gap:6px}
   .nav-logo{font-size:15px}
   .nav-logo-icon{width:28px;height:28px;font-size:15px}
-  .nav-tab{padding:6px 12px;font-size:13px}
+  .nav-tabs{overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;flex-shrink:1;min-width:0}
+  .nav-tabs::-webkit-scrollbar{display:none}
+  .nav-tab{padding:6px 10px;font-size:12px}
   .nav-visit{display:none}
-  .hero{padding:60px 16px 40px;min-height:auto}
+  .global-search-wrap{display:none}
+  .mobile-search-wrap{display:block}
+  .hero{padding:48px 14px 32px;min-height:auto}
   .hero-title{font-size:28px}
-  .hero-grid{grid-template-columns:1fr 1fr;gap:10px}
-  .hero-card{padding:18px 14px}
+  .hero-sub{font-size:14px;margin-bottom:32px}
+  .hero-grid{grid-template-columns:1fr;gap:10px}
+  .hero-card{padding:16px 14px}
   .hero-card-ico{font-size:24px;margin-bottom:8px}
   .hero-card-title{font-size:14px}
   .hero-card-desc{font-size:12px}
-  .tools{padding:32px 12px 60px}
-  .tools-grid{grid-template-columns:1fr}
-  .admin-panel{width:98vw;max-height:94vh}
+  .tools{padding:24px 10px 48px}
+  .tools-head{font-size:18px;margin-bottom:20px}
+  .tools-grid{grid-template-columns:1fr;gap:16px}
+  .card-body{padding:14px 16px 16px}
+  .admin-panel{width:100vw;max-width:100vw;max-height:100vh;border-radius:0}
   .modal{width:98vw}
+  .about-section{padding:24px 0}
+  .about-section h3{font-size:22px}
+  .theme-toggle{width:32px;height:32px;font-size:16px;margin-left:4px}
 }
 </style>
 </head>
@@ -238,7 +294,11 @@ img{display:block;max-width:100%}
     <span>AI 工具平台</span>
   </div>
   <div class="nav-tabs" id="navTabs"></div>
+  <div class="global-search-wrap">
+    <input type="search" id="globalSearch" class="global-search" placeholder="搜尋工具...">
+  </div>
   <div class="nav-visit" id="navVisit"></div>
+  <button class="theme-toggle" id="themeToggle" title="切換主題">🌙</button>
 </nav>
 
 <section class="hero" id="hero">
@@ -253,6 +313,9 @@ img{display:block;max-width:100%}
 </section>
 
 <section class="tools" id="tools">
+  <div class="mobile-search-wrap" id="mobileSearchWrap">
+    <input type="search" id="mobileSearch" class="global-search" placeholder="搜尋工具..." style="width:100%;margin-bottom:16px">
+  </div>
   <h2 class="tools-head" id="toolsHead"></h2>
   <div class="tools-grid" id="toolsGrid">
     <div class="loading-placeholder"><span class="spinner"></span>載入中...</div>
@@ -418,6 +481,9 @@ function buildHeroGrid(){
 function switchTab(tab){
   _activeTab=tab;
   location.hash=tab;
+  /* Clear search if active */
+  var searchInput=$('globalSearch');
+  if(searchInput&&searchInput.value){searchInput.value='';_searchActive=false;var tabs=$('navTabs');if(tabs)tabs.style.display='';}
   buildNavTabs();
   renderCards();
 }
@@ -454,6 +520,7 @@ function buildSlider(imgs,card){
     img.src=spec.url;
     img.alt='';
     img.loading='lazy';
+    img.decoding='async';
     img.style.objectFit=spec.fit;
     img.style.objectPosition=spec.pos;
     if(i===0)img.classList.add('active');
@@ -496,8 +563,13 @@ function buildSlider(imgs,card){
 }
 
 function renderCards(){
+  if(_searchActive)return;
   var grid=$('toolsGrid');
   grid.innerHTML='';
+  if(_activeTab==='\u95DC\u65BC\u6211\u5011'){
+    renderAboutPage();
+    return;
+  }
   var filtered=CARDS.filter(function(c){return (c.page||c.category)===_activeTab&&c.visible!==false});
   $('toolsHead').innerHTML=esc(_activeTab)+' <span>\u2014 \u5DE5\u5177\u5217\u8868\uFF08'+filtered.length+' \u9805\uFF09</span>';
   if(!filtered.length){
@@ -506,7 +578,6 @@ function renderCards(){
   }
   filtered.forEach(function(card,ci){
     var el=ce('div','card');
-    el.style.animationDelay=(ci*0.06)+'s';
     var imgs=getCardImages(card);
     el.appendChild(buildSlider(imgs,card));
     var body=ce('div','card-body');
@@ -544,6 +615,7 @@ function renderCards(){
     el.appendChild(body);
     grid.appendChild(el);
   });
+  observeCards();
 }
 
 function copyText(text){
@@ -1338,14 +1410,142 @@ function refreshMainData(){
   });
 }
 
+/* ====== DARK/LIGHT THEME TOGGLE ====== */
+function initTheme(){
+  var saved=localStorage.getItem('theme')||'dark';
+  applyTheme(saved);
+}
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme',theme);
+  var btn=$('themeToggle');
+  if(btn)btn.textContent=theme==='dark'?'\u2600\uFE0F':'\uD83C\uDF19';
+  localStorage.setItem('theme',theme);
+}
+if($('themeToggle')){
+  $('themeToggle').onclick=function(){
+    var current=localStorage.getItem('theme')||'dark';
+    applyTheme(current==='dark'?'light':'dark');
+  };
+}
+
+/* ====== GLOBAL SEARCH ====== */
+var _searchActive=false;
+function initSearch(){
+  var input=$('globalSearch');
+  var mobileInput=$('mobileSearch');
+  function syncSearch(sourceEl){
+    var otherEl=(sourceEl===input)?mobileInput:input;
+    if(otherEl)otherEl.value=sourceEl.value;
+  }
+  function handleSearch(){
+    syncSearch(this);
+    var q=this.value.trim().toLowerCase();
+    if(q){
+      _searchActive=true;
+      var tabs=$('navTabs');
+      if(tabs)tabs.style.display='none';
+      var results=CARDS.filter(function(c){
+        if(c.visible===false)return false;
+        var title=(c.title||'').toLowerCase();
+        var desc=(c.description||c.desc||'').toLowerCase();
+        var tag=(c.tag||'').toLowerCase();
+        return title.indexOf(q)>=0||desc.indexOf(q)>=0||tag.indexOf(q)>=0;
+      });
+      var grid=$('toolsGrid');
+      grid.innerHTML='';
+      $('toolsHead').innerHTML='\u641C\u5C0B\u7D50\u679C <span>\uFF08'+results.length+' \u9805\uFF09</span>';
+      if(!results.length){
+        grid.innerHTML='<div class="tools-empty">\uD83D\uDD0D \u627E\u4E0D\u5230\u7B26\u5408\u7684\u5DE5\u5177</div>';
+        return;
+      }
+      results.forEach(function(card,ci){
+        var el=ce('div','card');
+        var imgs=getCardImages(card);
+        el.appendChild(buildSlider(imgs,card));
+        var body=ce('div','card-body');
+        if(card.tag)body.appendChild(ce('div','card-tag',esc(card.tag)));
+        body.appendChild(ce('div','card-title',esc(card.title)));
+        var _desc=card.description||card.desc;if(_desc)body.appendChild(ce('div','card-desc',esc(_desc)));
+        var foot=ce('div','card-foot');
+        var isCopy=card.meta1==='copy';
+        var link=ce('a','card-link',isCopy?'\uD83D\uDCCB \u8907\u88FD\u9023\u7D50':'\u2197 \u958B\u555F\u5DE5\u5177');
+        if(isCopy){
+          link.href='javascript:void(0)';
+          link.onclick=function(e){e.preventDefault();copyText(card.linkUrl);toast('\u5DF2\u8907\u88FD\u9023\u7D50');gasAPI('recordClick',{title:card.title},null);};
+        }else{
+          link.href=card.linkUrl||'#';link.target='_blank';link.rel='noopener';
+          link.onclick=function(){gasAPI('recordClick',{title:card.title},null)};
+        }
+        foot.appendChild(link);
+        var views=card.views||(_statsData&&_statsData[card.title])||0;
+        foot.appendChild(ce('span','card-views','\uD83D\uDC41 '+views+' \u6B21\u9EDE\u95B1'));
+        body.appendChild(foot);
+        el.appendChild(body);
+        grid.appendChild(el);
+      });
+      observeCards();
+    }else{
+      _searchActive=false;
+      var tabs=$('navTabs');
+      if(tabs)tabs.style.display='';
+      renderCards();
+      observeCards();
+    }
+  }
+  if(input)input.addEventListener('input',handleSearch);
+  if(mobileInput)mobileInput.addEventListener('input',handleSearch);
+}
+
+/* ====== INTERSECTION OBSERVER FOR CARDS ====== */
+var _cardObserver=null;
+function observeCards(){
+  if(_cardObserver)_cardObserver.disconnect();
+  if(!('IntersectionObserver' in window)){
+    document.querySelectorAll('.card').forEach(function(c){c.classList.add('visible')});
+    return;
+  }
+  _cardObserver=new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if(entry.isIntersecting){
+        entry.target.classList.add('visible');
+        _cardObserver.unobserve(entry.target);
+      }
+    });
+  },{threshold:0.08});
+  document.querySelectorAll('.card:not(.visible)').forEach(function(c){
+    _cardObserver.observe(c);
+  });
+}
+
+/* ====== ABOUT US PAGE ====== */
+function renderAboutPage(){
+  var grid=$('toolsGrid');
+  grid.innerHTML='';
+  $('toolsHead').innerHTML='\u95DC\u65BC\u6211\u5011';
+  var section=ce('div','about-section');
+  section.innerHTML='<h3>\u95DC\u65BC AI \u5DE5\u5177\u8CC7\u6E90\u5E73\u53F0</h3>'
+    +'<p>\u672C\u5E73\u53F0\u7531\u81E8\u5E8A\u6559\u5E2B\u5718\u968A\u6253\u9020\uFF0C\u81F4\u529B\u65BC\u6574\u5408\u6700\u65B0 AI \u79D1\u6280\u5DE5\u5177\uFF0C\u5E6B\u52A9\u6559\u5E2B\u3001\u5B78\u751F\u3001\u884C\u653F\u8207\u5F71\u97F3\u88FD\u4F5C\u4EBA\u54E1\u63D0\u5347\u6BCF\u65E5\u5DE5\u4F5C\u6548\u80FD\u3002</p>'
+    +'<h4>\uD83C\uDFAF \u6211\u5011\u7684\u76EE\u6A19</h4>'
+    +'<ul>'
+    +'<li>\u2022 \u964D\u4F4E AI \u5DE5\u5177\u7684\u4F7F\u7528\u9580\u6ABB</li>'
+    +'<li>\u2022 \u63D0\u4F9B\u7D93\u904E\u9A57\u8B49\u7684\u5BE6\u7528\u5DE5\u5177\u63A8\u85A6</li>'
+    +'<li>\u2022 \u6301\u7E8C\u66F4\u65B0\u6700\u65B0 AI \u61C9\u7528\u8CC7\u6E90</li>'
+    +'</ul>'
+    +'<h4>\uD83D\uDCEC \u806F\u7D61\u6211\u5011</h4>'
+    +'<div class="about-contact">\u5982\u6709\u5DE5\u5177\u63A8\u85A6\u6216\u5408\u4F5C\u63D0\u6848\uFF0C\u6B61\u8FCE\u4F86\u4FE1\uFF1A<a href="mailto:zxc80057@gmail.com">zxc80057@gmail.com</a></div>';
+  grid.appendChild(section);
+}
+
 /* ====== INIT ====== */
 function init(){
+  initTheme();
   buildStars();
 
   /* 直接用預載資料渲染，秒開 */
   buildNavTabs();
   buildHeroGrid();
   updateVisit();
+  initSearch();
 
   var hash=decodeURIComponent(location.hash.replace('#',''));
   if(hash&&PAGES.indexOf(hash)>=0){
