@@ -257,11 +257,11 @@ img{display:block;max-width:100%}
 /* ====== CONFIG ====== */
 var GAS_API='https://script.google.com/macros/s/AKfycbx6qfQFbhAwiqA4AdRisH2HuZDw8iLQEEw-pxraTYCCoMInj0O9cpygBSsB6ii32j21/exec';
 var _cbId=0;
-var CARDS=[];
-var PAGES=[];
-var GEM_URL='';
-var _statsData={};
-var _totalVisits=0;
+var CARDS=[{"category":"簡報生成","tag":"Ｍac軟體","title":"PDF & Image to PPT","desc":"PDF檔與圖片轉成文字可編輯的PPT簡報檔AI無痕修，你還能逐頁檢視、手動修正","meta1":"","meta2":"","meta3":"","imageUrls":["https://lh3.googleusercontent.com/d/10R2-WvxXa5H5xbQKJzHjI5OHTv3WdFNP"],"linkUrl":"https://jyunhao914.github.io/revision-docs/"},{"category":"簡報生成","tag":"YAML","title":"Notebook LM 風格檔：扁平插畫明亮暖色","desc":" YAML檔的連結加入 NotebookLM 的資料來源，就能輕鬆產出具備一致視覺風格的簡報","meta1":"copy","meta2":"","meta3":"","imageUrls":["https://lh3.googleusercontent.com/d/1mYkmffAS0XcN1bPyAHu9FyFnaT6VdD9e"],"linkUrl":"https://docs.google.com/document/d/1-Zi5w4deGfE6A-H-rwbUMLpwJggRhO1NqQbI_Qb3UU8/edit?usp=sharing"},{"category":"簡報生成","tag":"YAML","title":"Notebook LM 風格檔：扁平插畫漸層背景粉紅色系","desc":" YAML檔的連結加入 NotebookLM 的資料來源，就能輕鬆產出具備一致視覺風格的簡報","meta1":"copy","meta2":"","meta3":"","imageUrls":["https://lh3.googleusercontent.com/d/1N5EwBjQqT3WNgL8LiA7NxzelryyrSJin"],"linkUrl":"https://docs.google.com/document/d/1p7i882bEzOqEScx01YLKbQtHLvBJNobNF9sdg_PY3nQ/edit?usp=sharing"},{"category":"簡報生成","tag":"YAML","title":"Notebook LM 風格檔：扁平插畫白背景藍色系","desc":" YAML檔的連結加入 NotebookLM 的資料來源，就能輕鬆產出具備一致視覺風格的簡報","meta1":"copy","meta2":"","meta3":"","imageUrls":["https://lh3.googleusercontent.com/d/1AG3LKl8_a4qVedH84BH6QWWS9rfTm8ZU"],"linkUrl":"https://docs.google.com/document/d/1m88VgNs8AcYuwPjK_OQIzCeVpFfahCETN1CDdeC0QCo/edit?usp=sharing"},{"category":"海報製作","tag":"海報生成","title":"現代簡約_典雅藍色系","desc":"貼上你的文案與簡述想要的感覺，一鍵就能產出海報","meta1":"","meta2":"","meta3":"","imageUrls":["https://lh3.googleusercontent.com/d/1GRUGrymTwEINpsodq5wgJgBPiv5uw57I|contain"],"linkUrl":"https://gemini.google.com/gem/1-I-HEXLdgeStt9PmL-dla2q8Blq3Omop"},{"category":"海報製作","tag":"海報生成","title":"清新現代_白綠色系","desc":"貼上你的文案與簡述想要的感覺，一鍵就能產出海報","meta1":"","meta2":"","meta3":"","imageUrls":["https://lh3.googleusercontent.com/d/1k7OAcjgskChypuwjM9GEdY1iVTxMlBBX|contain"],"linkUrl":"https://gemini.google.com/gem/1I04Zalvi5OxZvwPwvmczRsfqX4_I0SWQ?usp=sharing"},{"category":"工具箱","tag":"搶救畫質","title":"智能修復畫質","desc":"只要上傳照片，AI 立即自動修復模糊、低解析度或老舊照片，直接生成高畫質修復圖。不需要任何技術背景，建議使用 Gemini 2.0「思考型」以上模型，選用 PRO 版效果更佳。","meta1":"","meta2":"","meta3":"","imageUrls":["https://lh3.googleusercontent.com/d/1CnaZzcb5LnTqX3XrkZkLnlXAPjJhUsQu"],"linkUrl":"https://gemini.google.com/gem/14ruc4y-gYYHjWMWo0LV-5t2Xr7acATmg?usp=sharing"}];
+var PAGES=["簡報生成","海報製作","工具箱","關於我們"];
+var GEM_URL="https://gemini.google.com/gem/1-I-HEXLdgeStt9PmL-dla2q8Blq3Omop?usp=sharing";
+var _statsData={"PDF & Image to PPT":2,"Notebook LM 風格檔：扁平插畫漸層背景粉紅色系":1,"Notebook LM 風格檔：扁平插畫白背景藍色系":1};
+var _totalVisits=88;
 var _activeTab='';
 var _adminCards=[];
 var _adminEmails=[];
@@ -806,26 +806,27 @@ function refreshMainData(){
 function init(){
   buildStars();
 
+  /* 直接用預載資料渲染，秒開 */
+  buildNavTabs();
+  buildHeroGrid();
+  updateVisit();
+
+  var hash=decodeURIComponent(location.hash.replace('#',''));
+  if(hash&&PAGES.indexOf(hash)>=0){
+    switchTab(hash);
+  }else if(PAGES.length){
+    switchTab(PAGES[0]);
+  }
+
+  /* 背景更新統計（不阻塞渲染） */
   gasAPI('getData',null,function(data){
-    if(!data){
-      $('toolsGrid').innerHTML='<div class="tools-empty">\u8F09\u5165\u5931\u6557\uFF0C\u8ACB\u91CD\u65B0\u6574\u7406</div>';
-      return;
-    }
-    CARDS=data.cards||[];
-    PAGES=data.pages||[];
-    GEM_URL=data.gemUrl||'';
+    if(!data)return;
+    if(data.cards&&data.cards.length)CARDS=data.cards;
+    if(data.pages&&data.pages.length)PAGES=data.pages;
+    if(data.gemUrl)GEM_URL=data.gemUrl;
     var _s=data.stats||{};_statsData=_s.tools||_s;_totalVisits=_s.total||0;
-
-    buildNavTabs();
-    buildHeroGrid();
     updateVisit();
-
-    var hash=decodeURIComponent(location.hash.replace('#',''));
-    if(hash&&PAGES.indexOf(hash)>=0){
-      switchTab(hash);
-    }else if(PAGES.length){
-      switchTab(PAGES[0]);
-    }
+    renderCards();
   });
 
   window.addEventListener('hashchange',function(){
