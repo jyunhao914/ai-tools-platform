@@ -1035,10 +1035,58 @@ function compressImage(file,callback,maxW,quality){
 
 function insertCompressedImage(file,altText){
   altText=altText||'uploaded image';
+  toast('圖片上傳中...');
   compressImage(file,function(dataUrl){
-    var ed=$('articleEditor');
-    if(ed)ed.focus();
-    document.execCommand('insertHTML',false,'<img src="'+dataUrl+'" style="max-width:100%;border-radius:8px;margin:8px 0" alt="'+altText+'">');
+    /* Upload compressed image to Google Drive via uploadFile doPost */
+    var base64Data=dataUrl.split(',')[1];
+    var pw=sessionStorage.getItem('admin_pw')||'';
+    var fileName='article_img_'+Date.now()+'.jpg';
+
+    /* Use XMLHttpRequest to POST to Apps Script (form-encoded) */
+    var formData=new URLSearchParams();
+    formData.set('action','uploadFile');
+    formData.set('pw',pw);
+    formData.set('fileData',base64Data);
+    formData.set('fileName',fileName);
+    formData.set('mimeType','image/jpeg');
+
+    var xhr=new XMLHttpRequest();
+    xhr.open('POST',GAS_API,true);
+    xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
+    xhr.onload=function(){
+      try{
+        var text=xhr.responseText;
+        var json=text.match(/\{[\s\S]*\}/);
+        if(json){
+          var res=JSON.parse(json[0]);
+          if(res.ok&&res.directUrl){
+            var ed=$('articleEditor');
+            if(ed)ed.focus();
+            document.execCommand('insertHTML',false,'<img src="'+res.directUrl+'" style="max-width:100%;border-radius:8px;margin:8px 0" alt="'+altText+'">');
+            toast('圖片已插入');
+            return;
+          }
+        }
+        /* Fallback: use base64 if upload fails */
+        var ed=$('articleEditor');
+        if(ed)ed.focus();
+        document.execCommand('insertHTML',false,'<img src="'+dataUrl+'" style="max-width:100%;border-radius:8px;margin:8px 0" alt="'+altText+'">');
+        toast('圖片已插入（本地）');
+      }catch(e){
+        var ed=$('articleEditor');
+        if(ed)ed.focus();
+        document.execCommand('insertHTML',false,'<img src="'+dataUrl+'" style="max-width:100%;border-radius:8px;margin:8px 0" alt="'+altText+'">');
+        toast('圖片已插入（本地）');
+      }
+    };
+    xhr.onerror=function(){
+      /* Fallback to base64 */
+      var ed=$('articleEditor');
+      if(ed)ed.focus();
+      document.execCommand('insertHTML',false,'<img src="'+dataUrl+'" style="max-width:100%;border-radius:8px;margin:8px 0" alt="'+altText+'">');
+      toast('圖片已插入（本地）');
+    };
+    xhr.send(formData.toString());
   });
 }
 
@@ -2319,55 +2367,18 @@ $('modalSave').onclick=function(){
       coverImage:coverImage
     };
 
-    /* Save article: try POST first, fallback to chunked GET */
+    /* Save article via JSONP GET (images are Drive URLs, not base64) */
     var contentB64=btoa(unescape(encodeURIComponent(content)));
     var cardData=JSON.stringify({id:articleData.id,title:articleData.title,desc:articleData.desc,
         category:articleData.category,tag:articleData.tag,visible:articleData.visible,
         coverImage:coverImage});
     toast('儲存中...');
-
-    /* Check total size — if under 6000 chars, use JSONP GET directly */
-    if(contentB64.length<6000){
-      gasAPI('saveArticle',{data:cardData,contentB64:contentB64},function(r){
-        if(r&&r.ok){
-          toast('\u6587\u7AE0\u5DF2\u5132\u5B58');
-          $('modalOverlay').classList.remove('show');_editCard=null;loadAdminCards();refreshMainData();
-        }else{toast('\u5132\u5B58\u5931\u6557'+(r&&r.error?': '+r.error:''))}
-      });
-    }else{
-      /* Large content: split into chunks and send via multiple JSONP calls */
-      var CHUNK=5000;
-      var chunks=[];
-      for(var ci=0;ci<contentB64.length;ci+=CHUNK){chunks.push(contentB64.substring(ci,ci+CHUNK))}
-      var totalChunks=chunks.length;
-      var savedChunks=0;
-      var articleId=articleData.id||('art_'+Date.now());
-
-      /* First save card metadata + first chunk */
-      gasAPI('saveArticle',{data:cardData,contentB64:chunks[0],chunkIndex:'0',totalChunks:String(totalChunks),articleId:articleId},function(r){
-        if(!r||!r.ok){toast('\u5132\u5B58\u5931\u6557'+(r&&r.error?': '+r.error:''));return;}
-        savedChunks++;
-        if(totalChunks===1){
-          toast('\u6587\u7AE0\u5DF2\u5132\u5B58');
-          $('modalOverlay').classList.remove('show');_editCard=null;loadAdminCards();refreshMainData();
-          return;
-        }
-        /* Send remaining chunks */
-        function sendNextChunk(){
-          if(savedChunks>=totalChunks){
-            toast('\u6587\u7AE0\u5DF2\u5132\u5B58');
-            $('modalOverlay').classList.remove('show');_editCard=null;loadAdminCards();refreshMainData();
-            return;
-          }
-          gasAPI('saveArticle',{contentB64:chunks[savedChunks],chunkIndex:String(savedChunks),totalChunks:String(totalChunks),articleId:articleId},function(r2){
-            if(!r2||!r2.ok){toast('\u5132\u5B58\u5931\u6557 (chunk '+savedChunks+')');return;}
-            savedChunks++;
-            sendNextChunk();
-          });
-        }
-        sendNextChunk();
-      });
-    }
+    gasAPI('saveArticle',{data:cardData,contentB64:contentB64},function(r){
+      if(r&&r.ok){
+        toast('\u6587\u7AE0\u5DF2\u5132\u5B58');
+        $('modalOverlay').classList.remove('show');_editCard=null;loadAdminCards();refreshMainData();
+      }else{toast('\u5132\u5B58\u5931\u6557'+(r&&r.error?': '+r.error:''))}
+    });
 
   }else if(_editType==='copy'){
     card.btnLabel=(document.getElementById('mf_btnLabel')||{}).value||'點我複製';
