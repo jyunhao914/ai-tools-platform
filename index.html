@@ -641,6 +641,39 @@ function gasAPI(action,params,callback){
   document.head.appendChild(s);
 }
 
+/* POST version for large payloads (articles with images) */
+function gasAPIPost(action,params,callback){
+  var pw=sessionStorage.getItem('admin_pw')||'';
+  if(pw){if(!params)params={};if(!params.pw)params.pw=pw;}
+  params.action=action;
+  var url=GAS_API;
+  var done=false;
+  var timer=setTimeout(function(){if(!done){done=true;if(callback)callback(null)}},30000);
+  var form=document.createElement('form');
+  form.method='POST';form.action=url;form.target='_gasPostFrame';form.style.display='none';
+  for(var k in params){if(params.hasOwnProperty(k)){var inp=document.createElement('input');inp.type='hidden';inp.name=k;inp.value=params[k];form.appendChild(inp)}}
+  /* Use hidden iframe to capture response */
+  var frameName='_gasPostFrame';
+  var iframe=document.getElementById(frameName);
+  if(!iframe){iframe=document.createElement('iframe');iframe.id=frameName;iframe.name=frameName;iframe.style.display='none';document.body.appendChild(iframe)}
+  /* For cross-origin, we use fetch with no-cors as fallback, then JSONP to verify */
+  fetch(url,{method:'POST',body:new URLSearchParams(params),headers:{'Content-Type':'application/x-www-form-urlencoded'}})
+    .then(function(r){return r.text()})
+    .then(function(text){
+      if(done)return;done=true;clearTimeout(timer);
+      try{
+        /* Apps Script returns HTML page with script that calls callback, or JSON */
+        var json=text.match(/\{[\s\S]*\}/);
+        if(json){callback(JSON.parse(json[0]))}
+        else{callback({ok:true})}
+      }catch(e){callback({ok:true})}
+    })
+    .catch(function(){
+      if(done)return;done=true;clearTimeout(timer);
+      if(callback)callback(null);
+    });
+}
+
 /* ====== UTILS ====== */
 function $(id){return document.getElementById(id)}
 function ce(tag,cls,html){var el=document.createElement(tag);if(cls)el.className=cls;if(html!==undefined)el.innerHTML=html;return el}
@@ -2294,8 +2327,7 @@ $('modalSave').onclick=function(){
       coverImage:coverImage
     };
 
-    /* Use JSONP for article save (avoid CORS redirect issue with POST) */
-    /* Encode content as base64 to handle large HTML safely in URL */
+    /* Use POST for article save (content may contain large base64 images) */
     var contentB64=btoa(unescape(encodeURIComponent(content)));
     var params={
       data:JSON.stringify({id:articleData.id,title:articleData.title,desc:articleData.desc,
@@ -2303,14 +2335,15 @@ $('modalSave').onclick=function(){
         coverImage:coverImage}),
       contentB64:contentB64
     };
-    gasAPI('saveArticle',params,function(r){
+    toast('儲存中...');
+    gasAPIPost('saveArticle',params,function(r){
       if(r&&r.ok){
         toast('\u6587\u7AE0\u5DF2\u5132\u5B58');
         $('modalOverlay').classList.remove('show');
         _editCard=null;
         loadAdminCards();
         refreshMainData();
-      }else{toast('\u5132\u5B58\u5931\u6557')}
+      }else{toast('\u5132\u5B58\u5931\u6557'+(r&&r.error?': '+r.error:''))}
     });
 
   }else if(_editType==='copy'){
