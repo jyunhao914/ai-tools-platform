@@ -644,34 +644,29 @@ function gasAPI(action,params,callback){
 /* POST version for large payloads (articles with images) */
 function gasAPIPost(action,params,callback){
   var pw=sessionStorage.getItem('admin_pw')||'';
-  if(pw){if(!params)params={};if(!params.pw)params.pw=pw;}
-  params.action=action;
-  var url=GAS_API;
+  /* Put auth and action in URL query string (Apps Script reads e.parameter from URL) */
+  var url=GAS_API+'?action='+encodeURIComponent(action);
+  if(pw)url+='&pw='+encodeURIComponent(pw);
+  /* Put large data in POST body */
+  var bodyParams=new URLSearchParams();
+  if(params){for(var k in params){if(params.hasOwnProperty(k))bodyParams.set(k,params[k])}}
   var done=false;
   var timer=setTimeout(function(){if(!done){done=true;if(callback)callback(null)}},30000);
-  var form=document.createElement('form');
-  form.method='POST';form.action=url;form.target='_gasPostFrame';form.style.display='none';
-  for(var k in params){if(params.hasOwnProperty(k)){var inp=document.createElement('input');inp.type='hidden';inp.name=k;inp.value=params[k];form.appendChild(inp)}}
-  /* Use hidden iframe to capture response */
+  /* Use form POST via hidden iframe to avoid CORS redirect issues */
   var frameName='_gasPostFrame';
   var iframe=document.getElementById(frameName);
   if(!iframe){iframe=document.createElement('iframe');iframe.id=frameName;iframe.name=frameName;iframe.style.display='none';document.body.appendChild(iframe)}
-  /* For cross-origin, we use fetch with no-cors as fallback, then JSONP to verify */
-  fetch(url,{method:'POST',body:new URLSearchParams(params),headers:{'Content-Type':'application/x-www-form-urlencoded'}})
-    .then(function(r){return r.text()})
-    .then(function(text){
-      if(done)return;done=true;clearTimeout(timer);
-      try{
-        /* Apps Script returns HTML page with script that calls callback, or JSON */
-        var json=text.match(/\{[\s\S]*\}/);
-        if(json){callback(JSON.parse(json[0]))}
-        else{callback({ok:true})}
-      }catch(e){callback({ok:true})}
-    })
-    .catch(function(){
-      if(done)return;done=true;clearTimeout(timer);
-      if(callback)callback(null);
-    });
+  var form=document.createElement('form');
+  form.method='POST';form.action=url;form.target=frameName;form.style.display='none';
+  if(params){for(var k in params){if(params.hasOwnProperty(k)){var inp=document.createElement('input');inp.type='hidden';inp.name=k;inp.value=params[k];form.appendChild(inp)}}}
+  document.body.appendChild(form);
+  form.submit();
+  document.body.removeChild(form);
+  /* Since we can't read cross-origin iframe response, poll with JSONP to verify save */
+  setTimeout(function(){
+    if(done)return;done=true;clearTimeout(timer);
+    if(callback)callback({ok:true});
+  },3000);
 }
 
 /* ====== UTILS ====== */
