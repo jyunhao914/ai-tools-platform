@@ -653,9 +653,9 @@ function openEditModal(card,defaultPage){
     {key:'page',label:'\u5206\u985E',type:'select',opts:PAGES},
     {key:'title',label:'\u6A19\u984C',type:'text'},
     {key:'tag',label:'\u6A19\u7C64',type:'text'},
-    {key:'description',label:'\u63CF\u8FF0',type:'textarea'},
+    {key:'desc',label:'\u63CF\u8FF0',type:'textarea'},
     {key:'linkUrl',label:'\u9023\u7D50 URL',type:'text'},
-    {key:'imageUrl',label:'\u5716\u7247 URL (\u6BCF\u884C\u4E00\u500B)',type:'textarea'},
+    {key:'imageUrls',label:'\u5716\u7247 URL (\u6BCF\u884C\u4E00\u500B)',type:'textarea'},
     {key:'iconUrl',label:'\u5716\u793A URL',type:'text'},
     {key:'meta1',label:'Meta1',type:'text'},
     {key:'meta2',label:'Meta2',type:'text'},
@@ -683,9 +683,11 @@ function openEditModal(card,defaultPage){
       var ta=ce('textarea');
       ta.id='mf_'+f.key;
       ta.rows=3;
-      ta.value=card?card[f.key]||'':'';
+      var val=card?card[f.key]||'':'';
+      if(Array.isArray(val))val=val.join('\n');
+      ta.value=val;
       div.appendChild(ta);
-      if(f.key==='imageUrl'){
+      if(f.key==='imageUrls'){
         var preview=ce('div','modal-preview');
         preview.id='mf_imgPreview';
         updateImgPreview(preview,ta.value);
@@ -730,12 +732,14 @@ $('modalOverlay').onclick=function(e){if(e.target===this)this.classList.remove('
 $('modalSave').onclick=function(){
   var card=_editCard||{};
   card.page=document.getElementById('mf_page').value;
+  card.category=card.page;
   card.title=document.getElementById('mf_title').value;
   card.tag=document.getElementById('mf_tag').value;
-  card.description=document.getElementById('mf_description').value;
+  card.desc=document.getElementById('mf_desc').value;
   card.linkUrl=document.getElementById('mf_linkUrl').value;
-  card.imageUrl=document.getElementById('mf_imageUrl').value;
-  card.iconUrl=document.getElementById('mf_iconUrl').value;
+  var imgRaw=document.getElementById('mf_imageUrls').value;
+  card.imageUrls=imgRaw?imgRaw.split('\n').map(function(s){return s.trim()}).filter(function(s){return s}):[];
+  card.iconUrl=(document.getElementById('mf_iconUrl')||{}).value||'';
   card.meta1=document.getElementById('mf_meta1').value;
   card.meta2=document.getElementById('mf_meta2').value;
   card.meta3=document.getElementById('mf_meta3').value;
