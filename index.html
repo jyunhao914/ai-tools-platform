@@ -384,6 +384,11 @@ img{display:block;max-width:100%}
   .about-section h3{font-size:22px}
   .theme-toggle{width:32px;height:32px;font-size:16px;margin-left:4px}
 }
+/* === Copy Card === */
+.card-copy-preview{background:rgba(0,0,0,0.18);border-radius:8px;padding:10px 12px;margin:8px 0;font-family:'Fira Code','Courier New',monospace;font-size:0.78rem;color:#a6e3a1;max-height:80px;overflow:hidden;white-space:pre-wrap;word-break:break-all;position:relative;border:1px solid rgba(255,255,255,0.08)}
+.card-copy-preview::after{content:'';position:absolute;bottom:0;left:0;right:0;height:24px;background:linear-gradient(transparent,rgba(0,0,0,0.18))}
+[data-theme="light"] .card-copy-preview{background:rgba(0,0,0,0.05);color:#15803d;border-color:rgba(0,0,0,0.08)}
+[data-theme="light"] .card-copy-preview::after{background:linear-gradient(transparent,rgba(0,0,0,0.05))}
 </style>
 </head>
 <body>
@@ -565,12 +570,14 @@ function fileIcon(mimeType){
 function typeBadge(type){
   if(type==='file')return'\uD83D\uDCC1 ';
   if(type==='article')return'\uD83D\uDCDD ';
+  if(type==='copy')return'\uD83D\uDCCB ';
   return'\uD83D\uDD17 ';
 }
 
 function typeLabel(type){
   if(type==='file')return'\u6A94\u6848';
   if(type==='article')return'\u6587\u7AE0';
+  if(type==='copy')return'\u8907\u88FD\u6309\u9215';
   return'\u9023\u7D50';
 }
 
@@ -814,6 +821,45 @@ function renderOneArticleCard(grid,card){
   grid.appendChild(el);
 }
 
+function renderOneCopyCard(grid,card){
+  var el=ce('div','card');
+  if(card.imageUrls&&card.imageUrls.length){
+    el.appendChild(buildSlider(card.imageUrls,card));
+  }else{
+    var ph=ce('div','card-placeholder','📋');
+    el.appendChild(ph);
+  }
+  var body=ce('div','card-body');
+  if(card.tag)body.appendChild(ce('div','card-tag',esc(card.tag)));
+  body.appendChild(ce('div','card-title',esc(card.title||'複製內容')));
+  if(card.desc)body.appendChild(ce('div','card-desc',esc(card.desc)));
+  if(card.copyContent){
+    var preview=ce('div','card-copy-preview',esc(card.copyContent));
+    body.appendChild(preview);
+  }
+  var foot=ce('div','card-foot');
+  var icon=card.btnIcon||'📋';
+  var label=card.btnLabel||'點我複製';
+  var btnStyle=card.btnStyle||'primary';
+  var btn=ce('a','card-link card-link--'+btnStyle,icon+' '+label);
+  btn.href='javascript:void(0)';
+  btn.setAttribute('data-copy',card.copyContent||'');
+  btn.onclick=function(e){
+    e.preventDefault();
+    var text=this.getAttribute('data-copy');
+    copyText(text);
+    var orig=this.textContent;
+    this.textContent='✅ 已複製！';
+    var self=this;
+    setTimeout(function(){self.textContent=orig;},2000);
+    if(typeof gasAPI==='function')gasAPI('recordClick',{title:card.title},null);
+  };
+  foot.appendChild(btn);
+  body.appendChild(foot);
+  el.appendChild(body);
+  grid.appendChild(el);
+}
+
 function copyText(text){
   if(navigator.clipboard){navigator.clipboard.writeText(text).catch(function(){})}
   else{var ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta)}
@@ -910,19 +956,14 @@ $('adminClose').onclick=function(){$('adminOverlay').classList.remove('show')};
 (function(){
   var gear=$('adminGear');
 
-  // 方1：URL 參數 ?manage=true
-  if(new URLSearchParams(location.search).get('manage')==='true'){
-    gear.classList.add('visible');
-  }
-
-  // 方2：鍵盤快捷鍵 Ctrl+Shift+A
+  // 方1：鍵盤快捷鍵 Ctrl+Shift+A
   document.addEventListener('keydown',function(e){
     if(e.ctrlKey&&e.shiftKey&&e.key==='A'){
       gear.classList.toggle('visible');
     }
   });
 
-  // 方3：在 Logo 快速點擊 5 次
+  // 方2：在 Logo 快速點擊 5 次
   var clickCount=0,clickTimer=null;
   var logoEl=document.querySelector('.nav-logo')||document.querySelector('header');
   if(logoEl){
@@ -1441,7 +1482,7 @@ function openEditModal(card,defaultPage){
   typeDiv.appendChild(ce('label','','\u985E\u578B'));
   var typeSel=ce('div','type-selector');
   typeSel.id='mf_typeSelector';
-  [{val:'link',label:'\uD83D\uDD17 \u9023\u7D50'},{val:'file',label:'\uD83D\uDCC1 \u6A94\u6848'},{val:'article',label:'\uD83D\uDCDD \u6587\u7AE0'}].forEach(function(t){
+  [{val:'link',label:'\uD83D\uDD17 \u9023\u7D50'},{val:'file',label:'\uD83D\uDCC1 \u6A94\u6848'},{val:'article',label:'\uD83D\uDCDD \u6587\u7AE0'},{val:'copy',label:'\uD83D\uDCCB \u8907\u88FD\u6309\u9215'}].forEach(function(t){
     var btn=ce('button',''+(_editType===t.val?' active':''),t.label);
     btn.setAttribute('data-type',t.val);
     btn.onclick=function(){
@@ -1710,6 +1751,61 @@ function openEditModal(card,defaultPage){
   articleDiv.appendChild(editorDiv);
   body.appendChild(articleDiv);
 
+  /* COPY-specific fields */
+  var copyDiv=ce('div','');
+  copyDiv.id='mf_copyFields';
+  var existingCopy=card||{};
+
+  var btnLabelField=ce('div','modal-field');
+  btnLabelField.appendChild(ce('label','','按鈕名稱 (btnLabel)'));
+  var btnLabelInp=ce('input');
+  btnLabelInp.id='mf_btnLabel';
+  btnLabelInp.type='text';
+  btnLabelInp.value=existingCopy.btnLabel||'點我複製';
+  btnLabelInp.placeholder='例：複製 Prompt / 複製連結';
+  btnLabelField.appendChild(btnLabelInp);
+  copyDiv.appendChild(btnLabelField);
+
+  var btnIconField=ce('div','modal-field');
+  btnIconField.appendChild(ce('label','','按鈕圖示 (btnIcon)'));
+  var btnIconSel=ce('select');
+  btnIconSel.id='mf_btnIcon';
+  [['📋','📋 剪貼簿'],['🔗','🔗 連結'],['💻','💻 程式碼'],['📤','📤 分享'],['📝','📝 文字']].forEach(function(opt){
+    var o=ce('option','',opt[1]);
+    o.value=opt[0];
+    if((existingCopy.btnIcon||'📋')===opt[0])o.selected=true;
+    btnIconSel.appendChild(o);
+  });
+  btnIconField.appendChild(btnIconSel);
+  copyDiv.appendChild(btnIconField);
+
+  var btnStyleField=ce('div','modal-field');
+  btnStyleField.appendChild(ce('label','','按鈕樣式 (btnStyle)'));
+  var btnStyleSel=ce('select');
+  btnStyleSel.id='mf_btnStyle';
+  [['primary','主要（強調色）'],['secondary','次要（低調灰）']].forEach(function(opt){
+    var o=ce('option','',opt[1]);
+    o.value=opt[0];
+    if((existingCopy.btnStyle||'primary')===opt[0])o.selected=true;
+    btnStyleSel.appendChild(o);
+  });
+  btnStyleField.appendChild(btnStyleSel);
+  copyDiv.appendChild(btnStyleField);
+
+  var copyContentField=ce('div','modal-field');
+  var copyContentLbl=ce('label','','複製內容 (copyContent)');
+  copyContentLbl.appendChild(ce('small','',' — 連結、程式碼、Prompt 皆可'));
+  copyContentField.appendChild(copyContentLbl);
+  var copyContentTa=ce('textarea');
+  copyContentTa.id='mf_copyContent';
+  copyContentTa.rows=6;
+  copyContentTa.placeholder='貼入要複製的內容...';
+  copyContentTa.value=existingCopy.copyContent||'';
+  copyContentField.appendChild(copyContentTa);
+  copyDiv.appendChild(copyContentField);
+
+  body.appendChild(copyDiv);
+
   toggleTypeFields();
   $('modalOverlay').classList.add('show');
 }
@@ -1720,9 +1816,11 @@ function toggleTypeFields(){
   var articleFields=document.getElementById('mf_articleFields');
   var linkOnlyFields=document.querySelectorAll('.mf-link-only');
 
+  var copyFields=document.getElementById('mf_copyFields');
   if(linkFields)linkFields.style.display=_editType==='link'?'':'none';
   if(fileFields)fileFields.style.display=_editType==='file'?'':'none';
   if(articleFields)articleFields.style.display=_editType==='article'?'':'none';
+  if(copyFields)copyFields.style.display=_editType==='copy'?'':'none';
   linkOnlyFields.forEach(function(el){el.style.display=_editType==='link'?'':'none'});
 }
 
@@ -1901,6 +1999,16 @@ $('modalSave').onclick=function(){
         loadAdminCards();
         refreshMainData();
       }else{toast('\u5132\u5B58\u5931\u6557')}
+    });
+
+  }else if(_editType==='copy'){
+    card.btnLabel=(document.getElementById('mf_btnLabel')||{}).value||'點我複製';
+    card.btnIcon=(document.getElementById('mf_btnIcon')||{}).value||'📋';
+    card.btnStyle=(document.getElementById('mf_btnStyle')||{}).value||'primary';
+    card.copyContent=(document.getElementById('mf_copyContent')||{}).value||'';
+    gasAPI('saveCard',{data:JSON.stringify(card)},function(r){
+      if(r&&r.ok){toast('\u5DF2\u5132\u5B58');$('modalOverlay').classList.remove('show');_editCard=null;loadAdminCards();refreshMainData()}
+      else toast('\u5132\u5B58\u5931\u6557');
     });
   }
 };
@@ -2223,6 +2331,7 @@ function initSearch(){
         var type=card.type||'link';
         if(type==='article') renderOneArticleCard(grid,card);
         else if(type==='file') renderOneFileCard(grid,card);
+        else if(type==='copy') renderOneCopyCard(grid,card);
         else renderOneLinkCard(grid,card);
       });
       observeCards();
