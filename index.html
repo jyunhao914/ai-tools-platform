@@ -807,7 +807,6 @@ function toast(msg){
 }
 
 function totalViews(){
-  if(_totalVisits) return _totalVisits;
   var n=0;
   if(_statsData){for(var k in _statsData){if(_statsData.hasOwnProperty(k))n+=(parseInt(_statsData[k])||0)}}
   return n;
@@ -1653,21 +1652,6 @@ function renderAdminCards(filter){
 
   var toolbar=ce('div','admin-toolbar');
 
-  var visitBtn=ce('button','admin-add-btn','\uD83D\uDC41 \u7E3D\u700F\u89BD: '+(_totalVisits||0));
-  visitBtn.title='\u9EDE\u64CA\u4FEE\u6539\u7E3D\u700F\u89BD\u6B21\u6578';
-  visitBtn.style.cssText='margin-right:8px;font-size:13px';
-  visitBtn.onclick=function(){
-    var v=prompt('\u8A2D\u5B9A\u7E3D\u700F\u89BD\u6B21\u6578\uFF1A',_totalVisits||0);
-    if(v===null)return;
-    var num=parseInt(v,10);
-    if(isNaN(num)||num<0){toast('\u8ACB\u8F38\u5165\u6709\u6548\u6578\u5B57');return}
-    gasAPI('setVisitCount',{count:num},function(r){
-      if(r&&r.ok){_totalVisits=num;updateVisit();visitBtn.innerHTML='\uD83D\uDC41 \u7E3D\u700F\u89BD: '+num;toast('\u5DF2\u66F4\u65B0')}
-      else toast('\u66F4\u65B0\u5931\u6557');
-    });
-  };
-  toolbar.appendChild(visitBtn);
-
   var search=ce('input','admin-search');
   search.placeholder='\u641C\u5C0B...';
   search.value=filter||'';
@@ -1839,20 +1823,10 @@ function renderAdminCards(filter){
       dupBtn.onclick=function(){duplicateCard(card)};
       row.appendChild(dupBtn);
 
-      var viewBtn=ce('button','admin-view-btn','\uD83D\uDC41 '+(card.views||0));
-      viewBtn.title='\u9EDE\u64CA\u4FEE\u6539\u700F\u89BD\u6578';
-      viewBtn.style.cssText='min-width:60px;font-size:12px';
-      viewBtn.onclick=function(){
-        var v=prompt('\u8A2D\u5B9A '+card.title+' \u7684\u700F\u89BD\u6578\uFF1A',card.views||0);
-        if(v===null)return;
-        var num=parseInt(v,10);
-        if(isNaN(num)||num<0){toast('\u8ACB\u8F38\u5165\u6709\u6548\u6578\u5B57');return}
-        gasAPI('setStats',{id:card.id,count:num},function(r){
-          if(r&&r.ok){toast('\u5DF2\u66F4\u65B0');loadAdminCards();refreshMainData()}
-          else toast('\u66F4\u65B0\u5931\u6557');
-        });
-      };
-      row.appendChild(viewBtn);
+      var viewLabel=ce('span','','\uD83D\uDC41 '+((_statsData&&_statsData[card.title])||0));
+      viewLabel.style.cssText='min-width:50px;font-size:12px;color:var(--text3);text-align:center';
+      viewLabel.title='\u771F\u5BE6\u9EDE\u64CA\u6578';
+      row.appendChild(viewLabel);
 
       var delBtn=ce('button','del','\u2716');
       delBtn.onclick=function(){
@@ -2901,7 +2875,7 @@ function loadAdminStats(){
   gasAPI('getAnalytics',null,function(res){
     body.innerHTML='';
 
-    body.appendChild(ce('div','stats-big-number',String(_totalVisits||0)));
+    body.appendChild(ce('div','stats-big-number',String(totalViews())));
     body.appendChild(ce('div','stats-big-label','\u7E3D\u700F\u89BD\u6B21\u6578'));
 
     if(res&&res.ok&&res.analytics&&res.analytics.daily&&res.analytics.daily.length){
@@ -3146,6 +3120,9 @@ function init(){
   buildHeroGrid();
   updateVisit();
   initSearch();
+
+  /* Record page visit */
+  gasAPI('recordClick',{title:'_page_view'},null);
 
   var hash=decodeURIComponent(location.hash.replace('#',''));
   if(hash&&PAGES.indexOf(hash)>=0){
