@@ -494,7 +494,7 @@ function renderCards(){
       link.onclick=function(){gasAPI('recordClick',{title:card.title},null)};
     }
     foot.appendChild(link);
-    var views=(_statsData&&_statsData[card.title])||0;
+    var views=card.views||(_statsData&&_statsData[card.title])||0;
     foot.appendChild(ce('span','card-views','\uD83D\uDC41 '+views+' \u6B21\u9EDE\u95B1'));
     body.appendChild(foot);
     el.appendChild(body);
