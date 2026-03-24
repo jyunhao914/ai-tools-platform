@@ -230,7 +230,7 @@ img{display:block;max-width:100%}
 .rte-editor ul,.rte-editor ol{padding-left:24px;margin:8px 0}
 
 /* COLOR PALETTE */
-.rte-color-palette{position:absolute;z-index:10;display:none;background:#1e293b;border:1px solid var(--border2);border-radius:8px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.3);gap:4px;flex-wrap:wrap;width:160px}
+.rte-color-palette{position:fixed;z-index:100000;display:none;background:#1e293b;border:1px solid var(--border2);border-radius:8px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.5);gap:4px;flex-wrap:wrap;width:160px}
 .rte-color-palette.show{display:flex}
 .rte-color-swatch{width:24px;height:24px;border-radius:4px;cursor:pointer;border:2px solid transparent;transition:border-color .15s}
 .rte-color-swatch:hover{border-color:#fff}
@@ -1546,15 +1546,6 @@ function openEditModal(card,defaultPage){
   var articleDiv=ce('div','');
   articleDiv.id='mf_articleFields';
 
-  var authorField=ce('div','modal-field');
-  authorField.appendChild(ce('label','','\u4F5C\u8005'));
-  var authorInp=ce('input');
-  authorInp.id='mf_articleAuthor';
-  authorInp.type='text';
-  authorInp.value=existingExtra.author||'';
-  authorField.appendChild(authorInp);
-  articleDiv.appendChild(authorField);
-
   var coverField=ce('div','modal-field');
   coverField.appendChild(ce('label','','\u5C01\u9762\u5716\u7247 URL'));
   var coverInp=ce('input');
@@ -1624,12 +1615,14 @@ function openEditModal(card,defaultPage){
   });
   colorBtn.onclick=function(e){
     e.preventDefault();
-    colorPalette.classList.toggle('show');
     bgPalette.classList.remove('show');
+    var rect=colorBtn.getBoundingClientRect();
+    colorPalette.style.left=rect.left+'px';
+    colorPalette.style.top=(rect.bottom+4)+'px';
+    colorPalette.classList.toggle('show');
   };
-  colorWrap.appendChild(colorBtn);
-  colorWrap.appendChild(colorPalette);
-  rtToolbar.appendChild(colorWrap);
+  rtToolbar.appendChild(colorBtn);
+  document.body.appendChild(colorPalette);
 
   /* Background color button */
   var bgWrap=ce('div','');
@@ -1651,12 +1644,14 @@ function openEditModal(card,defaultPage){
   });
   bgBtn.onclick=function(e){
     e.preventDefault();
-    bgPalette.classList.toggle('show');
     colorPalette.classList.remove('show');
+    var rect=bgBtn.getBoundingClientRect();
+    bgPalette.style.left=rect.left+'px';
+    bgPalette.style.top=(rect.bottom+4)+'px';
+    bgPalette.classList.toggle('show');
   };
-  bgWrap.appendChild(bgBtn);
-  bgWrap.appendChild(bgPalette);
-  rtToolbar.appendChild(bgWrap);
+  rtToolbar.appendChild(bgBtn);
+  document.body.appendChild(bgPalette);
 
   /* Font size dropdown */
   var sizeSelect=ce('select','');
@@ -1841,7 +1836,6 @@ $('modalSave').onclick=function(){
     }
 
   }else if(_editType==='article'){
-    var author=(document.getElementById('mf_articleAuthor')||{}).value||'';
     var coverImage=(document.getElementById('mf_articleCover')||{}).value||'';
     var editorEl=document.getElementById('articleEditor');
     var content=editorEl?editorEl.innerHTML:'';
@@ -1854,30 +1848,27 @@ $('modalSave').onclick=function(){
       tag:card.tag||'',
       visible:card.visible,
       content:content,
-      author:author,
       coverImage:coverImage
     };
 
-    /* Use POST for article save (content can be large) */
-    var xhr=new XMLHttpRequest();
-    var fd=new FormData();
-    fd.append('action','saveArticle');
-    fd.append('pw',sessionStorage.getItem('admin_pw')||'');
-    fd.append('data',JSON.stringify(articleData));
-    xhr.open('POST',GAS_API);
-    xhr.onload=function(){
-      try{var r=JSON.parse(xhr.responseText);
-        if(r&&r.ok){
-          toast('\u6587\u7AE0\u5DF2\u5132\u5B58');
-          $('modalOverlay').classList.remove('show');
-          _editCard=null;
-          loadAdminCards();
-          refreshMainData();
-        }else{toast('\u5132\u5B58\u5931\u6557')}
-      }catch(e){toast('\u5132\u5B58\u5931\u6557')}
+    /* Use JSONP for article save (avoid CORS redirect issue with POST) */
+    /* Encode content as base64 to handle large HTML safely in URL */
+    var contentB64=btoa(unescape(encodeURIComponent(content)));
+    var params={
+      data:JSON.stringify({id:articleData.id,title:articleData.title,desc:articleData.desc,
+        category:articleData.category,tag:articleData.tag,visible:articleData.visible,
+        coverImage:coverImage}),
+      contentB64:contentB64
     };
-    xhr.onerror=function(){toast('\u5132\u5B58\u5931\u6557')};
-    xhr.send(fd);
+    gasAPI('saveArticle',params,function(r){
+      if(r&&r.ok){
+        toast('\u6587\u7AE0\u5DF2\u5132\u5B58');
+        $('modalOverlay').classList.remove('show');
+        _editCard=null;
+        loadAdminCards();
+        refreshMainData();
+      }else{toast('\u5132\u5B58\u5931\u6557')}
+    });
   }
 };
 
