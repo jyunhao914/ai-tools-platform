@@ -1009,14 +1009,9 @@ function renderOneLinkCard(grid,card){
     if(card.meta3)meta.appendChild(ce('span','',esc(card.meta3)));
     body.appendChild(meta);
   }
-  /* Copy content preview for copy behavior */
   var extra=(typeof card.extra==='string')?JSON.parse(card.extra||'{}'):(card.extra||{});
   var isCopy=(card.linkBehavior||extra.linkBehavior||card.meta1)==='copy'||(card.type==='copy');
   var copyContent=card.copyContent||extra.copyContent||card.linkUrl||'';
-  if(isCopy&&copyContent){
-    var preview=ce('div','card-copy-preview',esc(copyContent));
-    body.appendChild(preview);
-  }
   var foot=ce('div','card-foot');
   var btnIcon=card.linkBtnIcon||extra.linkBtnIcon||card.btnIcon||(isCopy?'\uD83D\uDCCB':'\u2197');
   var btnLabel=card.linkBtnLabel||extra.linkBtnLabel||card.btnLabel||(isCopy?'\u8907\u88FD\u5167\u5BB9':'\u958B\u555F\u5DE5\u5177');
@@ -2092,31 +2087,21 @@ function openEditModal(card,defaultPage){
   var _isCopyType=(card&&card.type==='copy');
   var existingBehavior=_isCopyType?'copy':((card&&card.linkBehavior)||_existExtra.linkBehavior||((card&&card.meta1==='copy')?'copy':'open'));
 
-  /* Behavior selector */
+  /* Behavior selector — native <select> to avoid any event interference */
   var behaviorField=ce('div','modal-field');
   behaviorField.appendChild(ce('label','','按鈕行為'));
-  var behaviorInput=ce('input');behaviorInput.type='hidden';behaviorInput.id='mf_linkBehavior';behaviorInput.value=existingBehavior;
-  behaviorField.appendChild(behaviorInput);
-  var bRow=ce('div','');bRow.style.cssText='display:flex;gap:8px';
-  [{val:'open',label:'↗ 開啟連結'},{val:'copy',label:'📋 複製內容'}].forEach(function(t){
-    var o=ce('div','');o.textContent=t.label;o.setAttribute('data-bval',t.val);
-    var a=existingBehavior===t.val;
-    o.style.cssText='flex:1;padding:10px;border-radius:8px;font-size:13px;cursor:pointer;text-align:center;user-select:none;border:2px solid '+(a?'#38bdf8':'rgba(255,255,255,0.12)')+';background:'+(a?'rgba(56,189,248,0.1)':'rgba(255,255,255,0.03)')+';color:'+(a?'#38bdf8':'inherit');
-    o.onclick=function(){
-      behaviorInput.value=t.val;
-      bRow.querySelectorAll('[data-bval]').forEach(function(s){
-        var act=s.getAttribute('data-bval')===t.val;
-        s.style.borderColor=act?'#38bdf8':'rgba(255,255,255,0.12)';
-        s.style.background=act?'rgba(56,189,248,0.1)':'rgba(255,255,255,0.03)';
-        s.style.color=act?'#38bdf8':'inherit';
-      });
-      /* Toggle URL vs Copy content fields */
-      urlField.style.display=t.val==='open'?'':'none';
-      copyField.style.display=t.val==='copy'?'':'none';
-    };
-    bRow.appendChild(o);
-  });
-  behaviorField.appendChild(bRow);
+  var behaviorSelect=ce('select');
+  behaviorSelect.id='mf_linkBehavior';
+  var optOpen=ce('option','','↗ 點擊開啟連結');optOpen.value='open';
+  var optCopy=ce('option','','📋 點擊複製內容');optCopy.value='copy';
+  if(existingBehavior==='copy')optCopy.selected=true;
+  behaviorSelect.appendChild(optOpen);
+  behaviorSelect.appendChild(optCopy);
+  behaviorSelect.onchange=function(){
+    urlField.style.display=this.value==='open'?'':'none';
+    copyField.style.display=this.value==='copy'?'':'none';
+  };
+  behaviorField.appendChild(behaviorSelect);
   linkDiv.appendChild(behaviorField);
 
   /* URL field (for open behavior) */
