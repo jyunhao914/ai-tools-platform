@@ -566,8 +566,8 @@ img{display:block;max-width:100%}
 .icb-dialog .icb-field input,.icb-dialog .icb-field textarea,.icb-dialog .icb-field select{width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:14px;font-family:inherit}
 .icb-dialog .icb-field textarea{min-height:100px;resize:vertical}
 .icb-dialog .icb-style-row{display:flex;gap:8px}
-.icb-dialog .icb-style-opt{flex:1;padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:600;cursor:pointer;border:2px solid transparent;transition:all .15s}
-.icb-dialog .icb-style-opt.active{border-color:#fff}
+.icb-dialog .icb-style-opt,.icb-style-opt{flex:1;padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:600;cursor:pointer;border:2px solid transparent;transition:all .15s;opacity:0.5}
+.icb-dialog .icb-style-opt.active,.icb-style-opt.active{border-color:#fff;box-shadow:0 0 0 3px rgba(255,255,255,0.5);transform:scale(1.08);opacity:1}
 .icb-dialog .icb-mode-row{display:flex;gap:8px;margin-bottom:14px}
 .icb-dialog .icb-mode-opt{flex:1;padding:10px;border-radius:8px;text-align:center;font-size:13px;cursor:pointer;border:2px solid var(--border);transition:all .15s;background:var(--card)}
 .icb-dialog .icb-mode-opt.active{border-color:var(--accent);color:var(--accent)}
