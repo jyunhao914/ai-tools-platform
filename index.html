@@ -536,8 +536,11 @@ function updateAdminTabs(){
 function loadAdminCards(){
   $('adminBody').innerHTML='<div class="loading-placeholder"><span class="spinner"></span>\u8F09\u5165\u4E2D...</div>';
   gasAPI('getCardsAdmin',null,function(res){
-    if(!res||!res.ok){$('adminBody').innerHTML='<p>\u8F09\u5165\u5931\u6557</p>';return}
-    _adminCards=res.cards||[];
+    if(res&&res.ok&&res.cards&&res.cards.length){
+      _adminCards=res.cards;
+    }else{
+      _adminCards=CARDS.map(function(c,i){var o={};for(var k in c)o[k]=c[k];o.id=i;o.visible=true;o.page=c.page||c.category;return o;});
+    }
     renderAdminCards();
   });
 }
