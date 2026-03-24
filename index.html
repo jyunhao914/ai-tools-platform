@@ -2102,23 +2102,22 @@ function openEditModal(card,defaultPage){
   behaviorInput.value=existingBehavior;
   behaviorField.appendChild(behaviorInput);
   [{val:'open',label:'\u2197 \u958B\u555F\u9023\u7D50'},{val:'copy',label:'\uD83D\uDCCB \u8907\u88FD\u9023\u7D50'}].forEach(function(t){
-    var btn=ce('button','');
-    btn.textContent=t.label;
-    btn.setAttribute('data-behavior',t.val);
-    btn.style.cssText='flex:1;padding:10px;border-radius:8px;font-size:13px;cursor:pointer;border:2px solid '+(existingBehavior===t.val?'#38bdf8':'rgba(255,255,255,0.12)')+';background:var(--card);color:'+(existingBehavior===t.val?'#38bdf8':'var(--text)')+';transition:all .15s';
-    btn.onmousedown=function(e){e.preventDefault()};
-    btn.onclick=function(e){
-      e.preventDefault();
-      e.stopPropagation();
+    var opt=ce('div','');
+    opt.textContent=t.label;
+    opt.setAttribute('data-bval',t.val);
+    var isAct=existingBehavior===t.val;
+    opt.style.cssText='flex:1;padding:10px;border-radius:8px;font-size:13px;cursor:pointer;text-align:center;user-select:none;border:2px solid '+(isAct?'#38bdf8':'rgba(255,255,255,0.12)')+';background:'+(isAct?'rgba(56,189,248,0.1)':'var(--card)')+';color:'+(isAct?'#38bdf8':'var(--text)');
+    opt.onclick=function(){
       behaviorInput.value=t.val;
-      behaviorSel.querySelectorAll('button').forEach(function(b){
-        var isActive=b.getAttribute('data-behavior')===t.val;
-        b.style.borderColor=isActive?'#38bdf8':'rgba(255,255,255,0.12)';
-        b.style.color=isActive?'#38bdf8':'var(--text)';
-      });
-      return false;
+      var siblings=behaviorSel.querySelectorAll('[data-bval]');
+      for(var si=0;si<siblings.length;si++){
+        var s=siblings[si],a=s.getAttribute('data-bval')===t.val;
+        s.style.borderColor=a?'#38bdf8':'rgba(255,255,255,0.12)';
+        s.style.background=a?'rgba(56,189,248,0.1)':'var(--card)';
+        s.style.color=a?'#38bdf8':'var(--text)';
+      }
     };
-    behaviorSel.appendChild(btn);
+    behaviorSel.appendChild(opt);
   });
   behaviorField.appendChild(behaviorSel);
   linkDiv.appendChild(behaviorField);
