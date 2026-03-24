@@ -419,6 +419,47 @@ img{display:block;max-width:100%}
   .about-section h3{font-size:22px}
   .theme-toggle{width:32px;height:32px;font-size:16px;margin-left:4px}
 }
+/* === Back to Top Button === */
+.back-to-top{position:fixed;bottom:24px;right:24px;z-index:200;width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:20px;border:none;cursor:pointer;opacity:0;visibility:hidden;transition:all .3s;box-shadow:0 4px 12px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center}
+.back-to-top.show{opacity:1;visibility:visible}
+.back-to-top:hover{transform:translateY(-3px);box-shadow:0 6px 16px rgba(0,0,0,.4)}
+
+/* === Card Entrance Animation === */
+.card{opacity:0;transform:translateY(24px);transition:opacity .45s ease,transform .45s ease}
+.card.card-visible{opacity:1;transform:translateY(0)}
+
+/* === Skeleton Loading === */
+.skeleton-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
+.skeleton-card .sk-img{width:100%;aspect-ratio:16/9;background:linear-gradient(90deg,var(--bg3) 25%,rgba(255,255,255,0.06) 50%,var(--bg3) 75%);background-size:200% 100%;animation:skShimmer 1.5s infinite}
+.skeleton-card .sk-body{padding:18px 20px}
+.skeleton-card .sk-line{height:14px;border-radius:4px;background:linear-gradient(90deg,var(--bg3) 25%,rgba(255,255,255,0.06) 50%,var(--bg3) 75%);background-size:200% 100%;animation:skShimmer 1.5s infinite;margin-bottom:10px}
+.skeleton-card .sk-line.short{width:60%}
+.skeleton-card .sk-line.medium{width:80%}
+@keyframes skShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* === Print Friendly === */
+@media print{
+  .nav,.hero,.footer,.admin-gear,.admin-overlay,.back-to-top,.article-back,.article-share,.article-reader-side,.toast{display:none!important}
+  .article-overlay{position:static!important;display:block!important;background:#fff!important}
+  .article-reader-wrap{max-width:100%!important;padding:0!important}
+  .article-content{color:#000!important;font-size:13px!important;line-height:1.7!important}
+  .article-content h2,.article-content h3{color:#000!important}
+  .article-content a{color:#0066cc!important}
+  .article-content img{max-width:100%!important;break-inside:avoid}
+  .article-content table{border-color:#ccc!important}
+  .article-content table th,.article-content table td{border-color:#ccc!important;background:#fff!important;color:#000!important}
+  .inline-copy-btn{border-color:#ccc!important}
+  .inline-copy-btn .icb-preview{background:#f5f5f5!important;color:#333!important}
+}
+
+/* === Reading Time === */
+.article-reading-time{font-size:12px;color:var(--text3);margin-left:8px}
+
+/* === Font Size Control === */
+.article-font-ctrl{display:inline-flex;gap:4px;margin-left:auto}
+.article-font-ctrl button{width:30px;height:30px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.article-font-ctrl button:hover{border-color:var(--accent);color:var(--accent)}
+
 /* === Copy Card === */
 .card-copy-preview{background:rgba(0,0,0,0.18);border-radius:8px;padding:10px 12px;margin:8px 0;font-family:'Fira Code','Courier New',monospace;font-size:0.78rem;color:#a6e3a1;max-height:80px;overflow:hidden;white-space:pre-wrap;word-break:break-all;position:relative;border:1px solid rgba(255,255,255,0.08)}
 .card-copy-preview::after{content:'';position:absolute;bottom:0;left:0;right:0;height:24px;background:linear-gradient(transparent,rgba(0,0,0,0.18))}
@@ -554,7 +595,9 @@ img{display:block;max-width:100%}
   </div>
   <h2 class="tools-head" id="toolsHead"></h2>
   <div class="tools-grid" id="toolsGrid">
-    <div class="loading-placeholder"><span class="spinner"></span>載入中...</div>
+    <div class="skeleton-card"><div class="sk-img"></div><div class="sk-body"><div class="sk-line medium"></div><div class="sk-line short"></div><div class="sk-line"></div></div></div>
+    <div class="skeleton-card"><div class="sk-img"></div><div class="sk-body"><div class="sk-line medium"></div><div class="sk-line short"></div><div class="sk-line"></div></div></div>
+    <div class="skeleton-card"><div class="sk-img"></div><div class="sk-body"><div class="sk-line medium"></div><div class="sk-line short"></div><div class="sk-line"></div></div></div>
   </div>
 </section>
 
@@ -599,7 +642,7 @@ img{display:block;max-width:100%}
       <button class="article-back" id="articleBack">&larr; 返回</button>
       <img class="article-cover" id="articleCover" style="display:none">
       <h1 id="articleTitle"></h1>
-      <div class="article-meta" id="articleMeta"><span id="articleMetaText"></span><button class="article-share" id="articleShare">🔗 複製連結</button></div>
+      <div class="article-meta" id="articleMeta"><span id="articleMetaText"></span><span class="article-reading-time" id="articleReadTime"></span><button class="article-share" id="articleShare">🔗 複製連結</button><span class="article-font-ctrl"><button id="fontMinus" title="縮小字體">A-</button><button id="fontPlus" title="放大字體">A+</button></span></div>
       <div class="article-content" id="articleContent"></div>
     </div>
     <aside class="article-reader-side" id="articleSide">
@@ -641,6 +684,7 @@ img{display:block;max-width:100%}
   </div>
 </div>
 
+<button class="back-to-top" id="backToTop" title="回到頂端">&#8593;</button>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1196,6 +1240,11 @@ function openArticleReader(card){
     $('articleContent').querySelectorAll('img').forEach(function(img){img.setAttribute('loading','lazy')});
     /* Build TOC */
     buildArticleToc();
+    /* Reading time */
+    updateReadingTime($('articleContent'));
+    /* Reset font size */
+    _articleFontSize=15;
+    $('articleContent').style.fontSize='';
   });
   overlay.classList.add('show');
   document.body.style.overflow='hidden';
@@ -1257,6 +1306,86 @@ function checkArticleHash(){
     if(card)openArticleReader(card);
   }
 }
+
+/* ====== READING TIME ====== */
+function updateReadingTime(contentEl){
+  var text=(contentEl.textContent||contentEl.innerText||'');
+  var chars=text.replace(/\s/g,'').length;
+  var minutes=Math.max(1,Math.round(chars/500));
+  var el=$('articleReadTime');
+  if(el)el.textContent='· 約 '+minutes+' 分鐘閱讀';
+}
+
+/* ====== FONT SIZE CONTROL ====== */
+var _articleFontSize=15;
+$('fontPlus').onclick=function(){
+  _articleFontSize=Math.min(22,_articleFontSize+2);
+  $('articleContent').style.fontSize=_articleFontSize+'px';
+};
+$('fontMinus').onclick=function(){
+  _articleFontSize=Math.max(12,_articleFontSize-2);
+  $('articleContent').style.fontSize=_articleFontSize+'px';
+};
+
+/* ====== BACK TO TOP ====== */
+var _btt=$('backToTop');
+window.addEventListener('scroll',function(){
+  _btt.classList.toggle('show',window.scrollY>400);
+});
+_btt.onclick=function(){window.scrollTo({top:0,behavior:'smooth'})};
+
+/* ====== CARD ENTRANCE ANIMATION ====== */
+function observeCards(){
+  var cards=document.querySelectorAll('.card:not(.card-visible)');
+  if(!('IntersectionObserver' in window)){cards.forEach(function(c){c.classList.add('card-visible')});return}
+  var obs=new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(en.isIntersecting){en.target.classList.add('card-visible');obs.unobserve(en.target)}
+    });
+  },{threshold:0.08});
+  cards.forEach(function(c){obs.observe(c)});
+}
+
+/* ====== SKELETON LOADING ====== */
+function showSkeleton(grid,count){
+  grid.innerHTML='';
+  for(var i=0;i<(count||6);i++){
+    var sk=ce('div','skeleton-card');
+    sk.innerHTML='<div class="sk-img"></div><div class="sk-body"><div class="sk-line medium"></div><div class="sk-line short"></div><div class="sk-line"></div></div>';
+    grid.appendChild(sk);
+  }
+}
+
+/* ====== KEYBOARD NAVIGATION ====== */
+document.addEventListener('keydown',function(e){
+  /* Esc closes article overlay */
+  if(e.key==='Escape'){
+    var artOverlay=$('articleOverlay');
+    if(artOverlay&&artOverlay.classList.contains('show')){
+      $('articleBack').click();
+      return;
+    }
+    var adminOverlay=$('adminOverlay');
+    if(adminOverlay&&adminOverlay.classList.contains('show')){
+      $('adminClose').click();
+      return;
+    }
+    var modalOverlay=$('modalOverlay');
+    if(modalOverlay&&modalOverlay.classList.contains('show')){
+      $('modalClose').click();
+      return;
+    }
+  }
+  /* ← → switch tabs (only when no overlay open and no input focused) */
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.isContentEditable)return;
+  if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
+    var overlays=['articleOverlay','adminOverlay','modalOverlay','icbDialogOverlay'];
+    for(var i=0;i<overlays.length;i++){var ov=$(overlays[i]);if(ov&&ov.classList.contains('show'))return}
+    var idx=PAGES.indexOf(_activeTab);
+    if(e.key==='ArrowLeft'&&idx>0)switchTab(PAGES[idx-1]);
+    if(e.key==='ArrowRight'&&idx<PAGES.length-1)switchTab(PAGES[idx+1]);
+  }
+});
 
 /* ====== ADMIN ====== */
 function openAdmin(){
