@@ -988,14 +988,15 @@ function renderOneLinkCard(grid,card){
   var link=ce('a','card-link',isCopy?'\uD83D\uDCCB \u8907\u88FD\u9023\u7D50':'\u2197 \u958B\u555F\u5DE5\u5177');
   if(isCopy){
     link.href='javascript:void(0)';
-    link.onclick=function(e){e.preventDefault();copyText(card.linkUrl);toast('\u5DF2\u8907\u88FD\u9023\u7D50');gasAPI('recordClick',{title:card.title},null);};
+    link.onclick=function(e){e.preventDefault();copyText(card.linkUrl);toast('\u5DF2\u8907\u88FD\u9023\u7D50');trackClick(card.title,viewsSpan);};
   }else{
     link.href=card.linkUrl||'#';link.target='_blank';link.rel='noopener';
-    link.onclick=function(){gasAPI('recordClick',{title:card.title},null)};
+    link.onclick=function(){trackClick(card.title,viewsSpan)};
   }
   foot.appendChild(link);
   var views=card.views||(_statsData&&_statsData[card.title])||0;
-  foot.appendChild(ce('span','card-views','\uD83D\uDC41 '+views+' \u6B21\u9EDE\u95B1'));
+  var viewsSpan=ce('span','card-views','\uD83D\uDC41 '+views+' \u6B21\u9EDE\u95B1');
+  foot.appendChild(viewsSpan);
   body.appendChild(foot);
   el.appendChild(body);
   grid.appendChild(el);
@@ -1096,6 +1097,16 @@ function renderOneCopyCard(grid,card){
 function copyText(text){
   if(navigator.clipboard){navigator.clipboard.writeText(text).catch(function(){})}
   else{var ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta)}
+}
+
+/* ====== CLICK TRACKING ====== */
+function trackClick(title,viewsSpan){
+  /* Immediately update local count */
+  if(!_statsData)_statsData={};
+  _statsData[title]=(_statsData[title]||0)+1;
+  if(viewsSpan)viewsSpan.textContent='\uD83D\uDC41 '+_statsData[title]+' \u6B21\u9EDE\u95B1';
+  /* Send to backend */
+  gasAPI('recordClick',{title:title},null);
 }
 
 /* ====== IMAGE COMPRESSION ====== */
