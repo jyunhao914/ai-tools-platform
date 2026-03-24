@@ -460,6 +460,20 @@ img{display:block;max-width:100%}
 .article-font-ctrl button{width:30px;height:30px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .article-font-ctrl button:hover{border-color:var(--accent);color:var(--accent)}
 
+/* === Video Embed === */
+.rte-video-wrap,.article-content .rte-video-wrap{position:relative;width:100%;padding-bottom:56.25%;margin:16px 0;border-radius:var(--r);overflow:hidden;background:#000}
+.rte-video-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none}
+.rte-video-wrap .video-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:14px;background:var(--bg3)}
+
+/* === QR Code Modal === */
+.qr-modal-overlay{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center}
+.qr-modal-overlay.show{display:flex}
+.qr-modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);padding:28px;text-align:center;min-width:280px}
+.qr-modal h3{font-size:16px;font-weight:700;margin-bottom:16px}
+.qr-modal canvas{margin:0 auto 16px;display:block;border-radius:8px}
+.qr-modal .qr-url{font-size:11px;color:var(--text3);word-break:break-all;margin-bottom:16px;max-width:250px;margin-left:auto;margin-right:auto}
+.qr-modal button{padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--card);color:var(--text);transition:all .15s}
+
 /* === Copy Card === */
 .card-copy-preview{background:rgba(0,0,0,0.18);border-radius:8px;padding:10px 12px;margin:8px 0;font-family:'Fira Code','Courier New',monospace;font-size:0.78rem;color:#a6e3a1;max-height:80px;overflow:hidden;white-space:pre-wrap;word-break:break-all;position:relative;border:1px solid rgba(255,255,255,0.08)}
 .card-copy-preview::after{content:'';position:absolute;bottom:0;left:0;right:0;height:24px;background:linear-gradient(transparent,rgba(0,0,0,0.18))}
@@ -642,7 +656,7 @@ img{display:block;max-width:100%}
       <button class="article-back" id="articleBack">&larr; 返回</button>
       <img class="article-cover" id="articleCover" style="display:none">
       <h1 id="articleTitle"></h1>
-      <div class="article-meta" id="articleMeta"><span id="articleMetaText"></span><span class="article-reading-time" id="articleReadTime"></span><button class="article-share" id="articleShare">🔗 複製連結</button><span class="article-font-ctrl"><button id="fontMinus" title="縮小字體">A-</button><button id="fontPlus" title="放大字體">A+</button></span></div>
+      <div class="article-meta" id="articleMeta"><span id="articleMetaText"></span><span class="article-reading-time" id="articleReadTime"></span><button class="article-share" id="articleShare">🔗 複製連結</button><button class="article-share" id="articleQr">📱 QR Code</button><span class="article-font-ctrl"><button id="fontMinus" title="縮小字體">A-</button><button id="fontPlus" title="放大字體">A+</button></span></div>
       <div class="article-content" id="articleContent"></div>
     </div>
     <aside class="article-reader-side" id="articleSide">
@@ -684,6 +698,15 @@ img{display:block;max-width:100%}
   </div>
 </div>
 
+<!-- QR Code Modal -->
+<div class="qr-modal-overlay" id="qrOverlay">
+  <div class="qr-modal">
+    <h3>掃碼開啟文章</h3>
+    <canvas id="qrCanvas"></canvas>
+    <div class="qr-url" id="qrUrl"></div>
+    <button id="qrClose">關閉</button>
+  </div>
+</div>
 <button class="back-to-top" id="backToTop" title="回到頂端">&#8593;</button>
 <div class="toast" id="toast"></div>
 
@@ -695,8 +718,8 @@ var _cbId=0;
 var CARDS=[{"category":"簡報生成","tag":"Ｍac軟體","title":"PDF & Image to PPT","desc":"PDF檔與圖片轉成文字可編輯的PPT簡報檔AI無痕修，你還能逐頁檢視、手動修正","meta1":"","meta2":"","meta3":"","imageUrls":["https://lh3.googleusercontent.com/d/10R2-WvxXa5H5xbQKJzHjI5OHTv3WdFNP"],"linkUrl":"https://jyunhao914.github.io/revision-docs/","type":"link"},{"category":"簡報生成","tag":"YAML","title":"Notebook LM 風格檔：扁平插畫明亮暖色","desc":" YAML檔的連結加入 NotebookLM 的資料來源，就能輕鬆產出具備一致視覺風格的簡報","meta1":"copy","meta2":"","meta3":"","imageUrls":["https://lh3.googleusercontent.com/d/1mYkmffAS0XcN1bPyAHu9FyFnaT6VdD9e"],"linkUrl":"https://docs.google.com/document/d/1-Zi5w4deGfE6A-H-rwbUMLpwJggRhO1NqQbI_Qb3UU8/edit?usp=sharing","type":"link"},{"category":"簡報生成","tag":"YAML","title":"Notebook LM 風格檔：扁平插畫漸層背景粉紅色系","desc":" YAML檔的連結加入 NotebookLM 的資料來源，就能輕鬆產出具備一致視覺風格的簡報","meta1":"copy","meta2":"","meta3":"","imageUrls":["https://lh3.googleusercontent.com/d/1N5EwBjQqT3WNgL8LiA7NxzelryyrSJin"],"linkUrl":"https://docs.google.com/document/d/1p7i882bEzOqEScx01YLKbQtHLvBJNobNF9sdg_PY3nQ/edit?usp=sharing","type":"link"},{"category":"簡報生成","tag":"YAML","title":"Notebook LM 風格檔：扁平插畫白背景藍色系","desc":" YAML檔的連結加入 NotebookLM 的資料來源，就能輕鬆產出具備一致視覺風格的簡報","meta1":"copy","meta2":"","meta3":"","imageUrls":["https://lh3.googleusercontent.com/d/1AG3LKl8_a4qVedH84BH6QWWS9rfTm8ZU"],"linkUrl":"https://docs.google.com/document/d/1m88VgNs8AcYuwPjK_OQIzCeVpFfahCETN1CDdeC0QCo/edit?usp=sharing","type":"link"},{"category":"海報製作","tag":"海報生成","title":"現代簡約_典雅藍色系","desc":"貼上你的文案與簡述想要的感覺，一鍵就能產出海報","meta1":"","meta2":"","meta3":"","imageUrls":["https://lh3.googleusercontent.com/d/1GRUGrymTwEINpsodq5wgJgBPiv5uw57I|contain"],"linkUrl":"https://gemini.google.com/gem/1-I-HEXLdgeStt9PmL-dla2q8Blq3Omop","type":"link"},{"category":"海報製作","tag":"海報生成","title":"清新現代_白綠色系","desc":"貼上你的文案與簡述想要的感覺，一鍵就能產出海報","meta1":"","meta2":"","meta3":"","imageUrls":["https://lh3.googleusercontent.com/d/1k7OAcjgskChypuwjM9GEdY1iVTxMlBBX|contain"],"linkUrl":"https://gemini.google.com/gem/1I04Zalvi5OxZvwPwvmczRsfqX4_I0SWQ?usp=sharing","type":"link"},{"category":"工具箱","tag":"搶救畫質","title":"智能修復畫質","desc":"只要上傳照片，AI 立即自動修復模糊、低解析度或老舊照片，直接生成高畫質修復圖。不需要任何技術背景，建議使用 Gemini 2.0「思考型」以上模型，選用 PRO 版效果更佳。","meta1":"","meta2":"","meta3":"","imageUrls":["https://lh3.googleusercontent.com/d/1CnaZzcb5LnTqX3XrkZkLnlXAPjJhUsQu"],"linkUrl":"https://gemini.google.com/gem/14ruc4y-gYYHjWMWo0LV-5t2Xr7acATmg?usp=sharing","type":"link"}];
 var PAGES=["簡報生成","海報製作","工具箱","關於我們"];
 var GEM_URL="https://gemini.google.com/gem/1-I-HEXLdgeStt9PmL-dla2q8Blq3Omop?usp=sharing";
-var _statsData={"PDF & Image to PPT":2,"Notebook LM 風格檔：扁平插畫漸層背景粉紅色系":1,"Notebook LM 風格檔：扁平插畫白背景藍色系":1};
-var _totalVisits=88;
+var _statsData={};
+var _totalVisits=0;
 var _activeTab='';
 var _adminCards=[];
 var _adminEmails=[];
@@ -994,7 +1017,7 @@ function renderOneLinkCard(grid,card){
     link.onclick=function(){trackClick(card.title,viewsSpan)};
   }
   foot.appendChild(link);
-  var views=card.views||(_statsData&&_statsData[card.title])||0;
+  var views=(_statsData&&_statsData[card.title]!=null)?_statsData[card.title]:0;
   var viewsSpan=ce('span','card-views','\uD83D\uDC41 '+views+' \u6B21\u9EDE\u95B1');
   foot.appendChild(viewsSpan);
   body.appendChild(foot);
@@ -1108,6 +1131,57 @@ function trackClick(title,viewsSpan){
   /* Send to backend */
   gasAPI('recordClick',{title:title},null);
 }
+
+/* ====== VIDEO EMBED URL ====== */
+function toEmbedUrl(url){
+  if(!url)return'';
+  /* YouTube */
+  var yt=url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+  if(yt)return'https://www.youtube.com/embed/'+yt[1];
+  /* Vimeo */
+  var vm=url.match(/vimeo\.com\/(\d+)/);
+  if(vm)return'https://player.vimeo.com/video/'+vm[1];
+  /* Google Drive video */
+  var gd=url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if(gd)return'https://drive.google.com/file/d/'+gd[1]+'/preview';
+  return url;
+}
+
+/* ====== QR CODE GENERATOR (minimal canvas-based) ====== */
+function showQrCode(text){
+  var overlay=$('qrOverlay');
+  $('qrUrl').textContent=text;
+  overlay.classList.add('show');
+  /* Use external QR lib via CDN (qrcode-generator) */
+  if(typeof qrcode==='undefined'){
+    var s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js';
+    s.onload=function(){renderQr(text)};
+    document.head.appendChild(s);
+  }else{
+    renderQr(text);
+  }
+}
+function renderQr(text){
+  var qr=qrcode(0,'M');
+  qr.addData(text);
+  qr.make();
+  var canvas=$('qrCanvas');
+  var ctx=canvas.getContext('2d');
+  var size=qr.getModuleCount();
+  var scale=Math.max(4,Math.floor(220/size));
+  canvas.width=size*scale;
+  canvas.height=size*scale;
+  ctx.fillStyle='#fff';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#000';
+  for(var r=0;r<size;r++){for(var c=0;c<size;c++){if(qr.isDark(r,c))ctx.fillRect(c*scale,r*scale,scale,scale)}}
+}
+$('qrClose').onclick=function(){$('qrOverlay').classList.remove('show')};
+$('articleQr').onclick=function(){
+  var url=location.origin+location.pathname+'#article='+_currentArticleId;
+  showQrCode(url);
+};
 
 /* ====== IMAGE COMPRESSION ====== */
 function compressImage(file,callback,maxW,quality){
@@ -2336,6 +2410,22 @@ function openEditModal(card,defaultPage){
     document.execCommand('insertHTML',false,html);
   };
   rtToolbar.appendChild(codeBtn);
+
+  /* Video embed button */
+  var videoBtn=ce('button','','🎬 影片');
+  videoBtn.style.cssText='font-size:12px;background:rgba(239,68,68,0.15);border-radius:6px;padding:4px 8px;color:#ef4444;font-weight:600';
+  videoBtn.onmousedown=function(e){e.preventDefault()};
+  videoBtn.onclick=function(e){
+    e.preventDefault();
+    var url=prompt('貼上 YouTube 或影片網址：','https://');
+    if(!url)return;
+    var embedUrl=toEmbedUrl(url);
+    var html='<div class="rte-video-wrap" contenteditable="false"><iframe src="'+esc(embedUrl)+'" allowfullscreen loading="lazy"></iframe></div><p><br></p>';
+    var ed=$('articleEditor');
+    if(ed)ed.focus();
+    document.execCommand('insertHTML',false,html);
+  };
+  rtToolbar.appendChild(videoBtn);
 
   editorDiv.appendChild(rtToolbar);
 
