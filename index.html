@@ -3207,24 +3207,7 @@ function init(){
   setTimeout(function(){
     gasAPI('getData',null,function(data){
       if(!data)return;
-      if(data.cards&&data.cards.length){
-        /* Merge: backend cards may lack meta1/extra/linkBehavior, preserve from existing */
-        var oldMap={};
-        CARDS.forEach(function(c){if(c.id)oldMap[c.id]=c; if(c.title)oldMap['t_'+c.title]=c;});
-        data.cards.forEach(function(c){
-          var old=oldMap[c.id]||oldMap['t_'+c.title]||{};
-          if(!c.meta1&&old.meta1)c.meta1=old.meta1;
-          if(!c.extra&&old.extra)c.extra=old.extra;
-          if(!c.linkBehavior&&old.linkBehavior)c.linkBehavior=old.linkBehavior;
-          if(!c.linkBtnLabel&&old.linkBtnLabel)c.linkBtnLabel=old.linkBtnLabel;
-          if(!c.linkBtnIcon&&old.linkBtnIcon)c.linkBtnIcon=old.linkBtnIcon;
-          if(!c.btnStyle&&old.btnStyle)c.btnStyle=old.btnStyle;
-          if(!c.copyContent&&old.copyContent)c.copyContent=old.copyContent;
-          if(!c.btnLabel&&old.btnLabel)c.btnLabel=old.btnLabel;
-          if(!c.btnIcon&&old.btnIcon)c.btnIcon=old.btnIcon;
-        });
-        CARDS=data.cards;
-      }
+      if(data.cards&&data.cards.length)CARDS=data.cards;
       if(data.pages&&data.pages.length)PAGES=data.pages;
       if(data.gemUrl)GEM_URL=data.gemUrl;
       var _s=data.stats||{};_statsData=_s.tools||_s;_totalVisits=_s.total||0;
@@ -3235,6 +3218,33 @@ function init(){
       }
       updateVisit();renderCards();buildNavTabs();buildHeroGrid();
       checkArticleHash();
+      /* Fetch full card data (with extra) to fix button behaviors */
+      gasAPI('getCardsAdmin',null,function(adminRes){
+        if(adminRes&&adminRes.ok&&adminRes.cards){
+          var adminMap={};
+          adminRes.cards.forEach(function(ac){if(ac.id)adminMap[ac.id]=ac;if(ac.title)adminMap['t_'+ac.title]=ac;});
+          CARDS.forEach(function(c){
+            var full=adminMap[c.id]||adminMap['t_'+c.title];
+            if(full){
+              if(full.extra){
+                var ex=(typeof full.extra==='string')?JSON.parse(full.extra||'{}'):full.extra;
+                c.extra=ex;
+                if(ex.linkBehavior)c.linkBehavior=ex.linkBehavior;
+                if(ex.linkBtnLabel)c.linkBtnLabel=ex.linkBtnLabel;
+                if(ex.linkBtnIcon)c.linkBtnIcon=ex.linkBtnIcon;
+                if(ex.copyContent)c.copyContent=ex.copyContent;
+                if(ex.btnStyle)c.btnStyle=ex.btnStyle;
+              }
+              if(full.meta1)c.meta1=full.meta1;
+              if(full.copyContent)c.copyContent=full.copyContent;
+              if(full.btnLabel)c.btnLabel=full.btnLabel;
+              if(full.btnIcon)c.btnIcon=full.btnIcon;
+              if(full.btnStyle)c.btnStyle=full.btnStyle;
+            }
+          });
+          renderCards();
+        }
+      });
     });
   },3000);
 
