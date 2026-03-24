@@ -98,6 +98,10 @@ img{display:block;max-width:100%}
 .card-meta span{font-size:12px;color:var(--text3)}
 .card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:auto}
 .card-link{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));transition:opacity .2s}
+.card-link--primary{background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.card-link--success{background:linear-gradient(135deg,#22c55e,#16a34a)}
+.card-link--warning{background:linear-gradient(135deg,#f59e0b,#d97706)}
+.card-link--danger{background:linear-gradient(135deg,#ef4444,#dc2626)}
 .card-link:hover{opacity:.85}
 .card-views{font-size:12px;color:var(--text3)}
 
@@ -1005,15 +1009,22 @@ function renderOneLinkCard(grid,card){
     if(card.meta3)meta.appendChild(ce('span','',esc(card.meta3)));
     body.appendChild(meta);
   }
-  var foot=ce('div','card-foot');
+  /* Copy content preview for copy behavior */
   var extra=(typeof card.extra==='string')?JSON.parse(card.extra||'{}'):(card.extra||{});
-  var isCopy=(card.linkBehavior||extra.linkBehavior||card.meta1)==='copy';
-  var btnIcon=card.linkBtnIcon||extra.linkBtnIcon||(isCopy?'\uD83D\uDCCB':'\u2197');
-  var btnLabel=card.linkBtnLabel||extra.linkBtnLabel||(isCopy?'\u8907\u88FD\u9023\u7D50':'\u958B\u555F\u5DE5\u5177');
-  var link=ce('a','card-link',btnIcon+' '+btnLabel);
+  var isCopy=(card.linkBehavior||extra.linkBehavior||card.meta1)==='copy'||(card.type==='copy');
+  var copyContent=card.copyContent||extra.copyContent||card.linkUrl||'';
+  if(isCopy&&copyContent){
+    var preview=ce('div','card-copy-preview',esc(copyContent));
+    body.appendChild(preview);
+  }
+  var foot=ce('div','card-foot');
+  var btnIcon=card.linkBtnIcon||extra.linkBtnIcon||card.btnIcon||(isCopy?'\uD83D\uDCCB':'\u2197');
+  var btnLabel=card.linkBtnLabel||extra.linkBtnLabel||card.btnLabel||(isCopy?'\u8907\u88FD\u5167\u5BB9':'\u958B\u555F\u5DE5\u5177');
+  var btnStyle=card.btnStyle||extra.btnStyle||'primary';
+  var link=ce('a','card-link card-link--'+btnStyle,btnIcon+' '+btnLabel);
   if(isCopy){
     link.href='javascript:void(0)';
-    link.onclick=function(e){e.preventDefault();copyText(card.linkUrl);toast('\u5DF2\u8907\u88FD');trackClick(card.title,viewsSpan);};
+    link.onclick=function(e){e.preventDefault();copyText(copyContent);toast('\u5DF2\u8907\u88FD');trackClick(card.title,viewsSpan);};
   }else{
     link.href=card.linkUrl||'#';link.target='_blank';link.rel='noopener';
     link.onclick=function(){trackClick(card.title,viewsSpan)};
@@ -1993,7 +2004,7 @@ function openSEOModal(){
 /* ====== UNIFIED EDIT MODAL ====== */
 function openEditModal(card,defaultPage){
   _editCard=card?JSON.parse(JSON.stringify(card)):null;
-  _editType=card?(card.type||'link'):'link';
+  _editType=card?(card.type==='copy'?'link':(card.type||'link')):'link';
   $('modalTitle').textContent=card?'\u7DE8\u8F2F\u9805\u76EE':'\u65B0\u589E\u9805\u76EE';
   var body=$('modalBody');
   body.innerHTML='';
@@ -2003,7 +2014,7 @@ function openEditModal(card,defaultPage){
   typeDiv.appendChild(ce('label','','\u985E\u578B'));
   var typeSel=ce('div','type-selector');
   typeSel.id='mf_typeSelector';
-  [{val:'link',label:'\uD83D\uDD17 \u9023\u7D50'},{val:'file',label:'\uD83D\uDCC1 \u6A94\u6848'},{val:'article',label:'\uD83D\uDCDD \u6587\u7AE0'},{val:'copy',label:'\uD83D\uDCCB \u8907\u88FD\u6309\u9215'}].forEach(function(t){
+  [{val:'link',label:'\uD83C\uDD97 \u6309\u9215'},{val:'file',label:'\uD83D\uDCC1 \u6A94\u6848'},{val:'article',label:'\uD83D\uDCDD \u6587\u7AE0'}].forEach(function(t){
     var btn=ce('button',''+(_editType===t.val?' active':''),t.label);
     btn.setAttribute('data-type',t.val);
     btn.onclick=function(){
@@ -2073,86 +2084,99 @@ function openEditModal(card,defaultPage){
     body.appendChild(div);
   });
 
-  /* LINK-specific fields */
+  /* BUTTON-specific fields (unified link + copy) */
   var linkDiv=ce('div','');
   linkDiv.id='mf_linkFields';
-
-  var linkUrlField=ce('div','modal-field');
-  linkUrlField.appendChild(ce('label','','\u9023\u7D50 URL'));
-  var linkInp=ce('input');
-  linkInp.id='mf_linkUrl';
-  linkInp.type='text';
-  linkInp.value=card?card.linkUrl||'':'';
-  linkUrlField.appendChild(linkInp);
-  linkDiv.appendChild(linkUrlField);
-
-  /* Button behavior */
-  var behaviorField=ce('div','modal-field');
-  behaviorField.appendChild(ce('label','','\u6309\u9215\u884C\u70BA'));
-  var behaviorSel=ce('div','');
-  behaviorSel.id='mf_behaviorSelector';
-  behaviorSel.style.cssText='display:flex;gap:8px';
-  /* Hidden input to store selected behavior */
-  var behaviorInput=ce('input');
-  behaviorInput.type='hidden';
-  behaviorInput.id='mf_linkBehavior';
-  /* Detect existing behavior from multiple sources */
   var _existExtra=(card&&card.extra)?((typeof card.extra==='string')?JSON.parse(card.extra||'{}'):card.extra):{};
-  var existingBehavior=(card&&card.linkBehavior)||_existExtra.linkBehavior||((card&&card.meta1==='copy')?'copy':'open');
-  behaviorInput.value=existingBehavior;
+  /* Also detect if editing a legacy 'copy' type card */
+  var _isCopyType=(card&&card.type==='copy');
+  var existingBehavior=_isCopyType?'copy':((card&&card.linkBehavior)||_existExtra.linkBehavior||((card&&card.meta1==='copy')?'copy':'open'));
+
+  /* Behavior selector */
+  var behaviorField=ce('div','modal-field');
+  behaviorField.appendChild(ce('label','','按鈕行為'));
+  var behaviorInput=ce('input');behaviorInput.type='hidden';behaviorInput.id='mf_linkBehavior';behaviorInput.value=existingBehavior;
   behaviorField.appendChild(behaviorInput);
-  [{val:'open',label:'\u2197 \u958B\u555F\u9023\u7D50'},{val:'copy',label:'\uD83D\uDCCB \u8907\u88FD\u9023\u7D50'}].forEach(function(t){
-    var opt=ce('div','');
-    opt.textContent=t.label;
-    opt.setAttribute('data-bval',t.val);
-    var isAct=existingBehavior===t.val;
-    opt.style.cssText='flex:1;padding:10px;border-radius:8px;font-size:13px;cursor:pointer;text-align:center;user-select:none;border:2px solid '+(isAct?'#38bdf8':'rgba(255,255,255,0.12)')+';background:'+(isAct?'rgba(56,189,248,0.1)':'var(--card)')+';color:'+(isAct?'#38bdf8':'var(--text)');
-    opt.onclick=function(){
+  var bRow=ce('div','');bRow.style.cssText='display:flex;gap:8px';
+  [{val:'open',label:'↗ 開啟連結'},{val:'copy',label:'📋 複製內容'}].forEach(function(t){
+    var o=ce('div','');o.textContent=t.label;o.setAttribute('data-bval',t.val);
+    var a=existingBehavior===t.val;
+    o.style.cssText='flex:1;padding:10px;border-radius:8px;font-size:13px;cursor:pointer;text-align:center;user-select:none;border:2px solid '+(a?'#38bdf8':'rgba(255,255,255,0.12)')+';background:'+(a?'rgba(56,189,248,0.1)':'rgba(255,255,255,0.03)')+';color:'+(a?'#38bdf8':'inherit');
+    o.onclick=function(){
       behaviorInput.value=t.val;
-      var siblings=behaviorSel.querySelectorAll('[data-bval]');
-      for(var si=0;si<siblings.length;si++){
-        var s=siblings[si],a=s.getAttribute('data-bval')===t.val;
-        s.style.borderColor=a?'#38bdf8':'rgba(255,255,255,0.12)';
-        s.style.background=a?'rgba(56,189,248,0.1)':'var(--card)';
-        s.style.color=a?'#38bdf8':'var(--text)';
-      }
+      bRow.querySelectorAll('[data-bval]').forEach(function(s){
+        var act=s.getAttribute('data-bval')===t.val;
+        s.style.borderColor=act?'#38bdf8':'rgba(255,255,255,0.12)';
+        s.style.background=act?'rgba(56,189,248,0.1)':'rgba(255,255,255,0.03)';
+        s.style.color=act?'#38bdf8':'inherit';
+      });
+      /* Toggle URL vs Copy content fields */
+      urlField.style.display=t.val==='open'?'':'none';
+      copyField.style.display=t.val==='copy'?'':'none';
     };
-    behaviorSel.appendChild(opt);
+    bRow.appendChild(o);
   });
-  behaviorField.appendChild(behaviorSel);
+  behaviorField.appendChild(bRow);
   linkDiv.appendChild(behaviorField);
 
-  /* Button label */
-  var btnLabelField=ce('div','modal-field');
-  btnLabelField.appendChild(ce('label','','\u6309\u9215\u540D\u7A31 (\u9078\u586B)'));
-  var btnLabelInp=ce('input');
-  btnLabelInp.id='mf_linkBtnLabel';
-  btnLabelInp.type='text';
-  btnLabelInp.value=card?(card.linkBtnLabel||_existExtra.linkBtnLabel||''):'';
-  btnLabelInp.placeholder='\u7559\u7A7A\u5247\u81EA\u52D5\uFF1A\u958B\u555F\u5DE5\u5177 / \u8907\u88FD\u9023\u7D50';
-  btnLabelField.appendChild(btnLabelInp);
-  linkDiv.appendChild(btnLabelField);
+  /* URL field (for open behavior) */
+  var urlField=ce('div','modal-field');
+  urlField.id='mf_urlFieldWrap';
+  urlField.appendChild(ce('label','','連結 URL'));
+  var linkInp=ce('input');linkInp.id='mf_linkUrl';linkInp.type='text';
+  linkInp.value=card?(card.linkUrl||''):'';linkInp.placeholder='https://...';
+  urlField.appendChild(linkInp);
+  urlField.style.display=existingBehavior==='open'?'':'none';
+  linkDiv.appendChild(urlField);
+
+  /* Copy content field (for copy behavior) */
+  var copyField=ce('div','modal-field');
+  copyField.id='mf_copyFieldWrap';
+  copyField.appendChild(ce('label','','複製內容'));
+  var copyTa=ce('textarea');copyTa.id='mf_copyContent';copyTa.rows=5;
+  copyTa.placeholder='貼入要複製的文字、連結、程式碼、Prompt...';
+  copyTa.value=card?(card.copyContent||_existExtra.copyContent||''):'';
+  copyField.appendChild(copyTa);
+  copyField.style.display=existingBehavior==='copy'?'':'none';
+  linkDiv.appendChild(copyField);
+
+  /* Button name */
+  var nameField=ce('div','modal-field');
+  nameField.appendChild(ce('label','','按鈕名稱'));
+  var nameInp=ce('input');nameInp.id='mf_linkBtnLabel';nameInp.type='text';
+  nameInp.value=card?(card.linkBtnLabel||_existExtra.linkBtnLabel||card.btnLabel||''):'';
+  nameInp.placeholder='例：開啟工具 / 複製 Prompt / 前往連結';
+  nameField.appendChild(nameInp);
+  linkDiv.appendChild(nameField);
 
   /* Button icon */
-  var btnIconField=ce('div','modal-field');
-  btnIconField.appendChild(ce('label','','\u6309\u9215\u5716\u793A (\u9078\u586B)'));
-  var btnIconInp=ce('input');
-  btnIconInp.id='mf_linkBtnIcon';
-  btnIconInp.type='text';
-  btnIconInp.value=card?(card.linkBtnIcon||_existExtra.linkBtnIcon||''):'';
-  btnIconInp.placeholder='\u7559\u7A7A\u5247\u81EA\u52D5\uFF1AEmoji \u5716\u793A';
-  btnIconField.appendChild(btnIconInp);
-  linkDiv.appendChild(btnIconField);
+  var iconField=ce('div','modal-field');
+  iconField.appendChild(ce('label','','按鈕圖示'));
+  var iconInp=ce('input');iconInp.id='mf_linkBtnIcon';iconInp.type='text';
+  iconInp.value=card?(card.linkBtnIcon||_existExtra.linkBtnIcon||card.btnIcon||''):'';
+  iconInp.placeholder='留空自動，或輸入 Emoji 如 🚀 📋 🔗';
+  iconField.appendChild(iconInp);
+  linkDiv.appendChild(iconField);
 
-  /* Icon URL (card thumbnail) */
-  var iconUrlField=ce('div','modal-field');
-  iconUrlField.appendChild(ce('label','','\u5716\u793A URL'));
-  var iconUrlInp=ce('input');
-  iconUrlInp.id='mf_iconUrl';
-  iconUrlInp.type='text';
-  iconUrlInp.value=card?card.iconUrl||'':'';
-  iconUrlField.appendChild(iconUrlInp);
-  linkDiv.appendChild(iconUrlField);
+  /* Button style (color) */
+  var styleField=ce('div','modal-field');
+  styleField.appendChild(ce('label','','按鈕樣式'));
+  var styleRow=ce('div','icb-style-row');
+  var existingStyle=card?(card.btnStyle||_existExtra.btnStyle||'primary'):'primary';
+  var styleInput=ce('input');styleInput.type='hidden';styleInput.id='mf_btnStyle';styleInput.value=existingStyle;
+  styleField.appendChild(styleInput);
+  [{val:'primary',label:'藍',bg:'linear-gradient(135deg,#38bdf8,#818cf8)'},{val:'success',label:'綠',bg:'linear-gradient(135deg,#22c55e,#16a34a)'},{val:'warning',label:'橘',bg:'linear-gradient(135deg,#f59e0b,#d97706)'},{val:'danger',label:'紅',bg:'linear-gradient(135deg,#ef4444,#dc2626)'}].forEach(function(s){
+    var o=ce('div','icb-style-opt'+(existingStyle===s.val?' active':''));
+    o.textContent=s.label;o.style.cssText='background:'+s.bg+';color:#fff';
+    o.onclick=function(){
+      styleInput.value=s.val;
+      styleRow.querySelectorAll('.icb-style-opt').forEach(function(x){x.classList.remove('active')});
+      o.classList.add('active');
+    };
+    styleRow.appendChild(o);
+  });
+  styleField.appendChild(styleRow);
+  linkDiv.appendChild(styleField);
 
   body.appendChild(linkDiv);
 
@@ -2611,7 +2635,7 @@ function toggleTypeFields(){
   if(linkFields)linkFields.style.display=_editType==='link'?'':'none';
   if(fileFields)fileFields.style.display=_editType==='file'?'':'none';
   if(articleFields)articleFields.style.display=_editType==='article'?'':'none';
-  if(copyFields)copyFields.style.display=_editType==='copy'?'':'none';
+  if(copyFields)copyFields.style.display='none';
 }
 
 function updateImgPreview(container,val){
@@ -2684,15 +2708,17 @@ $('modalSave').onclick=function(){
   if(!card.title){toast('\u8ACB\u8F38\u5165\u6A19\u984C');return}
 
   if(_editType==='link'){
-    card.linkUrl=document.getElementById('mf_linkUrl').value;
-    card.iconUrl=(document.getElementById('mf_iconUrl')||{}).value||'';
-    /* Button behavior & customization */
     card.linkBehavior=(document.getElementById('mf_linkBehavior')||{}).value||'open';
+    card.linkUrl=(document.getElementById('mf_linkUrl')||{}).value||'';
+    card.copyContent=(document.getElementById('mf_copyContent')||{}).value||'';
     card.linkBtnLabel=(document.getElementById('mf_linkBtnLabel')||{}).value||'';
     card.linkBtnIcon=(document.getElementById('mf_linkBtnIcon')||{}).value||'';
-    /* Keep meta1 for backward compat */
+    card.btnStyle=(document.getElementById('mf_btnStyle')||{}).value||'primary';
+    /* Backward compat */
     card.meta1=card.linkBehavior==='copy'?'copy':'';
-    card.extra=JSON.stringify({linkBehavior:card.linkBehavior,linkBtnLabel:card.linkBtnLabel,linkBtnIcon:card.linkBtnIcon});
+    card.btnLabel=card.linkBtnLabel;
+    card.btnIcon=card.linkBtnIcon;
+    card.extra=JSON.stringify({linkBehavior:card.linkBehavior,linkBtnLabel:card.linkBtnLabel,linkBtnIcon:card.linkBtnIcon,copyContent:card.copyContent,btnStyle:card.btnStyle});
     gasAPI('saveCard',{data:JSON.stringify(card)},function(r){
       if(r&&r.ok){toast('\u5DF2\u5132\u5B58');$('modalOverlay').classList.remove('show');_editCard=null;loadAdminCards();refreshMainData()}
       else toast('\u5132\u5B58\u5931\u6557');
@@ -3118,7 +3144,6 @@ function initSearch(){
         var type=card.type||'link';
         if(type==='article') renderOneArticleCard(grid,card);
         else if(type==='file') renderOneFileCard(grid,card);
-        else if(type==='copy') renderOneCopyCard(grid,card);
         else renderOneLinkCard(grid,card);
       });
       observeCards();
