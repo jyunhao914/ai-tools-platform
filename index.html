@@ -255,6 +255,41 @@ img{display:block;max-width:100%}
 .article-content blockquote{border-left:3px solid var(--accent);padding:8px 16px;margin:16px 0;color:var(--text2);background:var(--card);border-radius:0 8px 8px 0}
 .article-cover{width:100%;max-height:400px;object-fit:cover;border-radius:var(--r2);margin-bottom:24px}
 
+/* Article TOC */
+.article-toc{position:sticky;top:70px;max-height:calc(100vh - 100px);overflow-y:auto;padding:12px 16px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);margin-bottom:20px;scrollbar-width:thin}
+.article-toc-title{font-size:13px;font-weight:700;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
+.article-toc a{display:block;padding:4px 0;font-size:13px;color:var(--text2);text-decoration:none;transition:color .15s;border-left:2px solid transparent;padding-left:8px}
+.article-toc a:hover{color:var(--accent)}
+.article-toc a.active{color:var(--accent);border-left-color:var(--accent)}
+.article-toc a.toc-h3{padding-left:20px;font-size:12px}
+.article-reader-wrap{display:flex;gap:24px;max-width:1100px;margin:0 auto;padding:40px 24px 80px}
+.article-reader-main{flex:1;min-width:0}
+.article-reader-side{width:220px;flex-shrink:0}
+@media(max-width:900px){
+  .article-reader-wrap{flex-direction:column}
+  .article-reader-side{width:100%;position:static}
+  .article-toc{position:static;max-height:200px}
+}
+
+/* Article share link */
+.article-share{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;font-size:12px;color:var(--text2);background:var(--card);border:1px solid var(--border);cursor:pointer;transition:all .15s;margin-left:12px}
+.article-share:hover{color:var(--accent);border-color:var(--accent)}
+
+/* Article preview button in editor */
+.preview-article-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;color:var(--accent);background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);cursor:pointer;transition:all .15s;margin-right:8px}
+.preview-article-btn:hover{background:rgba(56,189,248,0.2)}
+
+/* Autosave indicator */
+.autosave-indicator{font-size:11px;color:var(--text3);padding:4px 8px}
+.autosave-indicator.saved{color:var(--accent3)}
+
+/* Mobile editor toolbar */
+@media(max-width:600px){
+  .rte-toolbar button{padding:8px 10px;font-size:14px;min-width:36px;min-height:36px;display:flex;align-items:center;justify-content:center}
+  .rte-toolbar select{padding:6px 8px;font-size:13px;min-height:36px}
+  .rte-toolbar{gap:4px;padding:8px}
+}
+
 /* DRAG AND DROP */
 .admin-row[draggable="true"]{cursor:grab}
 .admin-row[draggable="true"]:active{cursor:grabbing}
@@ -559,12 +594,20 @@ img{display:block;max-width:100%}
 </div>
 
 <div class="article-overlay" id="articleOverlay">
-  <div class="article-reader">
-    <button class="article-back" id="articleBack">&larr; 返回</button>
-    <img class="article-cover" id="articleCover" style="display:none">
-    <h1 id="articleTitle"></h1>
-    <div class="article-meta" id="articleMeta"></div>
-    <div class="article-content" id="articleContent"></div>
+  <div class="article-reader-wrap">
+    <div class="article-reader-main">
+      <button class="article-back" id="articleBack">&larr; 返回</button>
+      <img class="article-cover" id="articleCover" style="display:none">
+      <h1 id="articleTitle"></h1>
+      <div class="article-meta" id="articleMeta"><span id="articleMetaText"></span><button class="article-share" id="articleShare">🔗 複製連結</button></div>
+      <div class="article-content" id="articleContent"></div>
+    </div>
+    <aside class="article-reader-side" id="articleSide">
+      <nav class="article-toc" id="articleToc" style="display:none">
+        <div class="article-toc-title">目錄</div>
+        <div id="articleTocLinks"></div>
+      </nav>
+    </aside>
   </div>
 </div>
 
@@ -1125,8 +1168,12 @@ function applySEO(){
 }
 
 /* ====== ARTICLE READER (public) ====== */
+var _currentArticleId=null;
 function openArticleReader(card){
   var overlay=$('articleOverlay');
+  _currentArticleId=card.id;
+  /* Set URL hash for shareable link */
+  history.pushState(null,'','#article='+card.id);
   $('articleTitle').textContent=card.title||'';
   var cover=$('articleCover');
   if(card.coverImage){
@@ -1136,7 +1183,7 @@ function openArticleReader(card){
   }else{
     cover.style.display='none';
   }
-  $('articleMeta').textContent=(card.author||'\u4F5A\u540D')+' \u30FB '+(card.publishDate?card.publishDate.slice(0,10):'');
+  $('articleMetaText').textContent=(card.author||'\u4F5A\u540D')+' \u30FB '+(card.publishDate?card.publishDate.slice(0,10):'');
   /* Fetch full content from backend */
   gasAPI('getArticle',{id:card.id},function(res){
     if(res&&res.ok&&res.article){
@@ -1145,15 +1192,71 @@ function openArticleReader(card){
       $('articleContent').innerHTML=card.content||card.desc||'';
     }
     hydrateInlineCopyBtns($('articleContent'));
+    /* Lazy load images */
+    $('articleContent').querySelectorAll('img').forEach(function(img){img.setAttribute('loading','lazy')});
+    /* Build TOC */
+    buildArticleToc();
   });
   overlay.classList.add('show');
   document.body.style.overflow='hidden';
 }
 
+/* Share article link */
+$('articleShare').onclick=function(){
+  var url=location.origin+location.pathname+'#article='+_currentArticleId;
+  copyText(url);
+  toast('已複製文章連結');
+};
+
+/* Build Table of Contents from H2/H3 */
+function buildArticleToc(){
+  var content=$('articleContent');
+  var tocLinks=$('articleTocLinks');
+  var toc=$('articleToc');
+  tocLinks.innerHTML='';
+  var headings=content.querySelectorAll('h2,h3');
+  if(headings.length<2){toc.style.display='none';return}
+  toc.style.display='';
+  headings.forEach(function(h,i){
+    h.id='toc-'+i;
+    var a=document.createElement('a');
+    a.href='#toc-'+i;
+    a.textContent=h.textContent;
+    if(h.tagName==='H3')a.className='toc-h3';
+    a.onclick=function(e){
+      e.preventDefault();
+      h.scrollIntoView({behavior:'smooth',block:'start'});
+    };
+    tocLinks.appendChild(a);
+  });
+  /* Highlight active TOC item on scroll */
+  var articleOverlay=$('articleOverlay');
+  articleOverlay.onscroll=function(){
+    var scrollTop=articleOverlay.scrollTop;
+    var active=null;
+    headings.forEach(function(h){if(h.offsetTop<=scrollTop+100)active=h});
+    tocLinks.querySelectorAll('a').forEach(function(a){
+      a.classList.toggle('active',active&&a.getAttribute('href')==='#'+active.id);
+    });
+  };
+}
+
 $('articleBack').onclick=function(){
   $('articleOverlay').classList.remove('show');
   document.body.style.overflow='';
+  _currentArticleId=null;
+  history.pushState(null,'',location.pathname+'#'+_activeTab);
 };
+
+/* Open article from URL hash on load */
+function checkArticleHash(){
+  var hash=location.hash;
+  if(hash.indexOf('#article=')===0){
+    var artId=hash.replace('#article=','');
+    var card=CARDS.find(function(c){return c.id===artId});
+    if(card)openArticleReader(card);
+  }
+}
 
 /* ====== ADMIN ====== */
 function openAdmin(){
@@ -2133,6 +2236,44 @@ function openEditModal(card,defaultPage){
   });
 
   editorDiv.appendChild(editor);
+
+  /* Preview + Autosave bar */
+  var editorBar=ce('div','');
+  editorBar.style.cssText='display:flex;align-items:center;margin-top:8px;gap:8px';
+  var previewBtn=ce('button','preview-article-btn','👁 預覽');
+  previewBtn.onclick=function(e){
+    e.preventDefault();
+    var content=$('articleEditor').innerHTML;
+    var previewWin=window.open('','_blank','width=800,height=600');
+    previewWin.document.write('<html><head><title>文章預覽</title><style>body{font-family:"Noto Sans TC",sans-serif;max-width:800px;margin:0 auto;padding:40px 24px;color:#e2e8f0;background:#07090f;line-height:1.9;font-size:15px}h2{font-size:22px;font-weight:700;margin:28px 0 12px}h3{font-size:18px;font-weight:600;margin:20px 0 10px}p{margin-bottom:16px}img{max-width:100%;border-radius:8px;margin:16px 0}a{color:#38bdf8}blockquote{border-left:3px solid #38bdf8;padding:8px 16px;margin:16px 0;color:#94a3b8;background:rgba(255,255,255,0.042);border-radius:0 8px 8px 0}table{width:100%;border-collapse:collapse;margin:16px 0}th,td{border:1px solid rgba(255,255,255,0.12);padding:8px 12px;text-align:left}th{background:rgba(56,189,248,0.08);font-weight:600}pre{background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:16px 18px;margin:16px 0;overflow-x:auto}code{font-family:"Fira Code","Courier New",monospace;font-size:0.82rem;color:#a6e3a1}</style></head><body>'+content+'</body></html>');
+    previewWin.document.close();
+  };
+  editorBar.appendChild(previewBtn);
+  var autosaveLabel=ce('span','autosave-indicator','');
+  autosaveLabel.id='autosaveLabel';
+  editorBar.appendChild(autosaveLabel);
+  editorDiv.appendChild(editorBar);
+
+  /* Autosave to localStorage every 30s */
+  var _autosaveKey='article_draft_'+(card?card.id:'new');
+  /* Restore draft if exists */
+  var draft=localStorage.getItem(_autosaveKey);
+  if(draft&&!editor.innerHTML.trim()){
+    editor.innerHTML=draft;
+    autosaveLabel.textContent='已還原草稿';
+    autosaveLabel.className='autosave-indicator saved';
+  }
+  setInterval(function(){
+    var ed=$('articleEditor');
+    if(!ed)return;
+    var content=ed.innerHTML;
+    if(content&&content!=='<br>'){
+      localStorage.setItem(_autosaveKey,content);
+      var lbl=$('autosaveLabel');
+      if(lbl){lbl.textContent='已自動存稿 '+new Date().toLocaleTimeString();lbl.className='autosave-indicator saved';}
+    }
+  },30000);
+
   articleDiv.appendChild(editorDiv);
   body.appendChild(articleDiv);
 
@@ -2796,15 +2937,21 @@ function init(){
         applySEO();
       }
       updateVisit();renderCards();buildNavTabs();buildHeroGrid();
+      checkArticleHash();
     });
   },3000);
 
   window.addEventListener('hashchange',function(){
     var hash=decodeURIComponent(location.hash.replace('#',''));
-    if(hash&&PAGES.indexOf(hash)>=0&&hash!==_activeTab){
+    if(hash.indexOf('article=')===0){
+      checkArticleHash();
+    }else if(hash&&PAGES.indexOf(hash)>=0&&hash!==_activeTab){
       switchTab(hash);
     }
   });
+
+  /* Check article hash on initial load (for cached CARDS) */
+  checkArticleHash();
 }
 
 /* ====== IMAGE EDIT TOOLBAR IN EDITOR ====== */
