@@ -278,6 +278,9 @@ var HERO_META=[
 /* ====== JSONP ====== */
 function gasAPI(action,params,callback){
   var url=GAS_API+'?action='+encodeURIComponent(action);
+  // Auto-attach admin password for admin actions
+  var pw=sessionStorage.getItem('admin_pw')||'';
+  if(pw){if(!params)params={};if(!params.pw)params.pw=pw;}
   if(params){for(var k in params){if(params.hasOwnProperty(k)){url+='&'+encodeURIComponent(k)+'='+encodeURIComponent(params[k])}}}
   var cbName='_gcb_'+(++_cbId);
   window[cbName]=function(data){delete window[cbName];if(callback)callback(data)};
@@ -546,7 +549,7 @@ function loadAdminCards(){
   $('adminBody').innerHTML='<div class="loading-placeholder"><span class="spinner"></span>\u8F09\u5165\u4E2D...</div>';
   gasAPI('getCardsAdmin',null,function(res){
     if(res&&res.ok&&res.cards&&res.cards.length){
-      _adminCards=res.cards;
+      _adminCards=res.cards.map(function(c,i){c.page=c.page||c.category;c.id=c.id!=null?c.id:i;if(c.visible==null)c.visible=true;return c;});
     }else{
       _adminCards=CARDS.map(function(c,i){var o={};for(var k in c)o[k]=c[k];o.id=i;o.visible=true;o.page=c.page||c.category;return o;});
     }
