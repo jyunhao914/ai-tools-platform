@@ -1639,7 +1639,8 @@ $('adminClose').onclick=function(){$('adminOverlay').classList.remove('show')};
       clearTimeout(clickTimer);
       if(clickCount>=5){
         clickCount=0;
-        openAdmin();
+        if(sessionStorage.getItem('admin_pw')){openAdmin()}
+        else{showAdminLoginPage()}
       } else {
         clickTimer=setTimeout(function(){clickCount=0;},1500);
       }
