@@ -2084,24 +2084,29 @@ function openEditModal(card,defaultPage){
   var body=$('modalBody');
   body.innerHTML='';
 
-  /* Type selector */
-  var typeDiv=ce('div','modal-field');
-  typeDiv.appendChild(ce('label','','\u985E\u578B'));
-  var typeSel=ce('div','type-selector');
-  typeSel.id='mf_typeSelector';
-  [{val:'file',label:'\uD83D\uDCC1 \u6A94\u6848'},{val:'article',label:'\uD83D\uDCDD \u6587\u7AE0'}].forEach(function(t){
-    var btn=ce('button',''+(_editType===t.val?' active':''),t.label);
-    btn.setAttribute('data-type',t.val);
-    btn.onclick=function(){
-      _editType=t.val;
-      typeSel.querySelectorAll('button').forEach(function(b){b.classList.remove('active')});
-      this.classList.add('active');
-      toggleTypeFields();
-    };
-    typeSel.appendChild(btn);
-  });
-  typeDiv.appendChild(typeSel);
-  body.appendChild(typeDiv);
+  /* All cards are now articles; legacy link/file types still render correctly */
+  /* Only show type selector for legacy link/file cards */
+  if(_editType==='link'||_editType==='file'){
+    var typeDiv=ce('div','modal-field');
+    typeDiv.appendChild(ce('label','','\u985E\u578B'));
+    var typeSel=ce('div','type-selector');
+    typeSel.id='mf_typeSelector';
+    [{val:'link',label:'\uD83D\uDD17 \u9023\u7D50'},{val:'file',label:'\uD83D\uDCC1 \u6A94\u6848'},{val:'article',label:'\uD83D\uDCDD \u6587\u7AE0'}].forEach(function(t){
+      var btn=ce('button',''+(_editType===t.val?' active':''),t.label);
+      btn.setAttribute('data-type',t.val);
+      btn.onclick=function(){
+        _editType=t.val;
+        typeSel.querySelectorAll('button').forEach(function(b){b.classList.remove('active')});
+        this.classList.add('active');
+        toggleTypeFields();
+      };
+      typeSel.appendChild(btn);
+    });
+    typeDiv.appendChild(typeSel);
+    body.appendChild(typeDiv);
+  }else{
+    _editType='article';
+  }
 
   /* Common fields */
   var commonFields=[
@@ -2552,6 +2557,60 @@ function openEditModal(card,defaultPage){
     document.execCommand('insertHTML',false,html);
   };
   rtToolbar.appendChild(videoBtn);
+
+  /* File upload button — insert download button in article */
+  var fileBtn=ce('button','','\uD83D\uDCC1 \u6A94\u6848');
+  fileBtn.style.cssText='font-size:12px;background:rgba(168,85,247,0.15);border-radius:6px;padding:4px 8px;color:#a855f7;font-weight:600';
+  fileBtn.onmousedown=function(e){e.preventDefault()};
+  fileBtn.onclick=function(e){
+    e.preventDefault();
+    /* Save cursor position */
+    var ed=$('articleEditor');
+    if(ed){ed.focus();var marker=document.createElement('span');marker.id='_fileInsertMarker';marker.textContent='\u200B';document.execCommand('insertHTML',false,marker.outerHTML)}
+    /* Create file input */
+    var fi=document.createElement('input');fi.type='file';fi.style.display='none';
+    fi.onchange=function(){
+      var file=fi.files[0];if(!file)return;
+      toast('\u4E0A\u50B3\u4E2D... '+file.name);
+      var reader=new FileReader();
+      reader.onload=function(){
+        var base64=reader.result.split(',')[1];
+        /* Upload to Google Drive via Apps Script */
+        /* Upload via JSONP callback — file data in URL (small files) or POST for large */
+        var pw=sessionStorage.getItem('admin_pw')||'';
+        var params={action:'uploadFile',pw:pw,fileName:file.name,mimeType:file.type,fileData:base64,category:'',title:file.name,desc:'',tag:''};
+        /* Use form POST with JSONP callback via iframe */
+        var cbName='_fup'+(_cbId++);
+        params.callback=cbName;
+        window[cbName]=function(r){
+          delete window[cbName];
+          var mk=document.getElementById('_fileInsertMarker');
+          if(r&&r.ok){
+            var sizeStr=file.size>1048576?(file.size/1048576).toFixed(1)+'MB':(file.size/1024).toFixed(0)+'KB';
+            var dlUrl=r.directUrl||r.fileUrl||'#';
+            var dlHtml='<div class="icb-block" contenteditable="false" style="background:rgba(168,85,247,0.08);border-color:rgba(168,85,247,0.3)">'
+              +'<a href="'+esc(dlUrl)+'" target="_blank" rel="noopener" class="card-link card-link--primary" style="display:inline-flex;text-decoration:none">'
+              +'\uD83D\uDCC1 \u4E0B\u8F09 '+esc(file.name)+' ('+sizeStr+')</a></div><p><br></p>';
+            if(mk){mk.outerHTML=dlHtml}
+            else{ed.focus();document.execCommand('insertHTML',false,dlHtml)}
+            toast('\u6A94\u6848\u5DF2\u63D2\u5165');
+          }else{
+            if(mk)mk.remove();
+            toast('\u4E0A\u50B3\u5931\u6557'+(r&&r.error?': '+r.error:''));
+          }
+        };
+        /* POST form to Apps Script with callback param — response is JSONP */
+        var form=document.createElement('form');form.method='POST';form.action=GAS_API;form.target='_gasPostFrame';form.style.display='none';
+        for(var k in params){if(params.hasOwnProperty(k)){var inp=document.createElement('input');inp.type='hidden';inp.name=k;inp.value=params[k];form.appendChild(inp)}}
+        var iframe=document.getElementById('_gasPostFrame');
+        if(!iframe){iframe=document.createElement('iframe');iframe.id='_gasPostFrame';iframe.name='_gasPostFrame';iframe.style.display='none';document.body.appendChild(iframe)}
+        document.body.appendChild(form);form.submit();document.body.removeChild(form);
+      };
+      reader.readAsDataURL(file);
+    };
+    document.body.appendChild(fi);fi.click();document.body.removeChild(fi);
+  };
+  rtToolbar.appendChild(fileBtn);
 
   editorDiv.appendChild(rtToolbar);
 
