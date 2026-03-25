@@ -1050,7 +1050,11 @@ function renderOneFileCard(grid,card){
   var foot=ce('div','card-foot');
   var dl=ce('a','card-link','\uD83D\uDCE5 \u4E0B\u8F09\u6A94\u6848');
   dl.href=card.fileUrl||card.linkUrl||'#';dl.target='_blank';dl.rel='noopener';
+  dl.onclick=function(){trackClick(card.title,viewsSpan)};
   foot.appendChild(dl);
+  var views=(_statsData&&_statsData[card.title]!=null)?_statsData[card.title]:0;
+  var viewsSpan=ce('span','card-views','\uD83D\uDC41 '+views+' \u6B21\u9EDE\u95B1');
+  foot.appendChild(viewsSpan);
   body.appendChild(foot);
   el.appendChild(body);
   grid.appendChild(el);
@@ -1081,12 +1085,14 @@ function renderOneArticleCard(grid,card){
   var foot=ce('div','card-foot');
   var readBtn=ce('a','card-link','\uD83D\uDCD6 \u95B1\u8B80\u66F4\u591A');
   readBtn.href='javascript:void(0)';
-  readBtn.onclick=function(e){e.stopPropagation();openArticleReader(card)};
+  readBtn.onclick=function(e){e.stopPropagation();trackClick(card.title,viewsSpan);openArticleReader(card)};
   foot.appendChild(readBtn);
-  if(card.author){foot.appendChild(ce('span','card-views',esc(card.author)));}
+  var views=(_statsData&&_statsData[card.title]!=null)?_statsData[card.title]:0;
+  var viewsSpan=ce('span','card-views','\uD83D\uDC41 '+views+' \u6B21\u9EDE\u95B1');
+  foot.appendChild(viewsSpan);
   body.appendChild(foot);
   el.appendChild(body);
-  el.onclick=function(){openArticleReader(card)};
+  el.onclick=function(){trackClick(card.title,viewsSpan);openArticleReader(card)};
   grid.appendChild(el);
 }
 
@@ -1121,9 +1127,12 @@ function renderOneCopyCard(grid,card){
     this.textContent='✅ 已複製！';
     var self=this;
     setTimeout(function(){self.textContent=orig;},2000);
-    if(typeof gasAPI==='function')gasAPI('recordClick',{title:card.title},null);
+    trackClick(card.title,viewsSpan);
   };
   foot.appendChild(btn);
+  var views=(_statsData&&_statsData[card.title]!=null)?_statsData[card.title]:0;
+  var viewsSpan=ce('span','card-views','\uD83D\uDC41 '+views+' \u6B21\u9EDE\u95B1');
+  foot.appendChild(viewsSpan);
   body.appendChild(foot);
   el.appendChild(body);
   grid.appendChild(el);
