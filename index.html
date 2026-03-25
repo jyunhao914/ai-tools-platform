@@ -1565,11 +1565,12 @@ $('adminClose').onclick=function(){$('adminOverlay').classList.remove('show')};
 (function(){
   var gear=$('adminGear');
 
-  // 方1：URL 參數 ?admin 觸發登入
+  // 方1：URL 參數 ?admin 觸發登入（延遲等頁面完成）
   if(location.search.indexOf('admin')>=0){
-    openAdmin();
-    /* Clean URL without reload */
-    try{history.replaceState(null,'',location.pathname+location.hash)}catch(e){}
+    setTimeout(function(){
+      openAdmin();
+      try{history.replaceState(null,'',location.pathname+location.hash)}catch(e){}
+    },2000);
   }
 
   // 方1b：鍵盤 Ctrl+Shift+A (非 Mac 用) 或任何平台 Alt+A
