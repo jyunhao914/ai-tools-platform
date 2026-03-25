@@ -741,7 +741,7 @@ var _adminCards=[];
 var _adminEmails=[];
 var _adminTab='cards';
 var _editCard=null;
-var _editType='link';
+var _editType='article';
 var _settings={};
 
 var HERO_META=[
@@ -2079,7 +2079,7 @@ function openSiteInfoModal(){
 /* ====== UNIFIED EDIT MODAL ====== */
 function openEditModal(card,defaultPage){
   _editCard=card?JSON.parse(JSON.stringify(card)):null;
-  _editType=card?(card.type==='copy'?'link':(card.type||'link')):'link';
+  _editType=card?(card.type==='copy'?'link':(card.type||'article')):'article';
   $('modalTitle').textContent=card?'\u7DE8\u8F2F\u9805\u76EE':'\u65B0\u589E\u9805\u76EE';
   var body=$('modalBody');
   body.innerHTML='';
@@ -2089,7 +2089,7 @@ function openEditModal(card,defaultPage){
   typeDiv.appendChild(ce('label','','\u985E\u578B'));
   var typeSel=ce('div','type-selector');
   typeSel.id='mf_typeSelector';
-  [{val:'link',label:'\uD83C\uDD97 \u6309\u9215'},{val:'file',label:'\uD83D\uDCC1 \u6A94\u6848'},{val:'article',label:'\uD83D\uDCDD \u6587\u7AE0'}].forEach(function(t){
+  [{val:'file',label:'\uD83D\uDCC1 \u6A94\u6848'},{val:'article',label:'\uD83D\uDCDD \u6587\u7AE0'}].forEach(function(t){
     var btn=ce('button',''+(_editType===t.val?' active':''),t.label);
     btn.setAttribute('data-type',t.val);
     btn.onclick=function(){
@@ -2697,9 +2697,10 @@ function toggleTypeFields(){
   var fileFields=document.getElementById('mf_fileFields');
   var articleFields=document.getElementById('mf_articleFields');
   var copyFields=document.getElementById('mf_copyFields');
+  /* link type is legacy but still editable for existing cards */
   if(linkFields)linkFields.style.display=_editType==='link'?'':'none';
   if(fileFields)fileFields.style.display=_editType==='file'?'':'none';
-  if(articleFields)articleFields.style.display=_editType==='article'?'':'none';
+  if(articleFields)articleFields.style.display=(_editType==='article')?'':'none';
   if(copyFields)copyFields.style.display='none';
 }
 
