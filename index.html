@@ -3551,8 +3551,16 @@ document.addEventListener('click',function(e){
 var _icbEditTarget=null; /* the .inline-copy-btn element being edited, or null for new insert */
 var _icbMode='block';
 var _icbStyle='primary';
+var _icbSavedRange=null; /* saved cursor position for restoring after dialog */
 
 function openIcbDialog(existingEl){
+  /* Save cursor position before opening dialog */
+  var sel=window.getSelection&&window.getSelection();
+  if(sel&&sel.rangeCount>0){
+    _icbSavedRange=sel.getRangeAt(0).cloneRange();
+  }else{
+    _icbSavedRange=null;
+  }
   _icbEditTarget=existingEl;
   var overlay=$('icbDialogOverlay');
   $('icbDialogTitle').textContent=existingEl?'編輯複製按鈕':'插入複製按鈕';
@@ -3642,9 +3650,16 @@ $('icbConfirm').onclick=function(){
     /* Update existing */
     _icbEditTarget.outerHTML=html;
   }else{
-    /* Insert at cursor in articleEditor */
+    /* Insert at saved cursor position in articleEditor */
     var editor=$('articleEditor');
     if(editor){editor.focus();}
+    /* Restore saved cursor position */
+    if(_icbSavedRange){
+      var sel=window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(_icbSavedRange);
+      _icbSavedRange=null;
+    }
     document.execCommand('insertHTML',false,'<br>'+html+'<br>');
   }
   $('icbDialogOverlay').classList.remove('show');
