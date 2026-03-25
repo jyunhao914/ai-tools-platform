@@ -1579,12 +1579,47 @@ $('adminClose').onclick=function(){$('adminOverlay').classList.remove('show')};
 (function(){
   var gear=$('adminGear');
 
-  // 方1：URL 參數 ?admin 觸發登入（延遲等頁面完成）
+  // 方1：URL 參數 ?admin → 顯示登入畫面
   if(location.search.indexOf('admin')>=0){
-    setTimeout(function(){
-      openAdmin();
-      try{history.replaceState(null,'',location.pathname+location.hash)}catch(e){}
-    },2000);
+    showAdminLoginPage();
+  }
+
+  function showAdminLoginPage(){
+    var overlay=ce('div','');
+    overlay.id='adminLoginPage';
+    overlay.style.cssText='position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%);display:flex;align-items:center;justify-content:center;flex-direction:column';
+    var box=ce('div','');
+    box.style.cssText='background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:40px;max-width:360px;width:90%;text-align:center;backdrop-filter:blur(20px)';
+    box.innerHTML='<div style="font-size:48px;margin-bottom:16px">\uD83D\uDD10</div>'
+      +'<h2 style="color:#fff;margin:0 0 8px;font-size:22px">\u7BA1\u7406\u54E1\u767B\u5165</h2>'
+      +'<p style="color:rgba(255,255,255,0.5);font-size:13px;margin:0 0 24px">AI \u5DE5\u5177\u8CC7\u6E90\u5E73\u53F0 \u5F8C\u53F0\u7BA1\u7406</p>'
+      +'<input id="adminPwInput" type="password" placeholder="\u8ACB\u8F38\u5165\u7BA1\u7406\u5BC6\u78BC" style="width:100%;padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#fff;font-size:15px;outline:none;box-sizing:border-box;margin-bottom:16px">'
+      +'<button id="adminLoginBtn" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:15px;font-weight:600;cursor:pointer;transition:opacity 0.2s">\u767B\u5165</button>'
+      +'<p id="adminLoginErr" style="color:#ef4444;font-size:13px;margin:12px 0 0;display:none">\u5BC6\u78BC\u932F\u8AA4</p>'
+      +'<a href="'+location.pathname+'" style="display:block;margin-top:20px;color:rgba(255,255,255,0.4);font-size:12px;text-decoration:none">\u2190 \u8FD4\u56DE\u9996\u9801</a>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    var pwInp=$('adminPwInput'),loginBtn=$('adminLoginBtn'),errMsg=$('adminLoginErr');
+    setTimeout(function(){pwInp.focus()},100);
+    function doLogin(){
+      var pw=pwInp.value.trim();
+      if(!pw)return;
+      loginBtn.textContent='\u9A57\u8B49\u4E2D...';loginBtn.disabled=true;
+      gasAPI('checkAdmin',{pw:pw},function(res){
+        if(res&&res.ok){
+          sessionStorage.setItem('admin_pw',pw);
+          overlay.remove();
+          try{history.replaceState(null,'',location.pathname+location.hash)}catch(e){}
+          enableAdminMode();
+          toast('\u6B61\u8FCE\u56DE\u4F86\uFF0C\u7BA1\u7406\u54E1');
+        }else{
+          errMsg.style.display='block';loginBtn.textContent='\u767B\u5165';loginBtn.disabled=false;
+          pwInp.value='';pwInp.focus();
+        }
+      });
+    }
+    loginBtn.onclick=doLogin;
+    pwInp.addEventListener('keydown',function(e){if(e.key==='Enter')doLogin()});
   }
 
   // 方1b：鍵盤 Ctrl+Shift+A (非 Mac 用) 或任何平台 Alt+A
