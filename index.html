@@ -3551,15 +3551,19 @@ document.addEventListener('click',function(e){
 var _icbEditTarget=null; /* the .inline-copy-btn element being edited, or null for new insert */
 var _icbMode='block';
 var _icbStyle='primary';
-var _icbSavedRange=null; /* saved cursor position for restoring after dialog */
+var _ICB_MARKER_ID='_icb_insert_marker_';
 
 function openIcbDialog(existingEl){
-  /* Save cursor position before opening dialog */
-  var sel=window.getSelection&&window.getSelection();
-  if(sel&&sel.rangeCount>0){
-    _icbSavedRange=sel.getRangeAt(0).cloneRange();
-  }else{
-    _icbSavedRange=null;
+  /* Insert a temporary marker at cursor position before dialog opens */
+  if(!existingEl){
+    var editor=$('articleEditor');
+    if(editor){
+      editor.focus();
+      /* Remove any old marker */
+      var old=document.getElementById(_ICB_MARKER_ID);if(old)old.parentNode.removeChild(old);
+      /* Insert invisible marker at cursor */
+      document.execCommand('insertHTML',false,'<span id="'+_ICB_MARKER_ID+'" style="display:none"></span>');
+    }
   }
   _icbEditTarget=existingEl;
   var overlay=$('icbDialogOverlay');
@@ -3650,17 +3654,15 @@ $('icbConfirm').onclick=function(){
     /* Update existing */
     _icbEditTarget.outerHTML=html;
   }else{
-    /* Insert at saved cursor position in articleEditor */
-    var editor=$('articleEditor');
-    if(editor){editor.focus();}
-    /* Restore saved cursor position */
-    if(_icbSavedRange){
-      var sel=window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(_icbSavedRange);
-      _icbSavedRange=null;
+    /* Replace the marker with the copy button */
+    var marker=document.getElementById(_ICB_MARKER_ID);
+    if(marker){
+      marker.outerHTML=html;
+    }else{
+      /* Fallback: insert at end of editor */
+      var editor=$('articleEditor');
+      if(editor){editor.innerHTML+=html;}
     }
-    document.execCommand('insertHTML',false,'<br>'+html+'<br>');
   }
   $('icbDialogOverlay').classList.remove('show');
   _icbEditTarget=null;
