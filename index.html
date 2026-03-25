@@ -3286,24 +3286,35 @@ function renderAboutPage(){
 }
 
 /* ====== CACHE LAYER ====== */
-var CACHE_KEY='aitools_v3';
+var CACHE_KEY='aitools_v4';
 var CACHE_TTL=300000; /* 5 min */
 
 function saveCache(obj){
-  try{obj._ts=Date.now();localStorage.setItem(CACHE_KEY,JSON.stringify(obj));
-  /* clear old cache keys */
-  try{localStorage.removeItem('aitools_cache');localStorage.removeItem('aitools_v2')}catch(e2){}
+  try{obj._ts=Date.now();obj._ver=4;localStorage.setItem(CACHE_KEY,JSON.stringify(obj));
+  /* clear ALL old cache keys */
+  try{['aitools_cache','aitools_v2','aitools_v3'].forEach(function(k){localStorage.removeItem(k)})}catch(e2){}
   }catch(e){}
 }
 function loadCache(){
   try{
-    /* clear legacy cache */
-    try{localStorage.removeItem('aitools_cache');localStorage.removeItem('aitools_v2')}catch(e2){}
+    /* clear ALL legacy caches */
+    try{['aitools_cache','aitools_v2','aitools_v3'].forEach(function(k){localStorage.removeItem(k)})}catch(e2){}
     var raw=localStorage.getItem(CACHE_KEY);
     if(!raw)return null;
     var obj=JSON.parse(raw);
+    /* Validate cache: must have cards array with items and valid pages */
+    if(!obj||!obj.cards||!obj.cards.length||!obj.pages||!obj.pages.length){
+      localStorage.removeItem(CACHE_KEY);return null;
+    }
+    /* Expire cache after 1 hour */
+    if(obj._ts&&(Date.now()-obj._ts>3600000)){
+      localStorage.removeItem(CACHE_KEY);return null;
+    }
     return obj;
-  }catch(e){return null}
+  }catch(e){
+    try{localStorage.removeItem(CACHE_KEY)}catch(e2){}
+    return null;
+  }
 }
 
 function mergeAdminExtra(cards,adminCards){
