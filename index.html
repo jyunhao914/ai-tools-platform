@@ -1565,18 +1565,18 @@ $('adminClose').onclick=function(){$('adminOverlay').classList.remove('show')};
 (function(){
   var gear=$('adminGear');
 
-  // 方1：鍵盤快捷鍵 Ctrl+Shift+A 或 Cmd+Shift+A (Mac) → 直接登入
+  // 方1：URL 參數 ?admin 觸發登入
+  if(location.search.indexOf('admin')>=0){
+    openAdmin();
+    /* Clean URL without reload */
+    try{history.replaceState(null,'',location.pathname+location.hash)}catch(e){}
+  }
+
+  // 方1b：鍵盤 Ctrl+Shift+A (非 Mac 用) 或任何平台 Alt+A
   document.addEventListener('keydown',function(e){
-    if((e.ctrlKey||e.metaKey)&&e.shiftKey&&(e.key==='A'||e.key==='a')){
+    if(((e.ctrlKey&&!e.metaKey)&&e.shiftKey&&(e.key==='A'||e.key==='a'))||(e.altKey&&(e.key==='A'||e.key==='a'))){
       e.preventDefault();
-      if(sessionStorage.getItem('admin_pw')){
-        /* Already logged in → toggle admin panel */
-        gear.classList.add('visible');
-        openAdmin();
-      }else{
-        /* Not logged in → prompt password and login */
-        openAdmin();
-      }
+      openAdmin();
     }
   });
 
