@@ -2385,12 +2385,73 @@ function openEditModal(card,defaultPage){
   articleDiv.id='mf_articleFields';
 
   var coverField=ce('div','modal-field');
-  coverField.appendChild(ce('label','','\u5C01\u9762\u5716\u7247 URL'));
+  coverField.appendChild(ce('label','','\u5C01\u9762\u5716\u7247'));
+  var coverRow=ce('div','');coverRow.style.cssText='display:flex;gap:8px;align-items:center';
   var coverInp=ce('input');
   coverInp.id='mf_articleCover';
   coverInp.type='text';
+  coverInp.placeholder='\u8CBC\u4E0A URL \u6216\u9EDE\u53F3\u908A\u4E0A\u50B3';
+  coverInp.style.flex='1';
   coverInp.value=existingExtra.coverImage||'';
-  coverField.appendChild(coverInp);
+  coverRow.appendChild(coverInp);
+  var coverUpBtn=ce('button','','\uD83D\uDCE4 \u4E0A\u50B3');
+  coverUpBtn.type='button';
+  coverUpBtn.style.cssText='padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));white-space:nowrap;cursor:pointer';
+  var coverFileInp=ce('input');coverFileInp.type='file';coverFileInp.accept='image/*';coverFileInp.style.display='none';
+  coverUpBtn.onclick=function(){coverFileInp.click()};
+  coverFileInp.onchange=function(){
+    var file=this.files[0];if(!file)return;
+    coverUpBtn.textContent='\u4E0A\u50B3\u4E2D...';coverUpBtn.disabled=true;
+    var reader=new FileReader();
+    reader.onload=function(){
+      var img=new Image();
+      img.onload=function(){
+        var canvas=document.createElement('canvas');
+        var maxW=1200;var w=img.width;var h=img.height;
+        if(w>maxW){h=Math.round(h*maxW/w);w=maxW}
+        canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        var dataUrl=canvas.toDataURL('image/jpeg',0.85);
+        var base64=dataUrl.split(',')[1];
+        var pw=sessionStorage.getItem('admin_pw')||'';
+        var formData=new URLSearchParams();
+        formData.set('action','uploadFile');
+        formData.set('pw',pw);
+        formData.set('fileData',base64);
+        formData.set('fileName','cover_'+Date.now()+'.jpg');
+        formData.set('mimeType','image/jpeg');
+        var xhr=new XMLHttpRequest();
+        xhr.open('POST',GAS_API,true);
+        xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
+        xhr.onload=function(){
+          coverUpBtn.textContent='\uD83D\uDCE4 \u4E0A\u50B3';coverUpBtn.disabled=false;
+          try{
+            var json=xhr.responseText.match(/\{[\s\S]*\}/);
+            if(json){var res=JSON.parse(json[0]);if(res.ok&&res.directUrl){coverInp.value=res.directUrl;updateCoverPreview();toast('\u5C01\u9762\u5716\u7247\u5DF2\u4E0A\u50B3');return;}}
+            toast('\u4E0A\u50B3\u5931\u6557');
+          }catch(e){toast('\u4E0A\u50B3\u5931\u6557')}
+        };
+        xhr.onerror=function(){coverUpBtn.textContent='\uD83D\uDCE4 \u4E0A\u50B3';coverUpBtn.disabled=false;toast('\u4E0A\u50B3\u5931\u6557')};
+        xhr.send(formData.toString());
+      };
+      img.src=reader.result;
+    };
+    reader.readAsDataURL(file);
+  };
+  coverRow.appendChild(coverUpBtn);coverRow.appendChild(coverFileInp);
+  coverField.appendChild(coverRow);
+  /* Preview */
+  var coverPreview=ce('div','');coverPreview.style.cssText='margin-top:8px;max-height:120px;overflow:hidden;border-radius:8px';
+  function updateCoverPreview(){
+    coverPreview.innerHTML='';
+    var url=coverInp.value.trim();if(!url)return;
+    var img=ce('img');img.src=toDriveImg(url);img.style.cssText='width:100%;height:120px;object-fit:cover;border-radius:8px';
+    img.onerror=function(){this.style.display='none'};
+    coverPreview.appendChild(img);
+  }
+  coverInp.addEventListener('input',updateCoverPreview);
+  updateCoverPreview();
+  coverField.appendChild(coverPreview);
   articleDiv.appendChild(coverField);
 
   /* Rich Text Editor */
