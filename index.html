@@ -697,8 +697,9 @@ img{display:block;max-width:100%}
       </div>
     </div>
     <div class="icb-field"><label>說明文字 <small style="color:var(--text3)">(選填，顯示在按鈕上方)</small></label><input type="text" id="icbDesc" placeholder="例：以下 Prompt 可用於 ChatGPT 生成摘要"></div>
-    <div class="icb-field"><label>複製內容</label><textarea id="icbCopyContent" placeholder="貼入要複製的文字、連結、程式碼..."></textarea></div>
-    <div class="icb-actions">
+    <div class="icb-field"><label>複製內容</label><textarea id="icbCopyContent" rows="10" style="min-height:200px;font-family:monospace;font-size:13px;white-space:pre;overflow-wrap:normal;overflow-x:auto" placeholder="貼入要複製的文字、連結、程式碼..."></textarea></div>
+    <div class="icb-actions" style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+      <button id="icbDelete" style="margin-right:auto;background:#ef4444;color:#fff;display:none">🗑 刪除按鈕</button>
       <button id="icbCancel">取消</button>
       <button class="icb-primary" id="icbConfirm">插入</button>
     </div>
@@ -3536,6 +3537,7 @@ function openIcbDialog(existingEl){
   var overlay=$('icbDialogOverlay');
   $('icbDialogTitle').textContent=existingEl?'編輯複製按鈕':'插入複製按鈕';
   $('icbConfirm').textContent=existingEl?'更新':'插入';
+  $('icbDelete').style.display=existingEl?'inline-block':'none';
 
   /* Populate from existing or defaults */
   var data={label:'點我複製',icon:'📋',contentType:'text',style:'primary',mode:'block',copy:'',desc:''};
@@ -3586,6 +3588,21 @@ $('icbDialogOverlay').querySelectorAll('.icb-style-opt').forEach(function(el){
 
 /* Cancel */
 $('icbCancel').onclick=function(){
+  $('icbDialogOverlay').classList.remove('show');
+  _icbEditTarget=null;
+};
+
+/* Prevent paste interception on copy content textarea */
+$('icbCopyContent').addEventListener('paste',function(e){e.stopPropagation()});
+$('icbCopyContent').addEventListener('keydown',function(e){e.stopPropagation()});
+$('icbCopyContent').addEventListener('input',function(e){e.stopPropagation()});
+
+/* Delete */
+$('icbDelete').onclick=function(){
+  if(_icbEditTarget){
+    _icbEditTarget.parentNode.removeChild(_icbEditTarget);
+    toast('已刪除複製按鈕');
+  }
   $('icbDialogOverlay').classList.remove('show');
   _icbEditTarget=null;
 };
