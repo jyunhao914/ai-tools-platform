@@ -3303,6 +3303,47 @@ function mergeAdminExtra(cards,adminCards){
     }
     ['meta1','copyContent','btnLabel','btnIcon','btnStyle'].forEach(function(k){if(full[k])c[k]=full[k]});
   });
+  /* Auto-migrate: if admin has pw, write meta1/meta2/meta3 for cards missing them */
+  if(sessionStorage.getItem('admin_pw')){
+    autoMigrateMeta(cards);
+  }
+}
+
+function autoMigrateMeta(cards){
+  var migrated=localStorage.getItem('_meta_migrated_v1');
+  if(migrated)return;
+  var queue=[];
+  cards.forEach(function(c){
+    if(c.type!=='link'&&c.type!=='copy')return;
+    var behavior=c.linkBehavior||((c.meta1==='copy')?'copy':'open');
+    var needsUpdate=false;
+    /* Check if meta fields need updating */
+    if(c.meta1!==behavior)needsUpdate=true;
+    if(behavior==='copy'&&!c.meta3)needsUpdate=true;
+    if(c.linkBtnLabel&&!c.meta2)needsUpdate=true;
+    if(!needsUpdate)return;
+    /* Build updated card */
+    c.meta1=behavior;
+    c.meta2=c.linkBtnLabel||c.btnLabel||'';
+    c.meta3=JSON.stringify({i:c.linkBtnIcon||c.btnIcon||'',s:c.btnStyle||'primary',c:c.copyContent||''});
+    queue.push(JSON.parse(JSON.stringify(c)));
+  });
+  if(!queue.length){localStorage.setItem('_meta_migrated_v1','1');return;}
+  var idx=0;
+  function saveNext(){
+    if(idx>=queue.length){
+      localStorage.setItem('_meta_migrated_v1','1');
+      console.log('[Migration] Done, updated '+queue.length+' cards');
+      return;
+    }
+    var card=queue[idx];idx++;
+    gasAPI('saveCard',{data:JSON.stringify(card)},function(r){
+      console.log('[Migration] '+(r&&r.ok?'OK':'FAIL')+': '+card.title);
+      saveNext();
+    });
+  }
+  console.log('[Migration] Updating '+queue.length+' cards with meta fields...');
+  saveNext();
 }
 
 function applyFullData(data,adminCards){
