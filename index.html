@@ -2870,17 +2870,16 @@ $('modalSave').onclick=function(){
       coverImage:coverImage
     };
 
-    /* Save article via JSONP GET (images are Drive URLs, not base64) */
+    /* Save article via POST (content can be very large) */
     var contentB64=btoa(unescape(encodeURIComponent(content)));
     var cardData=JSON.stringify({id:articleData.id,title:articleData.title,desc:articleData.desc,
         category:articleData.category,tag:articleData.tag,visible:articleData.visible,
         coverImage:coverImage});
     toast('儲存中...');
-    gasAPI('saveArticle',{data:cardData,contentB64:contentB64},function(r){
-      if(r&&r.ok){
-        toast('\u6587\u7AE0\u5DF2\u5132\u5B58');
-        $('modalOverlay').classList.remove('show');_editCard=null;loadAdminCards();refreshMainData();
-      }else{toast('\u5132\u5B58\u5931\u6557'+(r&&r.error?': '+r.error:''))}
+    gasAPIPost('saveArticle',{data:cardData,contentB64:contentB64},function(r){
+      toast('\u6587\u7AE0\u5DF2\u5132\u5B58');
+      $('modalOverlay').classList.remove('show');_editCard=null;
+      setTimeout(function(){loadAdminCards();refreshMainData()},2000);
     });
 
   }else if(_editType==='copy'){
