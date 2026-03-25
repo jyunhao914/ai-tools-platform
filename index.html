@@ -1031,9 +1031,16 @@ function enableAdminMode(){
   var bar=document.getElementById('adminBar');
   if(!bar){
     bar=ce('div','admin-bar');bar.id='adminBar';
-    bar.innerHTML='<span>\uD83D\uDD27 \u7BA1\u7406\u6A21\u5F0F</span>'
-      +'<button onclick="openAdmin()" style="margin-left:12px;padding:4px 12px;border-radius:6px;border:none;background:rgba(255,255,255,0.15);color:#fff;cursor:pointer">\u2699 \u5F8C\u53F0</button>'
-      +'<button onclick="document.body.classList.remove(\'admin-mode\');document.getElementById(\'adminBar\').remove();sessionStorage.removeItem(\'admin_pw\');renderCards()" style="margin-left:8px;padding:4px 12px;border-radius:6px;border:none;background:rgba(239,68,68,0.3);color:#fff;cursor:pointer">\u767B\u51FA</button>';
+    var barLabel=ce('span','','\uD83D\uDD27 \u7BA1\u7406\u6A21\u5F0F');
+    bar.appendChild(barLabel);
+    var barBtnAdmin=ce('button','','\u2699 \u5F8C\u53F0');
+    barBtnAdmin.style.cssText='margin-left:12px;padding:4px 12px;border-radius:6px;border:none;background:rgba(255,255,255,0.15);color:#fff;cursor:pointer';
+    barBtnAdmin.onclick=function(){openAdmin()};
+    bar.appendChild(barBtnAdmin);
+    var barBtnLogout=ce('button','','\u767B\u51FA');
+    barBtnLogout.style.cssText='margin-left:8px;padding:4px 12px;border-radius:6px;border:none;background:rgba(239,68,68,0.3);color:#fff;cursor:pointer';
+    barBtnLogout.onclick=function(){document.body.classList.remove('admin-mode');bar.remove();sessionStorage.removeItem('admin_pw');renderCards()};
+    bar.appendChild(barBtnLogout);
     document.body.insertBefore(bar,document.body.firstChild);
   }
   renderCards();
