@@ -1010,20 +1010,15 @@ function renderOneLinkCard(grid,card){
   if(card.tag)body.appendChild(ce('div','card-tag',esc(card.tag)));
   body.appendChild(ce('div','card-title',esc(card.title)));
   var _desc=card.description||card.desc;if(_desc)body.appendChild(ce('div','card-desc',esc(_desc)));
-  if(card.meta1||card.meta2||card.meta3){
-    var meta=ce('div','card-meta');
-    if(card.meta1&&card.meta1!=='copy')meta.appendChild(ce('span','',esc(card.meta1)));
-    if(card.meta2)meta.appendChild(ce('span','',esc(card.meta2)));
-    if(card.meta3)meta.appendChild(ce('span','',esc(card.meta3)));
-    body.appendChild(meta);
-  }
+  /* Parse meta3 JSON config (stored by save for getData compatibility) */
+  var _m3={};try{if(card.meta3&&card.meta3.charAt(0)==='{')_m3=JSON.parse(card.meta3)}catch(e){}
   var extra=(typeof card.extra==='string')?JSON.parse(card.extra||'{}'):(card.extra||{});
   var isCopy=(card.linkBehavior||extra.linkBehavior||card.meta1)==='copy'||(card.type==='copy');
-  var copyContent=card.copyContent||extra.copyContent||card.linkUrl||'';
+  var copyContent=card.copyContent||extra.copyContent||_m3.c||card.linkUrl||'';
   var foot=ce('div','card-foot');
-  var btnIcon=card.linkBtnIcon||extra.linkBtnIcon||card.btnIcon||(isCopy?'\uD83D\uDCCB':'\u2197');
-  var btnLabel=card.linkBtnLabel||extra.linkBtnLabel||card.btnLabel||(isCopy?'\u8907\u88FD\u5167\u5BB9':'\u958B\u555F\u5DE5\u5177');
-  var btnStyle=card.btnStyle||extra.btnStyle||'primary';
+  var btnIcon=card.linkBtnIcon||extra.linkBtnIcon||_m3.i||card.btnIcon||(isCopy?'\uD83D\uDCCB':'\u2197');
+  var btnLabel=card.linkBtnLabel||extra.linkBtnLabel||card.meta2||card.btnLabel||(isCopy?'\u8907\u88FD\u5167\u5BB9':'\u958B\u555F\u5DE5\u5177');
+  var btnStyle=card.btnStyle||extra.btnStyle||_m3.s||'primary';
   var link=ce('a','card-link card-link--'+btnStyle,btnIcon+' '+btnLabel);
   if(isCopy){
     link.href='javascript:void(0)';
@@ -2786,8 +2781,10 @@ $('modalSave').onclick=function(){
     card.linkBtnLabel=(document.getElementById('mf_linkBtnLabel')||{}).value||'';
     card.linkBtnIcon=(document.getElementById('mf_linkBtnIcon')||{}).value||'';
     card.btnStyle=(document.getElementById('mf_btnStyle')||{}).value||'primary';
-    /* Backward compat */
-    card.meta1=card.linkBehavior==='copy'?'copy':'';
+    /* Store ALL button config in meta1/meta2/meta3 so getData (no auth) can render correctly */
+    card.meta1=card.linkBehavior==='copy'?'copy':'open';
+    card.meta2=card.linkBtnLabel||'';
+    card.meta3=JSON.stringify({i:card.linkBtnIcon||'',s:card.btnStyle||'primary',c:card.copyContent||''});
     card.btnLabel=card.linkBtnLabel;
     card.btnIcon=card.linkBtnIcon;
     card.extra=JSON.stringify({linkBehavior:card.linkBehavior,linkBtnLabel:card.linkBtnLabel,linkBtnIcon:card.linkBtnIcon,copyContent:card.copyContent,btnStyle:card.btnStyle});
