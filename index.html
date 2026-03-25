@@ -120,6 +120,10 @@ img{display:block;max-width:100%}
 /* ADMIN BTN */
 .admin-gear{position:fixed;bottom:24px;right:24px;width:44px;height:44px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);display:none;align-items:center;justify-content:center;font-size:20px;z-index:90;transition:transform .3s}.admin-gear.visible{display:flex}
 .admin-gear:hover{transform:rotate(90deg)}
+.admin-bar{position:sticky;top:0;z-index:200;background:linear-gradient(90deg,#1e40af,#7c3aed);color:#fff;padding:6px 20px;font-size:13px;display:flex;align-items:center;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3)}
+.admin-edit-btn{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;background:rgba(99,102,241,0.85);color:#fff;display:none;align-items:center;justify-content:center;cursor:pointer;z-index:10;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,0.3);transition:transform 0.15s}
+.admin-edit-btn:hover{transform:scale(1.15)}
+.admin-mode .admin-edit-btn{display:flex}
 
 /* ADMIN OVERLAY */
 .admin-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
@@ -1011,18 +1015,28 @@ function renderCards(){
   observeCards();
 }
 
-/* Admin edit button overlay on cards */
+/* Admin edit button on cards — visible when body has admin-mode class */
 function addAdminEditBtn(el,card){
-  if(!sessionStorage.getItem('admin_pw'))return;
-  var btn=ce('div','');
+  var btn=ce('div','admin-edit-btn');
   btn.innerHTML='\u270F\uFE0F';
   btn.title='\u7DE8\u8F2F\u6B64\u5361\u7247';
-  btn.style.cssText='position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.6);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;font-size:14px;opacity:0;transition:opacity 0.2s;backdrop-filter:blur(4px)';
   btn.onclick=function(e){e.stopPropagation();e.preventDefault();openCardModal(card)};
   el.style.position='relative';
-  el.addEventListener('mouseenter',function(){btn.style.opacity='1'});
-  el.addEventListener('mouseleave',function(){btn.style.opacity='0'});
   el.appendChild(btn);
+}
+
+function enableAdminMode(){
+  document.body.classList.add('admin-mode');
+  /* Show admin bar */
+  var bar=document.getElementById('adminBar');
+  if(!bar){
+    bar=ce('div','admin-bar');bar.id='adminBar';
+    bar.innerHTML='<span>\uD83D\uDD27 \u7BA1\u7406\u6A21\u5F0F</span>'
+      +'<button onclick="openAdmin()" style="margin-left:12px;padding:4px 12px;border-radius:6px;border:none;background:rgba(255,255,255,0.15);color:#fff;cursor:pointer">\u2699 \u5F8C\u53F0</button>'
+      +'<button onclick="document.body.classList.remove(\'admin-mode\');document.getElementById(\'adminBar\').remove();sessionStorage.removeItem(\'admin_pw\');renderCards()" style="margin-left:8px;padding:4px 12px;border-radius:6px;border:none;background:rgba(239,68,68,0.3);color:#fff;cursor:pointer">\u767B\u51FA</button>';
+    document.body.insertBefore(bar,document.body.firstChild);
+  }
+  renderCards();
 }
 
 function renderOneLinkCard(grid,card){
@@ -1544,7 +1558,7 @@ function openAdmin(){
     gasAPI('checkAdmin',{pw:pw},function(res){
       if(res&&res.ok){
         sessionStorage.setItem('admin_pw',pw);
-        renderCards(); /* Re-render to show admin edit buttons */
+        enableAdminMode();
         $('adminOverlay').classList.add('show');
         _adminTab='cards';
         updateAdminTabs();
@@ -3507,6 +3521,8 @@ function init(){
   if(_hasCache){
     buildNavTabs();buildHeroGrid();renderCards();updateVisit();observeCards();
   }
+  /* Resume admin mode if already logged in */
+  if(sessionStorage.getItem('admin_pw')){enableAdminMode()}
   /* If no cache: skeleton stays, nav/hero/counter all wait for API */
   /* If no cache, skeleton stays visible until API returns */
 
