@@ -1338,7 +1338,7 @@ function openArticleReader(card){
   }else{
     cover.style.display='none';
   }
-  $('articleMetaText').textContent=(card.author||'\u4F5A\u540D')+' \u30FB '+(card.publishDate?card.publishDate.slice(0,10):'');
+  var _metaParts=[];if(card.author)_metaParts.push(card.author);var _pubDate=card.publishDate?card.publishDate.slice(0,10):'';if(_pubDate)_metaParts.push(_pubDate);$('articleMetaText').textContent=_metaParts.join(' \u30FB ');
   /* Fetch full content from backend */
   gasAPI('getArticle',{id:card.id},function(res){
     if(res&&res.ok&&res.article){
