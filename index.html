@@ -1544,6 +1544,7 @@ function openAdmin(){
     gasAPI('checkAdmin',{pw:pw},function(res){
       if(res&&res.ok){
         sessionStorage.setItem('admin_pw',pw);
+        renderCards(); /* Re-render to show admin edit buttons */
         $('adminOverlay').classList.add('show');
         _adminTab='cards';
         updateAdminTabs();
@@ -1564,11 +1565,18 @@ $('adminClose').onclick=function(){$('adminOverlay').classList.remove('show')};
 (function(){
   var gear=$('adminGear');
 
-  // 方1：鍵盤快捷鍵 Ctrl+Shift+A 或 Cmd+Shift+A (Mac)
+  // 方1：鍵盤快捷鍵 Ctrl+Shift+A 或 Cmd+Shift+A (Mac) → 直接登入
   document.addEventListener('keydown',function(e){
     if((e.ctrlKey||e.metaKey)&&e.shiftKey&&(e.key==='A'||e.key==='a')){
       e.preventDefault();
-      gear.classList.toggle('visible');
+      if(sessionStorage.getItem('admin_pw')){
+        /* Already logged in → toggle admin panel */
+        gear.classList.add('visible');
+        openAdmin();
+      }else{
+        /* Not logged in → prompt password and login */
+        openAdmin();
+      }
     }
   });
 
@@ -1581,7 +1589,7 @@ $('adminClose').onclick=function(){$('adminOverlay').classList.remove('show')};
       clearTimeout(clickTimer);
       if(clickCount>=5){
         clickCount=0;
-        gear.classList.toggle('visible');
+        openAdmin();
       } else {
         clickTimer=setTimeout(function(){clickCount=0;},1500);
       }
