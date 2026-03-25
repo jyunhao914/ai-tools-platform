@@ -1011,8 +1011,23 @@ function renderCards(){
   observeCards();
 }
 
+/* Admin edit button overlay on cards */
+function addAdminEditBtn(el,card){
+  if(!sessionStorage.getItem('admin_pw'))return;
+  var btn=ce('div','');
+  btn.innerHTML='\u270F\uFE0F';
+  btn.title='\u7DE8\u8F2F\u6B64\u5361\u7247';
+  btn.style.cssText='position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.6);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;font-size:14px;opacity:0;transition:opacity 0.2s;backdrop-filter:blur(4px)';
+  btn.onclick=function(e){e.stopPropagation();e.preventDefault();openCardModal(card)};
+  el.style.position='relative';
+  el.addEventListener('mouseenter',function(){btn.style.opacity='1'});
+  el.addEventListener('mouseleave',function(){btn.style.opacity='0'});
+  el.appendChild(btn);
+}
+
 function renderOneLinkCard(grid,card){
   var el=ce('div','card');
+  addAdminEditBtn(el,card);
   var imgs=getCardImages(card);
   el.appendChild(buildSlider(imgs,card));
   var body=ce('div','card-body');
@@ -1047,6 +1062,7 @@ function renderOneLinkCard(grid,card){
 
 function renderOneFileCard(grid,card){
   var el=ce('div','card');
+  addAdminEditBtn(el,card);
   var ph=ce('div','card-placeholder',fileIcon(card.mimeType||''));
   ph.style.fontSize='56px';
   el.appendChild(ph);
@@ -1070,6 +1086,7 @@ function renderOneFileCard(grid,card){
 
 function renderOneArticleCard(grid,card){
   var el=ce('div','card');
+  addAdminEditBtn(el,card);
   el.style.cursor='pointer';
   if(card.coverImage){
     var img=ce('img');
@@ -1100,12 +1117,17 @@ function renderOneArticleCard(grid,card){
   foot.appendChild(viewsSpan);
   body.appendChild(foot);
   el.appendChild(body);
-  el.onclick=function(){trackClick(card.title,viewsSpan);openArticleReader(card)};
+  el.onclick=function(){
+    trackClick(card.title,viewsSpan);
+    if(sessionStorage.getItem('admin_pw')){openCardModal(card)}
+    else{openArticleReader(card)}
+  };
   grid.appendChild(el);
 }
 
 function renderOneCopyCard(grid,card){
   var el=ce('div','card');
+  addAdminEditBtn(el,card);
   if(card.imageUrls&&card.imageUrls.length){
     el.appendChild(buildSlider(card.imageUrls,card));
   }else{
