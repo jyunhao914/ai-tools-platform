@@ -1020,7 +1020,7 @@ function addAdminEditBtn(el,card){
   var btn=ce('div','admin-edit-btn');
   btn.innerHTML='\u270F\uFE0F';
   btn.title='\u7DE8\u8F2F\u6B64\u5361\u7247';
-  btn.onclick=function(e){e.stopPropagation();e.preventDefault();openCardModal(card)};
+  btn.onclick=function(e){e.stopPropagation();e.preventDefault();openEditModal(card)};
   el.style.position='relative';
   el.appendChild(btn);
 }
@@ -1140,7 +1140,7 @@ function renderOneArticleCard(grid,card){
   el.appendChild(body);
   el.onclick=function(){
     trackClick(card.title,viewsSpan);
-    if(sessionStorage.getItem('admin_pw')){openCardModal(card)}
+    if(sessionStorage.getItem('admin_pw')){openEditModal(card)}
     else{openArticleReader(card)}
   };
   grid.appendChild(el);
