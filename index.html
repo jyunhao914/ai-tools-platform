@@ -684,20 +684,27 @@ img{display:block;max-width:100%}
   </div>
 </div>
 
-<!-- Insert Copy Button Dialog -->
+<!-- Insert Button Dialog (unified: copy / link) -->
 <div class="icb-dialog-overlay" id="icbDialogOverlay">
   <div class="icb-dialog">
-    <h3 id="icbDialogTitle">插入複製按鈕</h3>
-    <div class="icb-mode-row">
-      <div class="icb-mode-opt active" data-mode="block">📦 區塊模式</div>
-      <div class="icb-mode-opt" data-mode="inline">✏️ 行內模式</div>
+    <h3 id="icbDialogTitle">插入按鍵</h3>
+    <!-- Behavior mode: copy or link -->
+    <div class="icb-field"><label>行為模式</label>
+      <div class="icb-mode-row" id="icbBehaviorRow">
+        <div class="icb-mode-opt active" data-behavior="copy">📋 複製內容</div>
+        <div class="icb-mode-opt" data-behavior="link">🔗 開啟連結</div>
+      </div>
     </div>
-    <div class="icb-field"><label>按鈕名稱</label><input type="text" id="icbLabel" placeholder="例：複製 Prompt / 複製連結" value="點我複製"></div>
-    <div class="icb-field"><label>按鈕圖示</label><input type="text" id="icbIcon" placeholder="Emoji 圖示" value="📋"></div>
-    <div class="icb-field"><label>內容類型</label>
-      <select id="icbContentType"><option value="text">📝 一般文字</option><option value="code">💻 程式碼</option><option value="link">🔗 連結</option></select>
+    <!-- Display mode: block or inline -->
+    <div class="icb-field"><label>顯示模式</label>
+      <div class="icb-mode-row" id="icbDisplayRow">
+        <div class="icb-mode-opt active" data-mode="block">📦 區塊</div>
+        <div class="icb-mode-opt" data-mode="inline">✏️ 行內</div>
+      </div>
     </div>
-    <div class="icb-field"><label>按鈕樣式</label>
+    <div class="icb-field"><label>按鍵名稱</label><input type="text" id="icbLabel" placeholder="例：複製 Prompt / 前往工具" value="點我複製"></div>
+    <div class="icb-field"><label>按鍵圖示</label><input type="text" id="icbIcon" placeholder="Emoji 圖示" value="📋"></div>
+    <div class="icb-field"><label>按鍵樣式</label>
       <div class="icb-style-row">
         <div class="icb-style-opt active" data-style="primary" style="background:linear-gradient(135deg,#38bdf8,#818cf8);color:#fff">藍</div>
         <div class="icb-style-opt" data-style="success" style="background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff">綠</div>
@@ -705,10 +712,14 @@ img{display:block;max-width:100%}
         <div class="icb-style-opt" data-style="danger" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff">紅</div>
       </div>
     </div>
-    <div class="icb-field"><label>說明文字 <small style="color:var(--text3)">(選填，顯示在按鈕上方)</small></label><input type="text" id="icbDesc" placeholder="例：以下 Prompt 可用於 ChatGPT 生成摘要"></div>
-    <div class="icb-field"><label>複製內容</label><textarea id="icbCopyContent" rows="10" style="min-height:200px;font-family:monospace;font-size:13px;white-space:pre;overflow-wrap:normal;overflow-x:auto" placeholder="貼入要複製的文字、連結、程式碼..."></textarea></div>
+    <div class="icb-field"><label>說明文字 <small style="color:var(--text3)">(選填，顯示在按鍵上方)</small></label><input type="text" id="icbDesc" placeholder="例：以下 Prompt 可用於 ChatGPT 生成摘要"></div>
+    <!-- Copy content field (shown when behavior=copy) -->
+    <div class="icb-field" id="icbCopyField"><label>複製內容</label><textarea id="icbCopyContent" rows="10" style="min-height:200px;font-family:monospace;font-size:13px;white-space:pre;overflow-wrap:normal;overflow-x:auto" placeholder="貼入要複製的文字、連結、程式碼..."></textarea></div>
+    <!-- Link URL field (shown when behavior=link) -->
+    <div class="icb-field" id="icbLinkField" style="display:none"><label>連結 URL</label><input type="url" id="icbLinkUrl" placeholder="https://..." style="font-size:14px"></div>
+    <div class="icb-field" id="icbLinkTargetField" style="display:none"><label><input type="checkbox" id="icbLinkNewTab" checked> 在新分頁開啟</label></div>
     <div class="icb-actions" style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
-      <button id="icbDelete" style="margin-right:auto;background:#ef4444;color:#fff;display:none">🗑 刪除按鈕</button>
+      <button id="icbDelete" style="margin-right:auto;background:#ef4444;color:#fff;display:none">🗑 刪除按鍵</button>
       <button id="icbCancel">取消</button>
       <button class="icb-primary" id="icbConfirm">插入</button>
     </div>
@@ -2670,7 +2681,7 @@ function openEditModal(card,defaultPage){
   rtToolbar.appendChild(sizeSelect);
 
   /* Insert Copy Button toolbar button */
-  var icbBtn=ce('button','','📋 複製按鈕');
+  var icbBtn=ce('button','','\uD83D\uDD18 \u63D2\u5165\u6309\u9375');
   icbBtn.style.cssText='font-size:12px;background:rgba(56,189,248,0.15);border-radius:6px;padding:4px 8px;color:var(--accent);font-weight:600';
   icbBtn.onmousedown=function(e){e.preventDefault()};
   icbBtn.onclick=function(e){
@@ -3840,10 +3851,11 @@ document.addEventListener('click',function(e){
   }
 });
 
-/* ====== INLINE COPY BUTTON (ICB) SYSTEM ====== */
-var _icbEditTarget=null; /* the .inline-copy-btn element being edited, or null for new insert */
+/* ====== INLINE BUTTON (ICB) SYSTEM — unified copy + link ====== */
+var _icbEditTarget=null;
 var _icbMode='block';
 var _icbStyle='primary';
+var _icbBehavior='copy'; /* 'copy' or 'link' */
 var _ICB_MARKER_ID='_icb_insert_marker_';
 var _lastEditorRange=null;
 
@@ -3879,32 +3891,40 @@ function openIcbDialog(existingEl){
   }
   _icbEditTarget=existingEl;
   var overlay=$('icbDialogOverlay');
-  $('icbDialogTitle').textContent=existingEl?'編輯複製按鈕':'插入複製按鈕';
-  $('icbConfirm').textContent=existingEl?'更新':'插入';
+  $('icbDialogTitle').textContent=existingEl?'\u7DE8\u8F2F\u6309\u9375':'\u63D2\u5165\u6309\u9375';
+  $('icbConfirm').textContent=existingEl?'\u66F4\u65B0':'\u63D2\u5165';
   $('icbDelete').style.display=existingEl?'inline-block':'none';
 
   /* Populate from existing or defaults */
-  var data={label:'點我複製',icon:'📋',contentType:'text',style:'primary',mode:'block',copy:'',desc:''};
+  var data={label:'\u9EDE\u6211\u8907\u88FD',icon:'\uD83D\uDCCB',style:'primary',mode:'block',behavior:'copy',copy:'',desc:'',linkUrl:'',linkNewTab:true};
   if(existingEl){
     data.label=existingEl.getAttribute('data-label')||data.label;
     data.icon=existingEl.getAttribute('data-icon')||data.icon;
-    data.contentType=existingEl.getAttribute('data-content-type')||data.contentType;
     data.style=existingEl.getAttribute('data-style')||data.style;
     data.mode=existingEl.getAttribute('data-mode')||data.mode;
+    data.behavior=existingEl.getAttribute('data-behavior')||data.behavior;
     data.copy=existingEl.getAttribute('data-copy-b64')?_b64d(existingEl.getAttribute('data-copy-b64')):(existingEl.getAttribute('data-copy')||data.copy);
     data.desc=existingEl.getAttribute('data-desc')||data.desc;
+    data.linkUrl=existingEl.getAttribute('data-link-url')||data.linkUrl;
+    data.linkNewTab=existingEl.getAttribute('data-link-newtab')!=='false';
   }
   $('icbLabel').value=data.label;
   $('icbIcon').value=data.icon;
-  $('icbContentType').value=data.contentType;
   $('icbCopyContent').value=data.copy;
   $('icbDesc').value=data.desc;
+  $('icbLinkUrl').value=data.linkUrl;
+  $('icbLinkNewTab').checked=data.linkNewTab;
   _icbMode=data.mode;
   _icbStyle=data.style;
+  _icbBehavior=data.behavior;
+  _toggleIcbBehavior();
 
   /* Update UI selections */
-  overlay.querySelectorAll('.icb-mode-opt').forEach(function(el){
+  overlay.querySelectorAll('#icbDisplayRow .icb-mode-opt').forEach(function(el){
     el.classList.toggle('active',el.getAttribute('data-mode')===_icbMode);
+  });
+  overlay.querySelectorAll('#icbBehaviorRow .icb-mode-opt').forEach(function(el){
+    el.classList.toggle('active',el.getAttribute('data-behavior')===_icbBehavior);
   });
   overlay.querySelectorAll('.icb-style-opt').forEach(function(el){
     el.classList.toggle('active',el.getAttribute('data-style')===_icbStyle);
@@ -3912,11 +3932,35 @@ function openIcbDialog(existingEl){
   overlay.classList.add('show');
 }
 
-/* Mode toggle */
-$('icbDialogOverlay').querySelectorAll('.icb-mode-opt').forEach(function(el){
+/* Behavior toggle (copy / link) */
+function _toggleIcbBehavior(){
+  var isCopy=_icbBehavior==='copy';
+  $('icbCopyField').style.display=isCopy?'':'none';
+  $('icbLinkField').style.display=isCopy?'none':'';
+  $('icbLinkTargetField').style.display=isCopy?'none':'';
+  if(isCopy){
+    $('icbLabel').placeholder='\u4F8B\uFF1A\u8907\u88FD Prompt / \u8907\u88FD\u9023\u7D50';
+    if(!$('icbLabel').value||$('icbLabel').value==='\u524D\u5F80\u5DE5\u5177')$('icbLabel').value='\u9EDE\u6211\u8907\u88FD';
+    if(!$('icbIcon').value||$('icbIcon').value==='\u2197')$('icbIcon').value='\uD83D\uDCCB';
+  }else{
+    $('icbLabel').placeholder='\u4F8B\uFF1A\u524D\u5F80\u5DE5\u5177 / \u958B\u555F\u9023\u7D50';
+    if(!$('icbLabel').value||$('icbLabel').value==='\u9EDE\u6211\u8907\u88FD')$('icbLabel').value='\u524D\u5F80\u5DE5\u5177';
+    if(!$('icbIcon').value||$('icbIcon').value==='\uD83D\uDCCB')$('icbIcon').value='\u2197';
+  }
+}
+$('icbBehaviorRow').querySelectorAll('.icb-mode-opt').forEach(function(el){
+  el.onclick=function(){
+    _icbBehavior=this.getAttribute('data-behavior');
+    $('icbBehaviorRow').querySelectorAll('.icb-mode-opt').forEach(function(b){b.classList.remove('active')});
+    this.classList.add('active');
+    _toggleIcbBehavior();
+  };
+});
+/* Display mode toggle (block / inline) */
+$('icbDisplayRow').querySelectorAll('.icb-mode-opt').forEach(function(el){
   el.onclick=function(){
     _icbMode=this.getAttribute('data-mode');
-    $('icbDialogOverlay').querySelectorAll('.icb-mode-opt').forEach(function(b){b.classList.remove('active')});
+    $('icbDisplayRow').querySelectorAll('.icb-mode-opt').forEach(function(b){b.classList.remove('active')});
     this.classList.add('active');
   };
 });
@@ -3953,14 +3997,16 @@ $('icbDelete').onclick=function(){
 
 /* Confirm insert/update */
 $('icbConfirm').onclick=function(){
-  var label=$('icbLabel').value.trim()||'點我複製';
-  var icon=$('icbIcon').value.trim()||'📋';
-  var contentType=$('icbContentType').value||'text';
-  var copyContent=$('icbCopyContent').value||'';
+  var label=$('icbLabel').value.trim()||((_icbBehavior==='copy')?'\u9EDE\u6211\u8907\u88FD':'\u524D\u5F80\u5DE5\u5177');
+  var icon=$('icbIcon').value.trim()||((_icbBehavior==='copy')?'\uD83D\uDCCB':'\u2197');
+  var copyContent=(_icbBehavior==='copy')?($('icbCopyContent').value||''):'';
+  var linkUrl=(_icbBehavior==='link')?($('icbLinkUrl').value.trim()||''):'';
+  var linkNewTab=$('icbLinkNewTab').checked;
   var desc=$('icbDesc').value.trim();
-  if(!copyContent){toast('請輸入複製內容');return;}
+  if(_icbBehavior==='copy'&&!copyContent){toast('\u8ACB\u8F38\u5165\u8907\u88FD\u5167\u5BB9');return;}
+  if(_icbBehavior==='link'&&!linkUrl){toast('\u8ACB\u8F38\u5165\u9023\u7D50 URL');return;}
 
-  var html=buildIcbHtml({label:label,icon:icon,contentType:contentType,style:_icbStyle,mode:_icbMode,copy:copyContent,desc:desc});
+  var html=buildIcbHtml({label:label,icon:icon,behavior:_icbBehavior,style:_icbStyle,mode:_icbMode,copy:copyContent,linkUrl:linkUrl,linkNewTab:linkNewTab,desc:desc});
 
   if(_icbEditTarget){
     /* Update existing */
@@ -3999,20 +4045,26 @@ function _b64e(s){
 }
 function _b64d(s){try{return decodeURIComponent(escape(atob(s)))}catch(e){return s}}
 function buildIcbHtml(d){
-  var b64=_b64e(d.copy);
-  var previewText=esc(d.copy.length>120?d.copy.substring(0,120)+'…':d.copy);
+  var behavior=d.behavior||'copy';
+  var b64=(behavior==='copy')?_b64e(d.copy):'';
+  var linkAttr=(behavior==='link')?' data-link-url="'+esc(d.linkUrl||'')+'" data-link-newtab="'+(d.linkNewTab!==false)+'"':'';
+  var copyAttr=(behavior==='copy')?' data-copy-b64="'+esc(b64)+'"':'';
   var descAttr=d.desc?' data-desc="'+esc(d.desc)+'"':'';
   var descHtml=d.desc?'<div class="icb-desc">'+esc(d.desc)+'</div>':'';
-  var eb64=esc(b64); /* MUST escape for HTML attribute safety */
+  var previewText='';
+  if(behavior==='copy'&&d.copy){previewText=esc(d.copy.length>120?d.copy.substring(0,120)+'\u2026':d.copy)}
+  else if(behavior==='link'&&d.linkUrl){previewText='\uD83D\uDD17 '+esc(d.linkUrl.length>60?d.linkUrl.substring(0,60)+'\u2026':d.linkUrl)}
+  var baseAttrs='data-label="'+esc(d.label)+'" data-icon="'+esc(d.icon)+'" data-behavior="'+behavior+'" data-style="'+d.style+'" data-mode="'+d.mode+'"'+copyAttr+linkAttr+descAttr;
+  var behaviorLabel=(behavior==='copy')?'\uD83D\uDCCB \u8907\u88FD':'\uD83D\uDD17 \u9023\u7D50';
   if(d.mode==='block'){
-    return '<div class="inline-copy-btn" data-label="'+esc(d.label)+'" data-icon="'+esc(d.icon)+'" data-content-type="'+d.contentType+'" data-style="'+d.style+'" data-mode="block" data-copy-b64="'+eb64+'"'+descAttr+' contenteditable="false">'
+    return '<div class="inline-copy-btn" '+baseAttrs+' contenteditable="false">'
       +descHtml
-      +'<div class="icb-preview">'+previewText+'</div>'
-      +'<div class="icb-bar"><span class="icb-label">'+({text:'\uD83D\uDCDD \u6587\u5B57',code:'\uD83D\uDCBB \u7A0B\u5F0F\u78BC',link:'\uD83D\uDD17 \u9023\u7D50'}[d.contentType]||'\uD83D\uDCDD \u6587\u5B57')+'</span>'
+      +(previewText?'<div class="icb-preview">'+previewText+'</div>':'')
+      +'<div class="icb-bar"><span class="icb-label">'+behaviorLabel+'</span>'
       +'<span class="icb-action style-'+d.style+'">'+esc(d.icon)+' '+esc(d.label)+'</span></div>'
-      +'<span class="icb-delete-hint" title="\u9EDE\u6211\u7DE8\u8F2F\uFF0C\u53EF\u5728\u5C0D\u8A71\u6846\u522A\u9664">\u270F\uFE0F</span></div>';
+      +'<span class="icb-delete-hint" title="\u9EDE\u6211\u7DE8\u8F2F">\u270F\uFE0F</span></div>';
   }else{
-    return '<span class="inline-copy-btn" data-label="'+esc(d.label)+'" data-icon="'+esc(d.icon)+'" data-content-type="'+d.contentType+'" data-style="'+d.style+'" data-mode="inline" data-copy-b64="'+eb64+'"'+descAttr+' contenteditable="false">'
+    return '<span class="inline-copy-btn" '+baseAttrs+' contenteditable="false">'
       +'<span class="icb-bar"><span class="icb-action style-'+d.style+'">'+esc(d.icon)+' '+esc(d.label)+'</span></span></span>';
   }
 }
@@ -4034,73 +4086,58 @@ document.addEventListener('click',function(e){
 function hydrateInlineCopyBtns(container){
   var btns=container.querySelectorAll('.inline-copy-btn');
   btns.forEach(function(el){
+    var behavior=el.getAttribute('data-behavior')||'copy';
     var copyContent=el.getAttribute('data-copy-b64')?_b64d(el.getAttribute('data-copy-b64')):(el.getAttribute('data-copy')||'');
-    var label=el.getAttribute('data-label')||'點我複製';
-    var icon=el.getAttribute('data-icon')||'📋';
+    var linkUrl=el.getAttribute('data-link-url')||'';
+    var linkNewTab=el.getAttribute('data-link-newtab')!=='false';
+    var label=el.getAttribute('data-label')||(behavior==='copy'?'\u9EDE\u6211\u8907\u88FD':'\u524D\u5F80\u5DE5\u5177');
+    var icon=el.getAttribute('data-icon')||(behavior==='copy'?'\uD83D\uDCCB':'\u2197');
     var style=el.getAttribute('data-style')||'primary';
-    var contentType=el.getAttribute('data-content-type')||'text';
     var mode=el.getAttribute('data-mode')||'block';
     var desc=el.getAttribute('data-desc')||'';
 
-    /* Rebuild interactive version */
     el.innerHTML='';
     el.removeAttribute('contenteditable');
 
     if(mode==='block'){
-      /* Description */
-      if(desc){
-        var descEl=document.createElement('div');
-        descEl.className='icb-desc';
-        descEl.textContent=desc;
-        el.appendChild(descEl);
+      if(desc){var descEl=document.createElement('div');descEl.className='icb-desc';descEl.textContent=desc;el.appendChild(descEl)}
+      /* Preview area — only for copy mode */
+      if(behavior==='copy'&&copyContent){
+        var preview=document.createElement('div');
+        preview.className='icb-preview';
+        preview.textContent=copyContent;
+        el.appendChild(preview);
+        setTimeout(function(){
+          if(preview.scrollHeight>preview.clientHeight+4){
+            preview.classList.add('expandable');
+            preview.onclick=function(){this.classList.toggle('expanded');this.classList.toggle('expandable')};
+            preview.style.cursor='pointer';
+          }
+        },50);
       }
-      /* Preview area */
-      var preview=document.createElement('div');
-      preview.className='icb-preview';
-      preview.textContent=copyContent;
-      /* Check if expandable */
-      el.appendChild(preview);
-      setTimeout(function(){
-        if(preview.scrollHeight>preview.clientHeight+4){
-          preview.classList.add('expandable');
-          preview.onclick=function(){this.classList.toggle('expanded');this.classList.toggle('expandable')};
-          preview.style.cursor='pointer';
-        }
-      },50);
-
-      /* Bar */
-      var bar=document.createElement('div');
-      bar.className='icb-bar';
-      var lbl=document.createElement('span');
-      lbl.className='icb-label';
-      lbl.textContent={text:'📝 文字',code:'💻 程式碼',link:'🔗 連結'}[contentType]||'📝 文字';
+      var bar=document.createElement('div');bar.className='icb-bar';
+      var lbl=document.createElement('span');lbl.className='icb-label';
+      lbl.textContent=behavior==='copy'?'\uD83D\uDCCB \u8907\u88FD':'\uD83D\uDD17 \u9023\u7D50';
       bar.appendChild(lbl);
-
       var btn=document.createElement('button');
       btn.className='icb-action style-'+style;
       btn.textContent=icon+' '+label;
-      btn.onclick=function(){
-        copyText(copyContent);
-        var orig=btn.textContent;
-        btn.textContent='✅ 已複製！';
-        setTimeout(function(){btn.textContent=orig;},2000);
-      };
-      bar.appendChild(btn);
-      el.appendChild(bar);
+      if(behavior==='link'){
+        btn.onclick=function(){window.open(linkUrl,linkNewTab?'_blank':'_self')};
+      }else{
+        btn.onclick=function(){copyText(copyContent);var o=btn.textContent;btn.textContent='\u2705 \u5DF2\u8907\u88FD\uFF01';setTimeout(function(){btn.textContent=o},2000)};
+      }
+      bar.appendChild(btn);el.appendChild(bar);
     }else{
-      /* Inline mode */
-      var bar=document.createElement('span');
-      bar.className='icb-bar';
+      var bar=document.createElement('span');bar.className='icb-bar';
       var btn=document.createElement('button');
       btn.className='icb-action style-'+style;
       btn.textContent=icon+' '+label;
-      btn.onclick=function(e){
-        e.stopPropagation();
-        copyText(copyContent);
-        var orig=btn.textContent;
-        btn.textContent='✅ 已複製！';
-        setTimeout(function(){btn.textContent=orig;},2000);
-      };
+      if(behavior==='link'){
+        btn.onclick=function(e){e.stopPropagation();window.open(linkUrl,linkNewTab?'_blank':'_self')};
+      }else{
+        btn.onclick=function(e){e.stopPropagation();copyText(copyContent);var o=btn.textContent;btn.textContent='\u2705 \u5DF2\u8907\u88FD\uFF01';setTimeout(function(){btn.textContent=o},2000)};
+      }
       bar.appendChild(btn);
       el.appendChild(bar);
     }
