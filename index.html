@@ -2729,36 +2729,44 @@ function openEditModal(card,defaultPage){
       var reader=new FileReader();
       reader.onload=function(){
         var base64=reader.result.split(',')[1];
-        /* Upload to Google Drive via Apps Script */
-        /* Upload via JSONP callback — file data in URL (small files) or POST for large */
+        /* Upload to Google Drive via XHR POST */
         var pw=sessionStorage.getItem('admin_pw')||'';
-        var params={action:'uploadFile',pw:pw,fileName:file.name,mimeType:file.type,fileData:base64,category:'',title:file.name,desc:'',tag:''};
-        /* Use form POST with JSONP callback via iframe */
-        var cbName='_fup'+(_cbId++);
-        params.callback=cbName;
-        window[cbName]=function(r){
-          delete window[cbName];
+        var formData=new URLSearchParams();
+        formData.set('action','uploadFile');
+        formData.set('pw',pw);
+        formData.set('fileName',file.name);
+        formData.set('mimeType',file.type||'application/octet-stream');
+        formData.set('fileData',base64);
+        formData.set('category','');formData.set('title',file.name);formData.set('desc','');formData.set('tag','');
+        var xhr=new XMLHttpRequest();
+        xhr.open('POST',GAS_API,true);
+        xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
+        xhr.onload=function(){
           var mk=document.getElementById('_fileInsertMarker');
-          if(r&&r.ok){
-            var sizeStr=file.size>1048576?(file.size/1048576).toFixed(1)+'MB':(file.size/1024).toFixed(0)+'KB';
-            var dlUrl=r.directUrl||r.fileUrl||'#';
-            var dlHtml='<div class="icb-block" contenteditable="false" style="background:rgba(168,85,247,0.08);border-color:rgba(168,85,247,0.3)">'
-              +'<a href="'+esc(dlUrl)+'" target="_blank" rel="noopener" class="card-link card-link--primary" style="display:inline-flex;text-decoration:none">'
-              +'\uD83D\uDCC1 \u4E0B\u8F09 '+esc(file.name)+' ('+sizeStr+')</a></div><p><br></p>';
-            if(mk){mk.outerHTML=dlHtml}
-            else{ed.focus();document.execCommand('insertHTML',false,dlHtml)}
-            toast('\u6A94\u6848\u5DF2\u63D2\u5165');
-          }else{
+          try{
+            var json=xhr.responseText.match(/\{[\s\S]*\}/);
+            if(json){
+              var r=JSON.parse(json[0]);
+              if(r.ok){
+                var sizeStr=file.size>1048576?(file.size/1048576).toFixed(1)+'MB':(file.size/1024).toFixed(0)+'KB';
+                var dlUrl=r.directUrl||r.fileUrl||'#';
+                var dlHtml='<div class="icb-block" contenteditable="false" style="background:rgba(168,85,247,0.08);border-color:rgba(168,85,247,0.3)">'
+                  +'<a href="'+esc(dlUrl)+'" target="_blank" rel="noopener" class="card-link card-link--primary" style="display:inline-flex;text-decoration:none">'
+                  +'\uD83D\uDCC1 \u4E0B\u8F09 '+esc(file.name)+' ('+sizeStr+')</a></div><p><br></p>';
+                if(mk){mk.outerHTML=dlHtml}
+                else{ed.focus();document.execCommand('insertHTML',false,dlHtml)}
+                toast('\u6A94\u6848\u5DF2\u63D2\u5165');return;
+              }
+            }
             if(mk)mk.remove();
-            toast('\u4E0A\u50B3\u5931\u6557'+(r&&r.error?': '+r.error:''));
-          }
+            toast('\u4E0A\u50B3\u5931\u6557');
+          }catch(e){if(mk)mk.remove();toast('\u4E0A\u50B3\u5931\u6557')}
         };
-        /* POST form to Apps Script with callback param — response is JSONP */
-        var form=document.createElement('form');form.method='POST';form.action=GAS_API;form.target='_gasPostFrame';form.style.display='none';
-        for(var k in params){if(params.hasOwnProperty(k)){var inp=document.createElement('input');inp.type='hidden';inp.name=k;inp.value=params[k];form.appendChild(inp)}}
-        var iframe=document.getElementById('_gasPostFrame');
-        if(!iframe){iframe=document.createElement('iframe');iframe.id='_gasPostFrame';iframe.name='_gasPostFrame';iframe.style.display='none';document.body.appendChild(iframe)}
-        document.body.appendChild(form);form.submit();document.body.removeChild(form);
+        xhr.onerror=function(){
+          var mk=document.getElementById('_fileInsertMarker');if(mk)mk.remove();
+          toast('\u4E0A\u50B3\u5931\u6557\uFF08\u7DB2\u8DEF\u932F\u8AA4\uFF09');
+        };
+        xhr.send(formData.toString());
       };
       reader.readAsDataURL(file);
     };
