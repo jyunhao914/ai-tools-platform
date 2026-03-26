@@ -2725,11 +2725,17 @@ function openEditModal(card,defaultPage){
     var fi=document.createElement('input');fi.type='file';fi.style.display='none';
     fi.onchange=function(){
       var file=fi.files[0];if(!file)return;
-      toast('\u4E0A\u50B3\u4E2D... '+file.name);
+      if(file.size>10*1024*1024){toast('\u6A94\u6848\u4E0D\u53EF\u8D85\u904E 10MB');return}
+      var sizeStr=file.size>1048576?(file.size/1048576).toFixed(1)+'MB':(file.size/1024).toFixed(0)+'KB';
+      /* Show progress bar */
+      var prog=document.createElement('div');
+      prog.style.cssText='position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,#6366f1,#8b5cf6);z-index:9999;transition:width 0.3s';
+      prog.style.width='10%';document.body.appendChild(prog);
+      toast('\u4E0A\u50B3\u4E2D... '+file.name+' ('+sizeStr+')');
       var reader=new FileReader();
       reader.onload=function(){
+        prog.style.width='30%';
         var base64=reader.result.split(',')[1];
-        /* Upload to Google Drive via XHR POST */
         var pw=sessionStorage.getItem('admin_pw')||'';
         var formData=new URLSearchParams();
         formData.set('action','uploadFile');
@@ -2741,30 +2747,39 @@ function openEditModal(card,defaultPage){
         var xhr=new XMLHttpRequest();
         xhr.open('POST',GAS_API,true);
         xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
+        xhr.upload.onprogress=function(ev){if(ev.lengthComputable){prog.style.width=Math.round(30+ev.loaded/ev.total*40)+'%'}};
+        xhr.timeout=120000;
         xhr.onload=function(){
+          prog.style.width='100%';
+          setTimeout(function(){if(prog.parentNode)prog.parentNode.removeChild(prog)},500);
           var mk=document.getElementById('_fileInsertMarker');
           try{
             var json=xhr.responseText.match(/\{[\s\S]*\}/);
             if(json){
               var r=JSON.parse(json[0]);
               if(r.ok){
-                var sizeStr=file.size>1048576?(file.size/1048576).toFixed(1)+'MB':(file.size/1024).toFixed(0)+'KB';
                 var dlUrl=r.directUrl||r.fileUrl||'#';
                 var dlHtml='<div class="icb-block" contenteditable="false" style="background:rgba(168,85,247,0.08);border-color:rgba(168,85,247,0.3)">'
                   +'<a href="'+esc(dlUrl)+'" target="_blank" rel="noopener" class="card-link card-link--primary" style="display:inline-flex;text-decoration:none">'
                   +'\uD83D\uDCC1 \u4E0B\u8F09 '+esc(file.name)+' ('+sizeStr+')</a></div><p><br></p>';
                 if(mk){mk.outerHTML=dlHtml}
                 else{ed.focus();document.execCommand('insertHTML',false,dlHtml)}
-                toast('\u6A94\u6848\u5DF2\u63D2\u5165');return;
+                toast('\u2705 \u6A94\u6848\u5DF2\u63D2\u5165');return;
               }
             }
             if(mk)mk.remove();
-            toast('\u4E0A\u50B3\u5931\u6557');
-          }catch(e){if(mk)mk.remove();toast('\u4E0A\u50B3\u5931\u6557')}
+            toast('\u274C \u4E0A\u50B3\u5931\u6557\uFF08\u4F3A\u670D\u5668\u56DE\u61C9\u7570\u5E38\uFF09');
+          }catch(e){if(mk)mk.remove();toast('\u274C \u4E0A\u50B3\u5931\u6557')}
         };
         xhr.onerror=function(){
+          if(prog.parentNode)prog.parentNode.removeChild(prog);
           var mk=document.getElementById('_fileInsertMarker');if(mk)mk.remove();
-          toast('\u4E0A\u50B3\u5931\u6557\uFF08\u7DB2\u8DEF\u932F\u8AA4\uFF09');
+          toast('\u274C \u4E0A\u50B3\u5931\u6557\uFF08\u7DB2\u8DEF\u932F\u8AA4\uFF09');
+        };
+        xhr.ontimeout=function(){
+          if(prog.parentNode)prog.parentNode.removeChild(prog);
+          var mk=document.getElementById('_fileInsertMarker');if(mk)mk.remove();
+          toast('\u274C \u4E0A\u50B3\u903E\u6642\uFF08\u6A94\u6848\u53EF\u80FD\u592A\u5927\uFF09');
         };
         xhr.send(formData.toString());
       };
