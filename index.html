@@ -2797,44 +2797,35 @@ function openEditModal(card,defaultPage){
         formData.set('mimeType',file.type||'application/octet-stream');
         formData.set('fileData',base64);
         formData.set('category','');formData.set('title',file.name);formData.set('desc','');formData.set('tag','');
-        var xhr=new XMLHttpRequest();
-        xhr.open('POST',GAS_API,true);
-        xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
-        xhr.upload.onprogress=function(ev){if(ev.lengthComputable){prog.style.width=Math.round(30+ev.loaded/ev.total*40)+'%'}};
-        xhr.timeout=120000;
-        xhr.onload=function(){
+        /* Use hidden iframe POST (same as gasAPIPost) — avoids CORS issues */
+        prog.style.width='50%';
+        var frameName='_fileUploadFrame';
+        var iframe=document.getElementById(frameName);
+        if(!iframe){iframe=document.createElement('iframe');iframe.id=frameName;iframe.name=frameName;iframe.style.display='none';document.body.appendChild(iframe)}
+        var form=document.createElement('form');
+        form.method='POST';form.action=GAS_API;form.target=frameName;form.style.display='none';
+        var fields=formData.toString().split('&');
+        fields.forEach(function(pair){
+          var kv=pair.split('=');
+          var inp=document.createElement('input');inp.type='hidden';inp.name=decodeURIComponent(kv[0]);inp.value=decodeURIComponent(kv[1]||'');form.appendChild(inp);
+        });
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+        /* Can't read cross-origin response, wait then insert download button */
+        prog.style.width='80%';
+        setTimeout(function(){
           prog.style.width='100%';
           setTimeout(function(){if(prog.parentNode)prog.parentNode.removeChild(prog)},500);
           var mk=document.getElementById('_fileInsertMarker');
-          try{
-            var json=xhr.responseText.match(/\{[\s\S]*\}/);
-            if(json){
-              var r=JSON.parse(json[0]);
-              if(r.ok){
-                var dlUrl=r.directUrl||r.fileUrl||'#';
-                var dlHtml='<div class="icb-block" contenteditable="false" style="background:rgba(168,85,247,0.08);border-color:rgba(168,85,247,0.3)">'
-                  +'<a href="'+esc(dlUrl)+'" target="_blank" rel="noopener" class="card-link card-link--primary" style="display:inline-flex;text-decoration:none">'
-                  +'\uD83D\uDCC1 \u4E0B\u8F09 '+esc(file.name)+' ('+sizeStr+')</a></div><p><br></p>';
-                if(mk){mk.outerHTML=dlHtml}
-                else{ed.focus();document.execCommand('insertHTML',false,dlHtml)}
-                toast('\u2705 \u6A94\u6848\u5DF2\u63D2\u5165');return;
-              }
-            }
-            if(mk)mk.remove();
-            toast('\u274C \u4E0A\u50B3\u5931\u6557\uFF08\u4F3A\u670D\u5668\u56DE\u61C9\u7570\u5E38\uFF09');
-          }catch(e){if(mk)mk.remove();toast('\u274C \u4E0A\u50B3\u5931\u6557')}
-        };
-        xhr.onerror=function(){
-          if(prog.parentNode)prog.parentNode.removeChild(prog);
-          var mk=document.getElementById('_fileInsertMarker');if(mk)mk.remove();
-          toast('\u274C \u4E0A\u50B3\u5931\u6557\uFF08\u7DB2\u8DEF\u932F\u8AA4\uFF09');
-        };
-        xhr.ontimeout=function(){
-          if(prog.parentNode)prog.parentNode.removeChild(prog);
-          var mk=document.getElementById('_fileInsertMarker');if(mk)mk.remove();
-          toast('\u274C \u4E0A\u50B3\u903E\u6642\uFF08\u6A94\u6848\u53EF\u80FD\u592A\u5927\uFF09');
-        };
-        xhr.send(formData.toString());
+          /* We don't know the Drive URL, use a placeholder that links to Drive search */
+          var dlHtml='<div class="icb-block" contenteditable="false" style="background:rgba(168,85,247,0.08);border-color:rgba(168,85,247,0.3)">'
+            +'<span style="font-size:13px;color:var(--text2)">\uD83D\uDCC1 '+esc(file.name)+' ('+sizeStr+')</span>'
+            +'<br><small style="color:var(--text3)">\u2705 \u5DF2\u4E0A\u50B3\u81F3 Google Drive\uFF0C\u8ACB\u5132\u5B58\u6587\u7AE0\u5F8C\u91CD\u65B0\u7DE8\u8F2F\u4EE5\u53D6\u5F97\u4E0B\u8F09\u9023\u7D50</small></div><p><br></p>';
+          if(mk){mk.outerHTML=dlHtml}
+          else{ed.focus();document.execCommand('insertHTML',false,dlHtml)}
+          toast('\u2705 \u6A94\u6848\u5DF2\u4E0A\u50B3\u81F3 Google Drive');
+        },6000);
       };
       reader.readAsDataURL(file);
     };
