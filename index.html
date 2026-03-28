@@ -3277,10 +3277,11 @@ $('modalSave').onclick=function(){
     };
 
     /* Save article via POST (content can be very large) */
+    var artPerm=(document.getElementById('mf_permission')||{}).value||'public';
     var contentB64=btoa(unescape(encodeURIComponent(content)));
     var cardData=JSON.stringify({id:articleData.id,title:articleData.title,desc:articleData.desc,
         category:articleData.category,tag:articleData.tag,visible:articleData.visible,
-        coverImage:coverImage});
+        coverImage:coverImage,permission:artPerm});
     toast('儲存中...');
     gasAPIPost('saveArticle',{data:cardData,contentB64:contentB64},function(r){
       toast('\u6587\u7AE0\u5DF2\u5132\u5B58');
