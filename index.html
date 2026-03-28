@@ -1141,6 +1141,7 @@ function addAdminEditBtn(el,card){
 }
 
 function enableAdminMode(){
+  _userRole='admin';  /* ← 讓 renderCards 顯示管理權限卡片 */
   document.body.classList.add('admin-mode');
   /* Show admin bar */
   var bar=document.getElementById('adminBar');
@@ -1154,11 +1155,11 @@ function enableAdminMode(){
     bar.appendChild(barBtnAdmin);
     var barBtnLogout=ce('button','','\u767B\u51FA');
     barBtnLogout.style.cssText='margin-left:8px;padding:4px 12px;border-radius:6px;border:none;background:rgba(239,68,68,0.3);color:#fff;cursor:pointer';
-    barBtnLogout.onclick=function(){document.body.classList.remove('admin-mode');bar.remove();sessionStorage.removeItem('admin_pw');renderCards()};
+    barBtnLogout.onclick=function(){_userRole='public';document.body.classList.remove('admin-mode');bar.remove();sessionStorage.removeItem('admin_pw');renderCards()};
     bar.appendChild(barBtnLogout);
     document.body.insertBefore(bar,document.body.firstChild);
   }
-  renderCards();
+  refreshMainData();  /* ← 重新向 GAS 取資料（帶 pw），確保拿到 admin 卡 */
 }
 
 function renderOneLinkCard(grid,card){
