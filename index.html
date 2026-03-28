@@ -1325,24 +1325,13 @@ function insertCompressedImage(file,altText){
             return;
           }
         }
-        /* Fallback: use base64 if upload fails */
-        var ed=$('articleEditor');
-        if(ed)ed.focus();
-        document.execCommand('insertHTML',false,'<img src="'+dataUrl+'" style="max-width:100%;border-radius:8px;margin:8px 0" alt="'+altText+'">');
-        toast('圖片已插入（本地）');
+        toast('\u274C \u5716\u7247\u4E0A\u50B3\u5931\u6557\uFF0C\u8ACB\u91CD\u8A66');
       }catch(e){
-        var ed=$('articleEditor');
-        if(ed)ed.focus();
-        document.execCommand('insertHTML',false,'<img src="'+dataUrl+'" style="max-width:100%;border-radius:8px;margin:8px 0" alt="'+altText+'">');
-        toast('圖片已插入（本地）');
+        toast('\u274C \u5716\u7247\u4E0A\u50B3\u5931\u6557\uFF0C\u8ACB\u91CD\u8A66');
       }
     };
     xhr.onerror=function(){
-      /* Fallback to base64 */
-      var ed=$('articleEditor');
-      if(ed)ed.focus();
-      document.execCommand('insertHTML',false,'<img src="'+dataUrl+'" style="max-width:100%;border-radius:8px;margin:8px 0" alt="'+altText+'">');
-      toast('圖片已插入（本地）');
+      toast('\u274C \u5716\u7247\u4E0A\u50B3\u5931\u6557\uFF0C\u8ACB\u91CD\u8A66');
     };
     xhr.send(formData.toString());
   });
@@ -2254,6 +2243,8 @@ function openEditModal(card,defaultPage){
         imgUpBtn.style.cssText='padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));cursor:pointer';
         var imgUpFile=ce('input');imgUpFile.type='file';imgUpFile.accept='image/*';imgUpFile.style.display='none';
         imgUpBtn.onclick=function(){imgUpFile.click()};
+        var preview=ce('div','modal-preview');
+        preview.id='mf_imgPreview';
         (function(textarea,previewEl){
           imgUpFile.onchange=function(){
             var file=this.files[0];if(!file)return;
@@ -2289,8 +2280,6 @@ function openEditModal(card,defaultPage){
         })(ta,preview);
         imgUpRow.appendChild(imgUpBtn);imgUpRow.appendChild(imgUpFile);
         div.appendChild(imgUpRow);
-        var preview=ce('div','modal-preview');
-        preview.id='mf_imgPreview';
         updateImgPreview(preview,ta.value);
         ta.oninput=function(){updateImgPreview(preview,ta.value)};
         div.appendChild(preview);
@@ -3095,7 +3084,7 @@ $('modalSave').onclick=function(){
   }else if(_editType==='file'){
     var fileInput=document.getElementById('mf_uploadFile');
     var file=fileInput&&fileInput.files[0];
-    var existingExtra=(card.extra&&typeof card.extra==='object')?card.extra:{};
+    var existingExtra=(card.extra&&typeof card.extra==='object')?card.extra:(card.extra?JSON.parse(card.extra):{});
 
     if(file){
       /* Upload new file then save card */
@@ -3103,42 +3092,42 @@ $('modalSave').onclick=function(){
       reader.onload=function(){
         var base64=reader.result.split(',')[1];
         var xhr=new XMLHttpRequest();
-        var formData=new FormData();
-        formData.append('action','uploadFile');
-        formData.append('pw',sessionStorage.getItem('admin_pw')||'');
-        formData.append('fileData',base64);
-        formData.append('fileName',file.name);
-        formData.append('mimeType',file.type||'application/octet-stream');
-        formData.append('title',card.title);
-        formData.append('desc',card.desc);
-        formData.append('category',card.category);
-        formData.append('tag',card.tag||'');
+        var formData=new URLSearchParams();
+        formData.set('action','uploadFile');
+        formData.set('pw',sessionStorage.getItem('admin_pw')||'');
+        formData.set('fileData',base64);
+        formData.set('fileName',file.name);
+        formData.set('mimeType',file.type||'application/octet-stream');
+        formData.set('title',card.title);
+        formData.set('desc',card.desc);
+        formData.set('category',card.category);
+        formData.set('tag',card.tag||'');
 
         var progress=document.getElementById('uploadProgress');
         var bar=document.getElementById('uploadProgressBar');
         if(progress)progress.style.display='block';
 
-        xhr.upload.onprogress=function(e){
-          if(e.lengthComputable&&bar) bar.style.width=Math.round(e.loaded/e.total*100)+'%';
-        };
         xhr.open('POST',GAS_API);
+        xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
         xhr.onload=function(){
           if(bar)bar.style.width='100%';
           try{
-            var res=JSON.parse(xhr.responseText);
-            if(res&&res.ok){
-              toast('\u4E0A\u50B3\u6210\u529F');
-              $('modalOverlay').classList.remove('show');
-              _editCard=null;
-              loadAdminCards();
-              refreshMainData();
-            }else{
-              toast('\u4E0A\u50B3\u5931\u6557'+(res&&res.error?': '+res.error:''));
-            }
+            var json=xhr.responseText.match(/\{[\s\S]*\}/);
+            if(json){var res=JSON.parse(json[0]);
+              if(res&&res.ok){
+                toast('\u4E0A\u50B3\u6210\u529F');
+                $('modalOverlay').classList.remove('show');
+                _editCard=null;
+                loadAdminCards();
+                refreshMainData();
+              }else{
+                toast('\u4E0A\u50B3\u5931\u6557'+(res&&res.error?': '+res.error:''));
+              }
+            }else{toast('\u4E0A\u50B3\u5931\u6557')}
           }catch(e){toast('\u4E0A\u50B3\u5931\u6557')}
         };
         xhr.onerror=function(){toast('\u4E0A\u50B3\u5931\u6557')};
-        xhr.send(formData);
+        xhr.send(formData.toString());
       };
       reader.readAsDataURL(file);
     }else if(existingExtra.fileUrl){
