@@ -41,6 +41,13 @@ img{display:block;max-width:100%}
 .nav-tab:hover{color:var(--text);background:var(--card)}
 .nav-tab.active{color:var(--accent);background:rgba(56,189,248,0.1)}
 .nav-visit{font-size:13px;color:var(--text3);white-space:nowrap;flex-shrink:0}
+.student-badge{font-size:12px;color:var(--accent3);cursor:pointer;white-space:nowrap;flex-shrink:0;padding:3px 9px;border-radius:6px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.25);position:relative;user-select:none}
+.student-badge-menu{position:absolute;top:calc(100% + 6px);right:0;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:4px;min-width:90px;z-index:200;box-shadow:0 4px 16px rgba(0,0,0,0.4)}
+.student-badge-menu button{display:block;width:100%;text-align:left;padding:7px 12px;border-radius:6px;font-size:13px;color:var(--text);background:none;border:none;cursor:pointer}
+.student-badge-menu button:hover{background:var(--card)}
+.perm-badge{display:inline-block;font-size:10px;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle;font-weight:600}
+.perm-badge.student{background:rgba(52,211,153,0.15);color:#34d399;border:1px solid rgba(52,211,153,0.3)}
+.perm-badge.admin-perm{background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3)}
 
 /* ANNOUNCEMENT BANNER */
 .announcement-banner{display:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;text-align:center;padding:10px 48px 10px 24px;font-size:14px;font-weight:500;position:relative;z-index:99}
@@ -604,6 +611,7 @@ img{display:block;max-width:100%}
     <input type="search" id="globalSearch" class="global-search" placeholder="搜尋工具...">
   </div>
   <div class="nav-visit" id="navVisit" style="visibility:hidden"></div>
+  <div class="student-badge" id="studentBadge" style="display:none">學員</div>
   <button class="theme-toggle" id="themeToggle" title="切換主題">&#127769;</button>
 </nav>
 
@@ -630,7 +638,7 @@ img{display:block;max-width:100%}
   </div>
 </section>
 
-<footer class="footer">AI 工具資源平台 &middot; 持續更新中</footer>
+<footer class="footer" id="siteFooter">AI 工具資源平台 &middot; 持續更新中<span id="studentLoginDot" style="cursor:pointer;opacity:0.25;font-size:11px;margin-left:10px;user-select:none" title="">&#9679;</span></footer>
 
 <button class="admin-gear" id="adminGear" title="管理後台">&#9881;</button>
 
@@ -761,6 +769,7 @@ var _adminTab='cards';
 var _editCard=null;
 var _editType='article';
 var _settings={};
+var _userRole='public'; /* 'public'|'student'|'admin' */
 
 var HERO_META=[
   {ico:'\uD83D\uDCCA',desc:'AI \u7C21\u5831\u751F\u6210\u5DE5\u5177\uFF0C\u4E00\u9375\u88FD\u4F5C\u7CBE\u7F8E\u6295\u5F71\u7247'},
@@ -773,12 +782,19 @@ var HERO_META=[
 function gasAPI(action,params,callback){
   var url=GAS_API+'?action='+encodeURIComponent(action);
   var pw=sessionStorage.getItem('admin_pw')||'';
+  var stok=localStorage.getItem('student_token')||'';
   if(pw){if(!params)params={};if(!params.pw)params.pw=pw;}
+  else if(stok){if(!params)params={};if(!params.token)params.token=stok;}
   if(params){for(var k in params){if(params.hasOwnProperty(k)){url+='&'+encodeURIComponent(k)+'='+encodeURIComponent(params[k])}}}
   var cbName='_gcb_'+(++_cbId);
   var done=false;
   var timer=setTimeout(function(){if(!done){done=true;delete window[cbName];if(callback)callback(null)}},12000);
-  window[cbName]=function(data){if(!done){done=true;clearTimeout(timer);delete window[cbName];if(callback)callback(data)}};
+  window[cbName]=function(data){
+    if(!done){done=true;clearTimeout(timer);delete window[cbName];
+      if(data&&data.error==='token_expired'){disableStudentMode();showStudentLogin();}
+      if(callback)callback(data);
+    }
+  };
   var s=document.createElement('script');
   s.src=url+'&callback='+cbName;
   s.onerror=function(){if(!done){done=true;clearTimeout(timer);delete window[cbName];if(callback)callback(null)}};
@@ -788,9 +804,11 @@ function gasAPI(action,params,callback){
 /* POST version for large payloads (articles with images) */
 function gasAPIPost(action,params,callback){
   var pw=sessionStorage.getItem('admin_pw')||'';
+  var stok=localStorage.getItem('student_token')||'';
   if(!params)params={};
   params.action=action;
   if(pw)params.pw=pw;
+  else if(stok)params.token=stok;
   var done=false;
   var timer=setTimeout(function(){if(!done){done=true;if(callback)callback(null)}},30000);
   /* Use form POST via hidden iframe — all fields as hidden inputs */
@@ -808,6 +826,83 @@ function gasAPIPost(action,params,callback){
     if(done)return;done=true;clearTimeout(timer);
     if(callback)callback({ok:true});
   },4000);
+}
+
+/* ====== STUDENT AUTH ====== */
+function gasLogin(username,password,callback){
+  var fd=new URLSearchParams();
+  fd.set('action','login');fd.set('username',username);fd.set('password',password);
+  var xhr=new XMLHttpRequest();
+  xhr.open('POST',GAS_API,true);
+  xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
+  xhr.onload=function(){
+    try{var j=xhr.responseText.match(/\{[\s\S]*\}/);if(j){callback(JSON.parse(j[0]));return;}}catch(e){}
+    callback(null);
+  };
+  xhr.onerror=function(){callback(null)};
+  xhr.send(fd.toString());
+}
+
+function enableStudentMode(token){
+  _userRole='student';
+  localStorage.setItem('student_token',token);
+  var badge=$('studentBadge');
+  if(badge)badge.style.display='';
+  renderCards();
+}
+
+function disableStudentMode(){
+  _userRole='public';
+  localStorage.removeItem('student_token');
+  var badge=$('studentBadge');
+  if(badge)badge.style.display='none';
+  var menu=document.getElementById('studentBadgeMenu');
+  if(menu)menu.remove();
+  renderCards();
+}
+
+function showStudentLogin(){
+  if($('studentLoginOverlay'))return;
+  var overlay=ce('div','');
+  overlay.id='studentLoginOverlay';
+  overlay.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px)';
+  var box=ce('div','');
+  box.style.cssText='background:var(--bg3);border:1px solid var(--border2);border-radius:16px;padding:36px 32px;max-width:340px;width:90%;text-align:center';
+  box.innerHTML='<div style="font-size:38px;margin-bottom:12px">\uD83D\uDD12</div>'
+    +'<h2 style="color:var(--text);margin:0 0 6px;font-size:20px">\u5B78\u54E1\u767B\u5165</h2>'
+    +'<p style="color:var(--text2);font-size:13px;margin:0 0 20px">AI \u5DE5\u5177\u8CC7\u6E90\u5E73\u53F0 \u5B78\u54E1\u5C08\u5340</p>'
+    +'<input id="stLoginUser" type="text" placeholder="\u5E33\u865F" autocomplete="username" style="width:100%;padding:10px 14px;border-radius:9px;border:1px solid var(--border2);background:rgba(255,255,255,0.06);color:var(--text);font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px">'
+    +'<input id="stLoginPw" type="password" placeholder="\u5BC6\u78BC" autocomplete="current-password" style="width:100%;padding:10px 14px;border-radius:9px;border:1px solid var(--border2);background:rgba(255,255,255,0.06);color:var(--text);font-size:14px;outline:none;box-sizing:border-box;margin-bottom:14px">'
+    +'<button id="stLoginBtn" style="width:100%;padding:11px;border-radius:9px;border:none;background:linear-gradient(135deg,#34d399,#059669);color:#fff;font-size:15px;font-weight:600;cursor:pointer">\u767B\u5165</button>'
+    +'<p id="stLoginErr" style="color:#ef4444;font-size:13px;margin:10px 0 0;display:none">\u5E33\u865F\u6216\u5BC6\u78BC\u932F\u8AA4</p>'
+    +'<button id="stLoginCancel" style="margin-top:16px;color:var(--text3);font-size:12px;background:none;border:none;cursor:pointer">\u53D6\u6D88</button>';
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  var userInp=$('stLoginUser'),pwInp=$('stLoginPw'),loginBtn=$('stLoginBtn'),errMsg=$('stLoginErr');
+  $('stLoginCancel').onclick=function(){overlay.remove()};
+  setTimeout(function(){userInp.focus()},80);
+  function doStudentLogin(){
+    var u=userInp.value.trim(),p=pwInp.value.trim();
+    if(!u||!p)return;
+    loginBtn.textContent='\u9A57\u8B49\u4E2D...';loginBtn.disabled=true;errMsg.style.display='none';
+    gasLogin(u,p,function(r){
+      loginBtn.textContent='\u767B\u5165';loginBtn.disabled=false;
+      if(r&&r.ok&&r.token){
+        overlay.remove();
+        enableStudentMode(r.token);
+        toast('\u2705 \u6B61\u8FCE\uFF0C\u5B78\u54E1');
+      }else if(r&&r.error==='locked'){
+        errMsg.textContent='\u767B\u5165\u5931\u6557\u6B21\u6578\u904E\u591A\uFF0C\u8ACB 10 \u5206\u9418\u5F8C\u518D\u8A66';
+        errMsg.style.display='block';
+      }else{
+        errMsg.textContent='\u5E33\u865F\u6216\u5BC6\u78BC\u932F\u8AA4';
+        errMsg.style.display='block';pwInp.value='';pwInp.focus();
+      }
+    });
+  }
+  loginBtn.onclick=doStudentLogin;
+  pwInp.addEventListener('keydown',function(e){if(e.key==='Enter')doStudentLogin()});
+  userInp.addEventListener('keydown',function(e){if(e.key==='Enter')pwInp.focus()});
 }
 
 /* ====== UTILS ====== */
@@ -1009,7 +1104,13 @@ function renderCards(){
     renderAboutPage();
     return;
   }
-  var filtered=CARDS.filter(function(c){return (c.page||c.category)===_activeTab&&c.visible!==false});
+  var filtered=CARDS.filter(function(c){
+    if((c.page||c.category)!==_activeTab||c.visible===false)return false;
+    var perm=c.permission||'public';
+    if(perm==='student'&&_userRole==='public')return false;
+    if(perm==='admin'&&_userRole!=='admin')return false;
+    return true;
+  });
   if(!filtered.length){
     grid.innerHTML='<div class="tools-empty">\uD83D\uDD0D \u6B64\u5206\u985E\u66AB\u7121\u5167\u5BB9</div>';
     return;
@@ -1945,6 +2046,9 @@ function renderAdminCards(filter){
       var titleSpan=ce('span','admin-row-title'+(card.visible===false?' hidden-card':''),typeBadge(card.type||'link')+esc(card.title));
       titleSpan.id='card-title-'+card.id;
       row.appendChild(titleSpan);
+      var _perm=card.permission||'public';
+      if(_perm==='student'){var pb=ce('span','perm-badge student','\uD83D\uDD12\u5B78\u54E1');row.appendChild(pb);}
+      else if(_perm==='admin'){var pb=ce('span','perm-badge admin-perm','\uD83D\uDD11\u7BA1\u7406');row.appendChild(pb);}
 
       var upBtn=ce('button','reorder-btn','\u25B2');
       upBtn.title='\u4E0A\u79FB';
@@ -2298,6 +2402,19 @@ function openEditModal(card,defaultPage){
     }
     body.appendChild(div);
   });
+
+  /* Permission selector */
+  var permDiv=ce('div','modal-field');
+  permDiv.appendChild(ce('label','','\u700F\u89BD\u6B0A\u9650'));
+  var permSel=ce('select');
+  permSel.id='mf_permission';
+  [{v:'public',l:'\uD83C\uDF10 \u516C\u958B'},{v:'student',l:'\uD83D\uDD12 \u5B78\u54E1'},{v:'admin',l:'\uD83D\uDD11 \u7BA1\u7406'}].forEach(function(o){
+    var opt=ce('option','',o.l);opt.value=o.v;
+    if((card&&(card.permission||'public'))===o.v)opt.selected=true;
+    permSel.appendChild(opt);
+  });
+  permDiv.appendChild(permSel);
+  body.appendChild(permDiv);
 
   /* BUTTON-specific fields (unified link + copy) */
   var linkDiv=ce('div','');
@@ -3058,6 +3175,7 @@ $('modalSave').onclick=function(){
   var imgRaw=document.getElementById('mf_imageUrls').value;
   card.imageUrls=imgRaw?imgRaw.split('\n').map(function(s){return s.trim()}).filter(function(s){return s}):[];
   card.visible=document.getElementById('mf_visible').classList.contains('on');
+  card.permission=(document.getElementById('mf_permission')||{}).value||'public';
   card.type=_editType;
 
   if(!card.title){toast('\u8ACB\u8F38\u5165\u6A19\u984C');return}
@@ -3689,6 +3807,30 @@ function init(){
   }
   /* Resume admin mode if already logged in */
   if(sessionStorage.getItem('admin_pw')){enableAdminMode()}
+  /* Resume student mode if token in localStorage */
+  (function(){
+    var stok=localStorage.getItem('student_token');
+    if(stok){_userRole='student';var badge=$('studentBadge');if(badge)badge.style.display='';}
+  })();
+  /* Footer hidden student login dot */
+  var _dot=$('studentLoginDot');
+  if(_dot)_dot.onclick=function(){if(_userRole==='public')showStudentLogin();};
+  /* Student badge click → logout menu */
+  (function(){
+    var badge=$('studentBadge');
+    if(!badge)return;
+    badge.onclick=function(e){
+      e.stopPropagation();
+      var menu=document.getElementById('studentBadgeMenu');
+      if(menu){menu.remove();return;}
+      menu=ce('div','student-badge-menu');menu.id='studentBadgeMenu';
+      var logoutBtn=ce('button','','\u767B\u51FA');
+      logoutBtn.onclick=function(e){e.stopPropagation();menu.remove();disableStudentMode();toast('\u5DF2\u767B\u51FA\u5B78\u54E1\u6A21\u5F0F');};
+      menu.appendChild(logoutBtn);
+      badge.appendChild(menu);
+      document.addEventListener('click',function hide(){menu.remove();document.removeEventListener('click',hide)},{once:true});
+    };
+  })();
   /* If no cache: skeleton stays, nav/hero/counter all wait for API */
   /* If no cache, skeleton stays visible until API returns */
 
