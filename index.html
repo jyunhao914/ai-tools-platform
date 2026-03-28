@@ -3855,11 +3855,15 @@ function init(){
     if(_gotAdmin)tryApply();
     else setTimeout(tryApply,2000); /* Don't wait forever for admin data */
   });
-  gasAPI('getCardsAdmin',null,function(res){
-    _gotAdmin=true;
-    if(res&&res.ok&&res.cards)_adminCards=res.cards;
-    if(_gotData)tryApply();
-  });
+  if(sessionStorage.getItem('admin_pw')){
+    gasAPI('getCardsAdmin',null,function(res){
+      _gotAdmin=true;
+      if(res&&res.ok&&res.cards)_adminCards=res.cards;
+      if(_gotData)tryApply();
+    });
+  }else{
+    _gotAdmin=true; /* 非管理員：跳過 getCardsAdmin，直接允許 tryApply */
+  }
   /* Failsafe: if getData fails/times out, render whatever we have after 15s */
   setTimeout(function(){if(!_applied&&CARDS.length){_applied=true;buildNavTabs();buildHeroGrid();renderCards();updateVisit();observeCards();}},15000);
 
