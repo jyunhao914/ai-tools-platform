@@ -6,13 +6,33 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AI 工具資源平台</title>
-<meta name="description" content="AI 工具資源平台 — 整合最新 AI 科技工具">
-<meta property="og:title" content="AI 工具資源平台">
-<meta property="og:description" content="AI 工具資源平台 — 整合最新 AI 科技工具">
-<meta property="og:image" content="">
+<title>臺中榮總 AI 工具資源平台</title>
+<meta name="description" content="臺中榮總 AI 工具資源平台 — 為臨床教師、學生、行政與影音製作人員整合最新 AI 科技工具，提升每日工作效能。">
+<meta name="keywords" content="AI工具,臺中榮總,人工智慧,簡報生成,海報設計,NotebookLM,Gemini,醫學教育,AI平台">
+<meta name="robots" content="index, follow">
+<meta name="author" content="臺中榮總體系醫院">
+<meta name="theme-color" content="#07090f">
+<link rel="canonical" href="https://jyunhao914.github.io/ai-tools-platform/">
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:locale" content="zh_TW">
+<meta property="og:site_name" content="臺中榮總 AI 工具資源平台">
+<meta property="og:url" content="https://jyunhao914.github.io/ai-tools-platform/">
+<meta property="og:title" content="臺中榮總 AI 工具資源平台">
+<meta property="og:description" content="為臨床教師、學生、行政與影音製作人員整合最新 AI 科技工具，提升每日工作效能。">
+<meta property="og:image" content="https://jyunhao914.github.io/ai-tools-platform/assets/yaml-gem-thumb.jpg">
+<meta property="og:image:alt" content="臺中榮總 AI 工具資源平台">
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="臺中榮總 AI 工具資源平台">
+<meta name="twitter:description" content="為臨床教師、學生、行政與影音製作人員整合最新 AI 科技工具，提升每日工作效能。">
+<meta name="twitter:image" content="https://jyunhao914.github.io/ai-tools-platform/assets/yaml-gem-thumb.jpg">
+<!-- JSON-LD 結構化資料 -->
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite","name":"臺中榮總 AI 工具資源平台","url":"https://jyunhao914.github.io/ai-tools-platform/","description":"為臨床教師、學生、行政與影音製作人員整合最新 AI 科技工具，提升每日工作效能。","inLanguage":"zh-TW","publisher":{"@type":"Organization","name":"臺中榮總體系醫院","url":"https://jyunhao914.github.io/ai-tools-platform/"},"potentialAction":{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://jyunhao914.github.io/ai-tools-platform/?q={search_term_string}"},"query-input":"required name=search_term_string"}}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigi>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap"></noscript>
 <style>
@@ -1456,20 +1476,23 @@ $('announcementDismiss').onclick=function(){
 
 /* ====== SEO ====== */
 function applySEO(){
-  if(_settings.seo_title) document.title=_settings.seo_title;
-  if(_settings.seo_description){
-    var meta=document.querySelector('meta[name="description"]');
-    if(meta) meta.setAttribute('content',_settings.seo_description);
-    var ogDesc=document.querySelector('meta[property="og:description"]');
-    if(ogDesc) ogDesc.setAttribute('content',_settings.seo_description);
+  var title=_settings.seo_title;
+  var desc=_settings.seo_description;
+  var img=_settings.seo_og_image;
+  function setMeta(sel,val){var el=document.querySelector(sel);if(el&&val)el.setAttribute('content',val);}
+  if(title){
+    document.title=title;
+    setMeta('meta[property="og:title"]',title);
+    setMeta('meta[name="twitter:title"]',title);
   }
-  if(_settings.seo_og_image){
-    var ogImg=document.querySelector('meta[property="og:image"]');
-    if(ogImg) ogImg.setAttribute('content',_settings.seo_og_image);
+  if(desc){
+    setMeta('meta[name="description"]',desc);
+    setMeta('meta[property="og:description"]',desc);
+    setMeta('meta[name="twitter:description"]',desc);
   }
-  if(_settings.seo_title){
-    var ogTitle=document.querySelector('meta[property="og:title"]');
-    if(ogTitle) ogTitle.setAttribute('content',_settings.seo_title);
+  if(img){
+    setMeta('meta[property="og:image"]',img);
+    setMeta('meta[name="twitter:image"]',img);
   }
 }
 
@@ -2215,9 +2238,9 @@ function openSEOModal(){
   body.innerHTML='';
 
   var fields=[
-    {key:'seo_title',label:'\u7DB2\u7AD9\u6A19\u984C (title)'},
-    {key:'seo_description',label:'\u7DB2\u7AD9\u63CF\u8FF0 (description)'},
-    {key:'seo_og_image',label:'OG Image URL'}
+    {key:'seo_title',label:'網站標題 (title / og:title / twitter:title)'},
+    {key:'seo_description',label:'網站描述 (description / og:description / twitter:description)'},
+    {key:'seo_og_image',label:'分享圖片 URL (og:image / twitter:image)'}
   ];
   fields.forEach(function(f){
     var div=ce('div','modal-field');
