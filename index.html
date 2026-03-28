@@ -1051,10 +1051,9 @@ function switchTab(tab){
 
 /* ====== CARD RENDERING ====== */
 function esc(s){
-  if(!s)return'';
-  var d=document.createElement('div');
-  d.textContent=s;
-  return d.innerHTML;
+  if(s===null||s===undefined)return'';
+  s=String(s);
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 function getCardImages(card){
@@ -3692,8 +3691,8 @@ function renderAboutPage(){
   grid.innerHTML='';
   $('toolsHead').innerHTML='\u95DC\u65BC\u6211\u5011';
   var section=ce('div','about-section');
-  section.innerHTML='<h3>\u95DC\u65BC AI \u5DE5\u5177\u8CC7\u6E90\u5E73\u53F0</h3>'
-    +'<p>\u672C\u5E73\u53F0\u7531\u81E8\u5E8A\u6559\u5E2B\u5718\u968A\u6253\u9020\uFF0C\u81F4\u529B\u65BC\u6574\u5408\u6700\u65B0 AI \u79D1\u6280\u5DE5\u5177\uFF0C\u5E6B\u52A9\u6559\u5E2B\u3001\u5B78\u751F\u3001\u884C\u653F\u8207\u5F71\u97F3\u88FD\u4F5C\u4EBA\u54E1\u63D0\u5347\u6BCF\u65E5\u5DE5\u4F5C\u6548\u80FD\u3002</p>'
+  section.innerHTML='<h3>關於 AI 工具資源平台</h3>'
+    +'<p>本平台致力於整合最新 AI 科技工具，幫助教師、學生、行政與影音製作人員提升每日工作效能。</p>'
     +'<h4>\uD83C\uDFAF \u6211\u5011\u7684\u76EE\u6A19</h4>'
     +'<ul>'
     +'<li>\u2022 \u964D\u4F4E AI \u5DE5\u5177\u7684\u4F7F\u7528\u9580\u6ABB</li>'
