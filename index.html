@@ -93,6 +93,9 @@ img{display:block;max-width:100%}
 .hero-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:28px 22px;text-align:left;cursor:pointer;transition:all .28s}
 .hero-card:hover{background:var(--card-h);border-color:var(--border2);transform:translateY(-4px)}
 .hero-card-ico{font-size:32px;margin-bottom:12px}
+.hero-card-img{width:100%;aspect-ratio:1/1;overflow:hidden;border-radius:10px;margin-bottom:14px}
+.hero-card-img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .35s}
+.hero-card:hover .hero-card-img img{transform:scale(1.05)}
 .hero-card-title{font-size:16px;font-weight:600;margin-bottom:6px}
 .hero-card-desc{font-size:13px;color:var(--text2);line-height:1.5}
 
@@ -793,10 +796,10 @@ var _settings={};
 var _userRole='public'; /* 'public'|'student'|'admin' */
 
 var HERO_META=[
-  {ico:'\uD83D\uDCCA',desc:'AI \u7C21\u5831\u751F\u6210\u5DE5\u5177\uFF0C\u4E00\u9375\u88FD\u4F5C\u7CBE\u7F8E\u6295\u5F71\u7247'},
-  {ico:'\uD83C\uDFA8',desc:'\u6D77\u5831\u8A2D\u8A08\u5DE5\u5177\uFF0C\u5FEB\u901F\u7522\u51FA\u8996\u89BA\u5167\u5BB9'},
-  {ico:'\uD83E\uDDF0',desc:'\u5404\u985E AI \u5DE5\u5177\u6574\u5408\uFF0C\u63D0\u5347\u5DE5\u4F5C\u6548\u7387'},
-  {ico:'\uD83C\uDFE5',desc:'\u95DC\u65BC\u672C\u5E73\u53F0\u8207 AI \u63A8\u5EE3\u8A08\u756B'}
+  {ico:'assets/cat-presentation.jpg',desc:'AI 簡報生成工具，一鍵製作精美投影片'},
+  {ico:'assets/cat-poster.jpg',desc:'海報設計工具，快速產出視覺內容'},
+  {ico:'assets/cat-toolbox.jpg',desc:'各類 AI 工具整合，提升工作效率'},
+  {ico:'assets/cat-about.jpg',desc:'關於本平台與 AI 推廣計畫'}
 ];
 
 /* ====== JSONP ====== */
@@ -1024,7 +1027,10 @@ function buildHeroGrid(){
   PAGES.forEach(function(p,i){
     var meta=HERO_META[i]||{ico:'\uD83D\uDCCC',desc:''};
     var card=ce('div','hero-card');
-    card.innerHTML='<div class="hero-card-ico">'+meta.ico+'</div><div class="hero-card-title">'+esc(p)+'</div><div class="hero-card-desc">'+esc(meta.desc)+'</div>';
+    var icoHtml=meta.ico&&meta.ico.match(/\.(jpg|jpeg|png|webp|gif)$/i)
+      ?'<div class="hero-card-img"><img src="'+meta.ico+'" alt="'+esc(p)+'" loading="lazy"></div>'
+      :'<div class="hero-card-ico">'+meta.ico+'</div>';
+    card.innerHTML=icoHtml+'<div class="hero-card-title">'+esc(p)+'</div><div class="hero-card-desc">'+esc(meta.desc)+'</div>';
     card.onclick=function(){
       switchTab(p);
       $('tools').scrollIntoView({behavior:'smooth'});
