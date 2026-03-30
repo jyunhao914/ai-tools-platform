@@ -630,7 +630,7 @@ img{display:block;max-width:100%}
 </div>
 
 <nav class="nav" id="nav">
-  <div class="nav-logo">
+  <div class="nav-logo" style="cursor:pointer" onclick="window.scrollTo({top:0,behavior:'smooth'});location.hash='';" title="回到首頁">
     <img class="nav-logo-icon" src="assets/logo.png" alt="logo">
     <span>AI 工具平台</span>
   </div>
@@ -666,7 +666,7 @@ img{display:block;max-width:100%}
   </div>
 </section>
 
-<footer class="footer" id="siteFooter">AI 工具資源平台 &middot; 持續更新中<span id="studentLoginDot" style="cursor:pointer;opacity:0.25;font-size:11px;margin-left:10px;user-select:none" title="">&#9679;</span></footer>
+<footer class="footer" id="siteFooter">AI 工具資源平台 &middot; 持續更新中<span style="opacity:0.35;margin-left:10px;font-size:11px">v2.1.0 · 2026-03-30</span><span id="studentLoginDot" style="cursor:pointer;opacity:0.25;font-size:11px;margin-left:10px;user-select:none" title="">&#9679;</span></footer>
 
 <button class="admin-gear" id="adminGear" title="管理後台">&#9881;</button>
 
@@ -3872,22 +3872,40 @@ function init(){
   /* 2. Fetch fresh data in background (parallel, failover) */
   var _gotData=false,_gotAdmin=false,_freshData=null,_adminCards=null;
   var _applied=false;
+  var _retryCount=0;
 
   function tryApply(){
     if(_applied)return;
-    /* Apply as soon as getData returns (don't wait for admin) */
     if(_gotData){
-      _applied=true;
-      applyFullData(_freshData,_adminCards);
-      saveCache({cards:CARDS,pages:PAGES,stats:_statsData,settings:_settings});
+      /* Only commit if we actually have data or cache — prevents blank page on API failure */
+      if(_freshData || CARDS.length){
+        _applied=true;
+        applyFullData(_freshData,_adminCards);
+        if(CARDS.length)saveCache({cards:CARDS,pages:PAGES,stats:_statsData,settings:_settings});
+      }
+      /* If neither, leave _applied=false so retry/failsafe can take over */
     }
   }
 
-  gasAPI('getData',null,function(data){
-    _gotData=true;_freshData=data;
-    if(_gotAdmin)tryApply();
-    else setTimeout(tryApply,2000); /* Don't wait forever for admin data */
-  });
+  function fetchMainData(){
+    _gotData=false;
+    gasAPI('getData',null,function(data){
+      _gotData=true;_freshData=data;
+      if(data){
+        if(_gotAdmin)tryApply();
+        else setTimeout(tryApply,2000);
+      }else if(_retryCount<3&&!CARDS.length){
+        /* API returned null (timeout/error) and no cache — retry with back-off */
+        _retryCount++;
+        setTimeout(fetchMainData,2500*_retryCount);
+      }else{
+        if(_gotAdmin)tryApply();
+        else setTimeout(tryApply,2000);
+      }
+    });
+  }
+  fetchMainData();
+
   if(sessionStorage.getItem('admin_pw')){
     gasAPI('getCardsAdmin',null,function(res){
       _gotAdmin=true;
@@ -3897,8 +3915,19 @@ function init(){
   }else{
     _gotAdmin=true; /* 非管理員：跳過 getCardsAdmin，直接允許 tryApply */
   }
-  /* Failsafe: if getData fails/times out, render whatever we have after 15s */
-  setTimeout(function(){if(!_applied&&CARDS.length){_applied=true;buildNavTabs();buildHeroGrid();renderCards();updateVisit();observeCards();}},15000);
+
+  /* Failsafe: if data never arrives after 20s, show error with reload button */
+  setTimeout(function(){
+    if(_applied)return;
+    _applied=true;
+    if(CARDS.length){
+      buildNavTabs();buildHeroGrid();renderCards();updateVisit();observeCards();
+    }else{
+      var grid=$('toolsGrid');
+      if(grid)grid.innerHTML='<div class="tools-empty" style="padding:60px 24px"><div style="font-size:40px;margin-bottom:16px">⚠️</div><div style="font-size:17px;font-weight:600;color:var(--text);margin-bottom:8px">資料載入失敗</div><div style="font-size:14px;color:var(--text2);margin-bottom:24px">請確認網路連線後重新載入頁面</div><button onclick="location.reload()" style="padding:10px 28px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:14px;font-weight:600;border:none;cursor:pointer">重新載入</button></div>';
+      var tools=$('tools');if(tools)tools.scrollIntoView({behavior:'smooth'});
+    }
+  },20000);
 
   window.addEventListener('hashchange',function(){
     var h=decodeURIComponent(location.hash.replace('#',''));
