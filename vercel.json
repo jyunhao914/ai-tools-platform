@@ -1,0 +1,9 @@
+{
+  "functions": {
+    "api/card/[id].js": { "runtime": "edge" }
+  },
+  "routes": [
+    { "src": "/card/(.*)", "dest": "/api/card/$1" },
+    { "src": "/(.*)", "dest": "/$1" }
+  ]
+}
