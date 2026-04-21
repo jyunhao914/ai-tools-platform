@@ -3811,6 +3811,7 @@ function applyFullData(data,adminCards){
   if(!_activeTab&&PAGES.length){
     var hash=decodeURIComponent(location.hash.replace('#',''));
     if(hash&&PAGES.indexOf(hash)>=0)_activeTab=hash;
+    else if(hash.indexOf('article=')===0)_activeTab=PAGES[0];
     else{_activeTab=PAGES[0];location.hash=PAGES[0];}
   }
   buildNavTabs();buildHeroGrid();renderCards();updateVisit();observeCards();
@@ -3836,6 +3837,7 @@ function init(){
   }
   var hash=decodeURIComponent(location.hash.replace('#',''));
   if(hash&&PAGES.indexOf(hash)>=0){_activeTab=hash;location.hash=hash;}
+  else if(hash.indexOf('article=')===0){if(PAGES.length)_activeTab=PAGES[0];}
   else if(PAGES.length){_activeTab=PAGES[0];location.hash=PAGES[0];}
   if(_hasCache){
     buildNavTabs();buildHeroGrid();renderCards();updateVisit();observeCards();
