@@ -1397,7 +1397,8 @@ function renderQr(text){
 }
 $('qrClose').onclick=function(){$('qrOverlay').classList.remove('show')};
 $('articleQr').onclick=function(){
-  var url=location.origin+location.pathname+'#article='+_currentArticleId;
+  var base=location.origin+(location.pathname.replace(/\/cards\/[^/]*$/,'').replace(/\/$/,'')||'');
+  var url=base+'/cards/'+_currentArticleId+'.html';
   showQrCode(url);
 };
 
@@ -1559,11 +1560,12 @@ function openArticleReader(card){
   document.body.style.overflow='hidden';
 }
 
-/* Share article link */
+/* Share article link — use /cards/id.html for proper OG on LINE/social */
 $('articleShare').onclick=function(){
-  var url=location.origin+location.pathname+'#article='+_currentArticleId;
+  var base=location.origin+(location.pathname.replace(/\/cards\/[^/]*$/,'').replace(/\/$/,'')||'');
+  var url=base+'/cards/'+_currentArticleId+'.html';
   copyText(url);
-  toast('已複製文章連結');
+  toast('已複製分享連結');
 };
 
 /* Build Table of Contents from H2/H3 */
