@@ -1527,7 +1527,7 @@ function openArticleReader(card){
   var overlay=$('articleOverlay');
   _currentArticleId=card.id;
   /* Set URL hash for shareable link */
-  history.pushState(null,'','#article='+card.id);
+  history.pushState(null,'',location.pathname.replace(/\/cards\/[^/]*$/,'')+'/cards/'+card.id+'.html');
   $('articleTitle').textContent=card.title||'';
   var cover=$('articleCover');
   if(card.coverImage){
@@ -1605,7 +1605,7 @@ function closeArticleReader(){
   $('articleOverlay').classList.remove('show');
   document.body.style.overflow='';
   _currentArticleId=null;
-  history.pushState(null,'',location.pathname+'#'+_activeTab);
+  history.pushState(null,'',location.pathname.replace(/\/cards\/[^/]*$/,'')+'#'+_activeTab);
 }
 $('articleBack').onclick=closeArticleReader;
 $('articleBackBottom').onclick=closeArticleReader;
