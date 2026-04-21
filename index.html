@@ -766,7 +766,7 @@ img{display:block;max-width:100%}
 <div class="qr-modal-overlay" id="qrOverlay">
   <div class="qr-modal">
     <h3>掃碼開啟文章</h3>
-    <canvas id="qrCanvas"></canvas>
+    <img id="qrImg" src="" alt="QR Code" style="width:220px;height:220px;margin:0 auto 16px;display:block;border-radius:8px;background:#fff">
     <div class="qr-url" id="qrUrl"></div>
     <button id="qrClose">關閉</button>
   </div>
@@ -1365,35 +1365,11 @@ function toEmbedUrl(url){
   return url;
 }
 
-/* ====== QR CODE GENERATOR (minimal canvas-based) ====== */
+/* ====== QR CODE GENERATOR (image API, no JS library needed) ====== */
 function showQrCode(text){
-  var overlay=$('qrOverlay');
   $('qrUrl').textContent=text;
-  overlay.classList.add('show');
-  /* Use external QR lib via CDN (qrcode-generator) */
-  if(typeof qrcode==='undefined'){
-    var s=document.createElement('script');
-    s.src='https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js';
-    s.onload=function(){renderQr(text)};
-    document.head.appendChild(s);
-  }else{
-    renderQr(text);
-  }
-}
-function renderQr(text){
-  var qr=qrcode(0,'M');
-  qr.addData(text);
-  qr.make();
-  var canvas=$('qrCanvas');
-  var ctx=canvas.getContext('2d');
-  var size=qr.getModuleCount();
-  var scale=Math.max(4,Math.floor(220/size));
-  canvas.width=size*scale;
-  canvas.height=size*scale;
-  ctx.fillStyle='#fff';
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle='#000';
-  for(var r=0;r<size;r++){for(var c=0;c<size;c++){if(qr.isDark(r,c))ctx.fillRect(c*scale,r*scale,scale,scale)}}
+  $('qrImg').src='https://api.qrserver.com/v1/create-qr-code/?size=220x220&data='+encodeURIComponent(text);
+  $('qrOverlay').classList.add('show');
 }
 $('qrClose').onclick=function(){$('qrOverlay').classList.remove('show')};
 $('articleQr').onclick=function(){
