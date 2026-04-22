@@ -90,5 +90,12 @@ def main():
 
     print(f'Generated {count} card HTML files; removed {removed} stale files.')
 
+    # Also write static data.json snapshot so first-time visitors get instant render
+    # (index.html fetches ./data.json before GAS to skip the 2-5s GAS cold start)
+    data_json_path = os.path.join(here, 'data.json')
+    with open(data_json_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False)
+    print(f'Wrote data.json snapshot ({os.path.getsize(data_json_path)} bytes).')
+
 if __name__ == '__main__':
     main()
