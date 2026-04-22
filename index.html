@@ -953,6 +953,11 @@ function toDriveImg(url){
   if(m)return'https://lh3.googleusercontent.com/d/'+m[1];
   m=url.match(/id=([a-zA-Z0-9_-]+)/);
   if(m)return'https://lh3.googleusercontent.com/d/'+m[1];
+  /* Relative path — anchor to site root (not current pathname) so /cards/x.html views resolve assets/ correctly */
+  if(url.indexOf('http')!==0&&url.indexOf('//')!==0&&url.indexOf('/')!==0&&url.indexOf('data:')!==0){
+    var base=location.pathname.replace(/\/(cards\/[^/]*|index\.html?)?$/,'');
+    return base+'/'+url;
+  }
   return url;
 }
 
