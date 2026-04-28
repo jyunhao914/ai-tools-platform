@@ -1,5 +1,24 @@
-// Name Tag Generator v0.1.0
+// Name Tag Generator v0.2.0
 // 桌牌產生器 — 展開式 tent card，上半倒轉 + Excel 批次 + PNG 拼版輸出
+// v0.11.0 — 文字欄位改為陣列：可新增、刪除、排序，且支援 kind='auto' 自動編號
+
+function makeField(over) {
+  return Object.assign({
+    id: 'f_' + Math.random().toString(36).slice(2,8),
+    label: '欄位',
+    kind: 'text',          // 'text' | 'auto'
+    template: '',          // text 用：{欄位名} ...
+    format: '#{n}',        // auto 用：{n} 會被取代成編號
+    start: 1,              // auto 起始號
+    padding: 0,            // auto 補零位數（0=不補）
+    font: 'NotoSansTC', weight: 400, size: 14, color: '#0a2a66',
+    x: 50, y: 30, align: 'center',
+    letterSpacing: 0, lineHeight: 1.2, rotation: 0,
+    autoFit: false, maxFitW: 130,
+    stroke: 0, strokeColor: '#ffffff',
+    shadow: false, shadowColor: 'rgba(0,0,0,0.4)', shadowBlur: 2
+  }, over || {});
+}
 
 const state = {
   cardW: 90,           // mm
@@ -13,30 +32,56 @@ const state = {
   headers: [],
   map: { org: '單位', name: '姓名', title: '職稱' },
   activeIdx: 0,
-  selectedField: 'name',
-  fields: {
-    org:   { font: 'NotoSansTC', weight: 400, size: 9, color: '#0a2a66',
-             x: 5, y: 11, align: 'left', letterSpacing: 0, lineHeight: 1.2,
-             rotation: 0, template: '{單位}',
-             autoFit: false, maxFitW: 80, stroke: 0, strokeColor: '#ffffff',
-             shadow: false, shadowColor: 'rgba(0,0,0,0.4)', shadowBlur: 2 },
-    name:  { font: 'NotoSansTC', weight: 700, size: 24, color: '#0a2a66',
-             x: 45, y: 32, align: 'center', letterSpacing: 0.05, lineHeight: 1.1,
-             rotation: 0, template: '{姓名}',
-             autoFit: true, maxFitW: 80, stroke: 0, strokeColor: '#ffffff',
-             shadow: false, shadowColor: 'rgba(0,0,0,0.4)', shadowBlur: 2 },
-    title: { font: 'NotoSansTC', weight: 400, size: 10, color: '#0a2a66',
-             x: 85, y: 49, align: 'right', letterSpacing: 0, lineHeight: 1.2,
-             rotation: 0, template: '{職稱}',
-             autoFit: false, maxFitW: 80, stroke: 0, strokeColor: '#ffffff',
-             shadow: false, shadowColor: 'rgba(0,0,0,0.4)', shadowBlur: 2 }
-  },
+  selectedFieldId: '',
+  fields: [
+    makeField({ id:'f_org',   label:'單位', kind:'text', template:'{單位}',
+                size:9,  x:5,  y:11, align:'left',   weight:400, lineHeight:1.2 }),
+    makeField({ id:'f_name',  label:'姓名', kind:'text', template:'{姓名}',
+                size:24, x:45, y:32, align:'center', weight:700,
+                letterSpacing:0.05, lineHeight:1.1, autoFit:true, maxFitW:80 }),
+    makeField({ id:'f_title', label:'職稱', kind:'text', template:'{職稱}',
+                size:10, x:85, y:49, align:'right',  weight:400, lineHeight:1.2 })
+  ],
   bgFill: { type: 'none', color1: '#ffffff', color2: '#dbe8ff', angle: 90 },
   paperGap: 0,
   paperBleed: 3,
   printRange: { from: 1, to: 0 }, // 0 = all
   zoom: 1
 };
+state.selectedFieldId = state.fields[1]?.id || state.fields[0]?.id;
+
+// ===== Field helpers =====
+function fieldById(id) { return state.fields.find(f => f.id === id); }
+function fieldIndex(id) { return state.fields.findIndex(f => f.id === id); }
+function fieldText(f, row, rowIdx) {
+  if (!f) return '';
+  if (f.kind === 'auto') {
+    const n = (f.start || 1) + (rowIdx || 0);
+    const padded = (f.padding > 0) ? String(n).padStart(f.padding, '0') : String(n);
+    return (f.format || '#{n}').replace(/\{n\}/g, padded);
+  }
+  return applyTemplate(f.template, row);
+}
+function migrateFieldsObject(obj) {
+  // 舊格式 {org, name, title} → 陣列
+  if (Array.isArray(obj)) return obj.map(f => makeField(f));
+  if (!obj || typeof obj !== 'object') return null;
+  const order = ['org', 'name', 'title'];
+  const labels = { org: '單位', name: '姓名', title: '職稱' };
+  const out = [];
+  for (const k of order) {
+    if (obj[k]) out.push(makeField(Object.assign({}, obj[k], {
+      id: 'f_' + k, label: labels[k], kind: 'text'
+    })));
+  }
+  // 任何不在預期裡的 key 也補上
+  for (const k of Object.keys(obj)) {
+    if (!order.includes(k) && obj[k]) {
+      out.push(makeField(Object.assign({}, obj[k], { id: 'f_' + k, label: k })));
+    }
+  }
+  return out.length ? out : null;
+}
 
 const PX_PER_MM_PREVIEW = 3;  // 3 px/mm on screen (75 DPI-ish)
 
@@ -65,16 +110,108 @@ function applyTemplate(tpl, row) {
   return tpl.replace(/\{([^}]+)\}/g, (_, k) => (row[k.trim()] ?? ''));
 }
 
-// =================== Field editors ===================
+// =================== Field editors (dynamic tabs + array fields) ===================
+function buildFieldTabs() {
+  let tabs = document.querySelector('.tabs');
+  if (!tabs) return;
+  tabs.innerHTML = '';
+  state.fields.forEach((f, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'tab' + (f.id === state.selectedFieldId ? ' active' : '');
+    btn.dataset.target = f.id;
+    btn.draggable = true;
+    btn.innerHTML = `
+      <span class="tab-label">${escapeHtml(f.label || '欄位')}</span>
+      ${state.fields.length > 1 ? '<span class="tab-x" title="刪除欄位">×</span>' : ''}
+    `;
+    btn.addEventListener('click', e => {
+      if (e.target.classList.contains('tab-x')) return;
+      switchToField(f.id);
+    });
+    btn.querySelector('.tab-x')?.addEventListener('click', e => {
+      e.stopPropagation();
+      if (state.fields.length <= 1) return;
+      if (!confirm(`刪除欄位「${f.label}」？`)) return;
+      pushUndo('field-del');
+      const i = fieldIndex(f.id);
+      state.fields.splice(i, 1);
+      if (state.selectedFieldId === f.id) {
+        state.selectedFieldId = state.fields[Math.min(i, state.fields.length-1)].id;
+      }
+      buildFieldTabs(); buildFieldEditors(); renderPreview();
+    });
+    // Drag & drop reorder
+    btn.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', f.id);
+      btn.classList.add('dragging');
+    });
+    btn.addEventListener('dragend', () => btn.classList.remove('dragging'));
+    btn.addEventListener('dragover', e => { e.preventDefault(); btn.classList.add('drag-over'); });
+    btn.addEventListener('dragleave', () => btn.classList.remove('drag-over'));
+    btn.addEventListener('drop', e => {
+      e.preventDefault();
+      btn.classList.remove('drag-over');
+      const fromId = e.dataTransfer.getData('text/plain');
+      if (!fromId || fromId === f.id) return;
+      pushUndo('field-reorder');
+      const fromIdx = fieldIndex(fromId);
+      const toIdx = fieldIndex(f.id);
+      const [moved] = state.fields.splice(fromIdx, 1);
+      state.fields.splice(toIdx, 0, moved);
+      buildFieldTabs(); buildFieldEditors(); renderPreview();
+    });
+    tabs.appendChild(btn);
+  });
+  // + Add button
+  const addBtn = document.createElement('button');
+  addBtn.className = 'tab tab-add';
+  addBtn.title = '新增欄位';
+  addBtn.textContent = '＋';
+  addBtn.addEventListener('click', () => {
+    pushUndo('field-add');
+    const headers = state.headers.length ? state.headers : ['單位','姓名','職稱'];
+    const usedTpl = state.fields.map(f => f.template).join(' ');
+    // 預設指向第一個還沒被用到的欄位
+    const guess = headers.find(h => !usedTpl.includes('{'+h+'}')) || headers[0];
+    const newF = makeField({
+      label: '欄位' + (state.fields.length + 1),
+      kind: 'text',
+      template: '{' + guess + '}',
+      x: state.cardW / 2,
+      y: state.cardH / 2,
+      align: 'center',
+      size: 14
+    });
+    state.fields.push(newF);
+    state.selectedFieldId = newF.id;
+    buildFieldTabs(); buildFieldEditors(); renderPreview();
+  });
+  tabs.appendChild(addBtn);
+}
+
 function buildFieldEditors() {
   const host = $('fieldEditors');
   host.innerHTML = '';
-  ['org', 'name', 'title'].forEach(id => {
-    const f = state.fields[id];
+  state.fields.forEach(f => {
+    const id = f.id;
     const div = document.createElement('div');
-    div.className = 'field-editor' + (id === state.selectedField ? ' active' : '');
+    div.className = 'field-editor' + (id === state.selectedFieldId ? ' active' : '');
     div.dataset.id = id;
     div.innerHTML = `
+      <div class="row">
+        <label>欄位名稱<input type="text" data-k="label"></label>
+        <label>類型
+          <select data-k="kind">
+            <option value="text">文字</option>
+            <option value="auto">自動編號</option>
+          </select>
+        </label>
+      </div>
+      <div class="row auto-only" style="display:none;">
+        <label>編號格式<input type="text" data-k="format" placeholder="#{n}"></label>
+        <label>起始<input type="number" data-k="start" min="0" step="1"></label>
+        <label>補零位數<input type="number" data-k="padding" min="0" max="6" step="1"></label>
+      </div>
       <div class="row">
         <label>字型
           <select data-k="font">
@@ -137,6 +274,12 @@ function buildFieldEditors() {
     div.querySelectorAll('[data-align]').forEach(btn => {
       btn.addEventListener('click', () => applyQuickAlign(id, btn.dataset.align));
     });
+    // toggle auto-only row visibility
+    const autoRow = div.querySelector('.auto-only');
+    const refreshKindUI = () => {
+      if (autoRow) autoRow.style.display = (f.kind === 'auto') ? '' : 'none';
+    };
+    refreshKindUI();
     // fill values
     div.querySelectorAll('[data-k]').forEach(el => {
       const k = el.dataset.k;
@@ -148,11 +291,13 @@ function buildFieldEditors() {
         if (el.type === 'checkbox') v = el.checked;
         else v = el.value;
         if (['size','x','y','weight','rotation','letterSpacing','lineHeight',
-             'maxFitW','stroke','shadowBlur'].includes(k)) {
+             'maxFitW','stroke','shadowBlur','start','padding'].includes(k)) {
           v = parseFloat(v);
           if (isNaN(v)) v = 0;
         }
         f[k] = v;
+        if (k === 'kind') refreshKindUI();
+        if (k === 'label') buildFieldTabs();
         renderPreview();
       };
       el.addEventListener('input', handler);
@@ -163,9 +308,10 @@ function buildFieldEditors() {
 
 function applyQuickAlign(id, mode) {
   pushUndo('align');
-  const f = state.fields[id];
+  const f = fieldById(id);
+  if (!f) return;
   const row = state.rows[state.activeIdx];
-  const bbox = computeFieldBboxMm(f, row); // 為了拿到目前文字實際高度
+  const bbox = computeFieldBboxMm(f, row, state.activeIdx); // 為了拿到目前文字實際高度
   if (mode === 'hcenter' || mode === 'both') {
     f.align = 'center';
     f.x = +(state.cardW / 2).toFixed(2);
@@ -194,16 +340,7 @@ function applyQuickAlign(id, mode) {
   renderPreview();
 }
 
-document.querySelectorAll('.tab').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    state.selectedField = btn.dataset.target;
-    document.querySelectorAll('.field-editor').forEach(e => {
-      e.classList.toggle('active', e.dataset.id === state.selectedField);
-    });
-  });
-});
+// Tab clicks now wired in buildFieldTabs(); switchToField below handles tab/editor toggle.
 
 // =================== File loading ===================
 bgFileInput.addEventListener('change', async e => {
@@ -497,6 +634,7 @@ function populateHeaderSelects() {
   };
   ['mapOrg','mapName','mapTitle'].forEach((id, i) => {
     const key = ['org','name','title'][i];
+    const fieldId = 'f_' + key;
     const sel = $(id);
     sel.innerHTML = state.headers.map(h => {
       const v = String(sample[h] ?? '').slice(0, 12);
@@ -505,22 +643,19 @@ function populateHeaderSelects() {
     }).join('');
     state.map[key] = defaults[key];
     sel.value = state.map[key];
-    // update template to current mapped header
-    state.fields[key].template = `{${defaults[key]}}`;
+    // update template of corresponding default field if it still exists
+    const f = fieldById(fieldId);
+    if (f && f.kind === 'text') f.template = `{${defaults[key]}}`;
     sel.onchange = () => {
       state.map[key] = sel.value;
-      state.fields[key].template = `{${sel.value}}`;
-      buildFieldEditors();
-      document.querySelector(`.tab[data-target="${state.selectedField}"]`)?.classList.add('active');
-      document.querySelectorAll('.field-editor').forEach(e =>
-        e.classList.toggle('active', e.dataset.id === state.selectedField));
+      const f2 = fieldById(fieldId);
+      if (f2 && f2.kind === 'text') f2.template = `{${sel.value}}`;
+      buildFieldTabs(); buildFieldEditors();
       renderRecList();
       renderPreview();
     };
   });
-  buildFieldEditors();
-  document.querySelectorAll('.field-editor').forEach(e =>
-    e.classList.toggle('active', e.dataset.id === state.selectedField));
+  buildFieldTabs(); buildFieldEditors();
 }
 
 // =================== Record list ===================
@@ -667,10 +802,9 @@ function drawFaceBg(tctx, pxPerMm) {
   }
 }
 
-function drawFaceText(tctx, row, pxPerMm) {
-  ['org', 'name', 'title'].forEach(id => {
-    const f = state.fields[id];
-    const text = applyTemplate(f.template, row);
+function drawFaceText(tctx, row, pxPerMm, rowIdx) {
+  state.fields.forEach(f => {
+    const text = fieldText(f, row, rowIdx);
     if (text === '' || text == null) return;
     drawTextBlock(tctx, text, f, pxPerMm);
   });
@@ -773,7 +907,7 @@ function drawLineManualSpacing(tctx, text, x, y, ls, align, mode = 'fill') {
   tctx.textAlign = prevAlign;
 }
 
-function drawUnfolded(tctx, row, pxPerMm, { showFold = true } = {}) {
+function drawUnfolded(tctx, row, pxPerMm, { showFold = true, rowIdx = 0 } = {}) {
   const W = state.cardW * pxPerMm;
   const H = state.cardH * pxPerMm;
   const isBadge = state.outputMode === 'badge';
@@ -790,7 +924,7 @@ function drawUnfolded(tctx, row, pxPerMm, { showFold = true } = {}) {
   if (isBadge) {
     tctx.save();
     drawFaceBg(tctx, pxPerMm);
-    drawFaceText(tctx, row, pxPerMm);
+    drawFaceText(tctx, row, pxPerMm, rowIdx);
     tctx.restore();
     return;
   }
@@ -799,13 +933,13 @@ function drawUnfolded(tctx, row, pxPerMm, { showFold = true } = {}) {
   tctx.translate(W, H);
   tctx.rotate(Math.PI);
   drawFaceBg(tctx, pxPerMm);
-  drawFaceText(tctx, row, pxPerMm);
+  drawFaceText(tctx, row, pxPerMm, rowIdx);
   tctx.restore();
   // Bottom face (normal)
   tctx.save();
   tctx.translate(0, H);
   drawFaceBg(tctx, pxPerMm);
-  drawFaceText(tctx, row, pxPerMm);
+  drawFaceText(tctx, row, pxPerMm, rowIdx);
   tctx.restore();
   // Fold line
   if (showFold) {
@@ -831,7 +965,7 @@ function renderPreview() {
   canvas.style.height = H + 'px';
   ctx.clearRect(0, 0, W, H);
   const row = state.rows[state.activeIdx];
-  drawUnfolded(ctx, row, pxPerMm, { showFold: true });
+  drawUnfolded(ctx, row, pxPerMm, { showFold: true, rowIdx: state.activeIdx });
 }
 
 // Hit-test helpers: convert canvas click → face-local mm; bbox for each field
@@ -849,8 +983,8 @@ function clickToFaceLocal(px, py, pxPerMm) {
 }
 
 const _measureCtx = document.createElement('canvas').getContext('2d');
-function computeFieldBboxMm(f, row) {
-  const text = applyTemplate(f.template, row);
+function computeFieldBboxMm(f, row, rowIdx) {
+  const text = fieldText(f, row, rowIdx || 0);
   if (text === '' || text == null) return null;
   const sizeMm = f.size * 25.4 / 72;
   const lineHMm = sizeMm * (f.lineHeight || 1.2);
@@ -880,20 +1014,21 @@ function computeFieldBboxMm(f, row) {
 
 function hitTestField(localX, localY) {
   const row = state.rows[state.activeIdx];
-  // priority: name (largest) last so smaller fields win? Actually test in order; first hit wins.
-  for (const id of ['org', 'title', 'name']) {
-    const b = computeFieldBboxMm(state.fields[id], row);
+  // 由小到大命中（後加入的欄位優先），減小遮蔽問題
+  for (let i = state.fields.length - 1; i >= 0; i--) {
+    const f = state.fields[i];
+    const b = computeFieldBboxMm(f, row, state.activeIdx);
     if (!b) continue;
     if (localX >= b.x && localX <= b.x + b.w &&
         localY >= b.y && localY <= b.y + b.h) {
-      return id;
+      return f.id;
     }
   }
   return null;
 }
 
 function switchToField(id) {
-  state.selectedField = id;
+  state.selectedFieldId = id;
   document.querySelectorAll('.tab').forEach(b =>
     b.classList.toggle('active', b.dataset.target === id));
   document.querySelectorAll('.field-editor').forEach(e =>
@@ -924,14 +1059,14 @@ $('zoom').addEventListener('input', e => {
 // =================== Export ===================
 function dpiToPxPerMm(dpi) { return dpi / 25.4; }
 
-function renderCardToCanvas(row, dpi) {
+function renderCardToCanvas(row, dpi, rowIdx) {
   const pxPerMm = dpiToPxPerMm(dpi);
   const W = Math.round(state.cardW * pxPerMm);
   const H = Math.round((state.outputMode === 'badge' ? state.cardH : state.cardH * 2) * pxPerMm);
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const t = c.getContext('2d');
-  drawUnfolded(t, row, pxPerMm, { showFold: false });
+  drawUnfolded(t, row, pxPerMm, { showFold: false, rowIdx: rowIdx || 0 });
   return c;
 }
 
@@ -1104,7 +1239,7 @@ function buildImpositionPages() {
       const pos = positions[k];
       t.save();
       t.translate(pos.x * pxPerMm, pos.y * pxPerMm);
-      drawUnfolded(t, row, pxPerMm, { showFold: false });
+      drawUnfolded(t, row, pxPerMm, { showFold: false, rowIdx: idx });
       t.restore();
       const cardTotalH = state.outputMode === 'badge' ? state.cardH : state.cardH * 2;
       if (showBleed && bleedMm > 0) {
@@ -1289,7 +1424,7 @@ async function saveEachAsPdf() {
   toast(`產出 PDF…(${rowsToPrint.length} 頁)`);
   for (let i = 0; i < rowsToPrint.length; i++) {
     if (i > 0) doc.addPage([W, H], orientation);
-    const c = renderCardToCanvas(rowsToPrint[i], dpi);
+    const c = renderCardToCanvas(rowsToPrint[i], dpi, i);
     const dataUrl = c.toDataURL('image/jpeg', 0.92);
     doc.addImage(dataUrl, 'JPEG', 0, 0, W, H, undefined, 'FAST');
   }
@@ -1305,7 +1440,7 @@ async function saveEachAsPng() {
   toast(`產出 PNG…(${rowsToPrint.length} 張)`);
   for (let i = 0; i < rowsToPrint.length; i++) {
     const row = rowsToPrint[i];
-    const c = renderCardToCanvas(row, dpi);
+    const c = renderCardToCanvas(row, dpi, i);
     const name = sanitizeFilename(row[state.map.name] || `card_${i+1}`);
     files.push({
       name: `${String(i+1).padStart(3,'0')}_${name}.png`,
@@ -1336,7 +1471,7 @@ function snapshot() {
     map: state.map,
     headers: state.headers,
     activeIdx: state.activeIdx,
-    selectedField: state.selectedField
+    selectedFieldId: state.selectedFieldId
   });
 }
 function restore(snap) {
@@ -1344,22 +1479,19 @@ function restore(snap) {
   state.cardW = s.cardW;
   state.cardH = s.cardH;
   state.bgMode = s.bgMode;
-  state.fields = s.fields;
-  state.rows = s.rows;
-  state.map = s.map;
-  state.headers = s.headers;
+  const migrated = migrateFieldsObject(s.fields);
+  if (migrated) state.fields = migrated;
+  state.rows = s.rows || [];
+  state.map = s.map || state.map;
+  state.headers = s.headers || [];
   state.activeIdx = s.activeIdx ?? 0;
-  state.selectedField = s.selectedField ?? 'name';
+  state.selectedFieldId = s.selectedFieldId || s.selectedField || (state.fields[0] && state.fields[0].id);
   // sync UI
   cardWInput.value = state.cardW;
   cardHInput.value = +(state.cardH * 2).toFixed(1);
   $('bgMode').value = state.bgMode;
   populateHeaderSelects();
-  buildFieldEditors();
-  document.querySelectorAll('.tab').forEach(b =>
-    b.classList.toggle('active', b.dataset.target === state.selectedField));
-  document.querySelectorAll('.field-editor').forEach(e =>
-    e.classList.toggle('active', e.dataset.id === state.selectedField));
+  buildFieldTabs(); buildFieldEditors();
   renderRecList();
   renderPreview();
   updateLayoutHint();
@@ -1403,9 +1535,9 @@ function autoload() {
     if (s.bgMode) state.bgMode = s.bgMode;
     if (s.bgFill) state.bgFill = s.bgFill;
     if (s.fields) {
-      Object.keys(state.fields).forEach(k => {
-        if (s.fields[k]) Object.assign(state.fields[k], s.fields[k]);
-      });
+      const migrated = migrateFieldsObject(s.fields);
+      if (migrated) state.fields = migrated;
+      state.selectedFieldId = state.fields[0]?.id;
     }
     if (Array.isArray(s.rows)) state.rows = s.rows;
     if (s.map) state.map = s.map;
@@ -1494,7 +1626,7 @@ document.addEventListener('keydown', e => {
   const inField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
   if (!inField && !e.metaKey && !e.ctrlKey &&
       ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) {
-    const f = state.fields[state.selectedField];
+    const f = fieldById(state.selectedFieldId);
     if (f) {
       const step = e.shiftKey ? 5 : 0.5;
       pushUndo('nudge');
@@ -1502,7 +1634,7 @@ document.addEventListener('keydown', e => {
       if (e.key === 'ArrowRight') f.x = +(f.x + step).toFixed(2);
       if (e.key === 'ArrowUp')    f.y = +(f.y - step).toFixed(2);
       if (e.key === 'ArrowDown')  f.y = +(f.y + step).toFixed(2);
-      const ed = document.querySelector(`.field-editor[data-id="${state.selectedField}"]`);
+      const ed = document.querySelector(`.field-editor[data-id="${state.selectedFieldId}"]`);
       if (ed) {
         ed.querySelector('[data-k="x"]').value = f.x;
         ed.querySelector('[data-k="y"]').value = f.y;
@@ -1540,7 +1672,7 @@ function imgToDataURL(img) {
 function buildBundle(includeRows) {
   return {
     type: 'name-tag-template',
-    version: '0.1.0',
+    version: '0.10.0',
     kind: includeRows ? 'project' : 'template',
     cardW: state.cardW,
     cardH: state.cardH,
@@ -1590,9 +1722,11 @@ async function loadTemplate(file) {
   if (typeof tpl.cardH === 'number') state.cardH = tpl.cardH;
   if (tpl.bgMode) state.bgMode = tpl.bgMode;
   if (tpl.fields) {
-    Object.keys(state.fields).forEach(k => {
-      if (tpl.fields[k]) Object.assign(state.fields[k], tpl.fields[k]);
-    });
+    const migrated = migrateFieldsObject(tpl.fields);
+    if (migrated) {
+      state.fields = migrated;
+      state.selectedFieldId = state.fields[0]?.id;
+    }
   }
   if (tpl.map) state.map = tpl.map;
   if (Array.isArray(tpl.headers) && tpl.headers.length) state.headers = tpl.headers;
@@ -1607,12 +1741,7 @@ async function loadTemplate(file) {
   cardHInput.value = +(state.cardH * 2).toFixed(1);
   $('bgMode').value = state.bgMode;
   populateHeaderSelects();
-  buildFieldEditors();
-  // restore active tab
-  document.querySelectorAll('.tab').forEach(b =>
-    b.classList.toggle('active', b.dataset.target === state.selectedField));
-  document.querySelectorAll('.field-editor').forEach(e =>
-    e.classList.toggle('active', e.dataset.id === state.selectedField));
+  buildFieldTabs(); buildFieldEditors();
 
   if (tpl.bgImage) {
     const img = new Image();
@@ -1653,7 +1782,7 @@ async function init() {
     await document.fonts.load('400 16px "NotoSerifTC"');
   } catch (e) {}
   const restored = autoload();
-  buildFieldEditors();
+  buildFieldTabs(); buildFieldEditors();
   ensureHeaders();           // 預設欄位 單位/姓名/職稱（即使沒有 Excel）
   if (!state.rows.length) addBlankRow();
   syncBgFillUI();

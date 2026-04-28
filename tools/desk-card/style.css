@@ -120,13 +120,29 @@ input[type=range] { width: 100%; }
 .tabs {
   display: flex; gap: 0; margin-bottom: 10px;
   border-bottom: 2px solid #eaecef;
+  overflow-x: auto;
+  flex-wrap: nowrap;
 }
 .tab {
-  flex: 1; padding: 6px; background: none; border: 0; cursor: pointer;
+  flex: 0 1 auto; padding: 6px 8px; background: none; border: 0; cursor: pointer;
   font-size: 12px; font-weight: 700; color: #667; font-family: inherit;
   border-bottom: 2px solid transparent; margin-bottom: -2px;
+  display: inline-flex; align-items: center; gap: 4px;
+  white-space: nowrap;
+  user-select: none;
 }
+.tab .tab-label { pointer-events: none; }
+.tab .tab-x {
+  display: inline-block; opacity: .35; padding: 0 3px; border-radius: 3px;
+  font-size: 14px; line-height: 1;
+}
+.tab:hover .tab-x { opacity: 1; }
+.tab .tab-x:hover { background: #fde7e7; color: #c62828; opacity: 1; }
 .tab.active { color: #0a2a66; border-bottom-color: #0a2a66; }
+.tab.dragging { opacity: 0.4; }
+.tab.drag-over { background: #eef3fb; border-bottom-color: #ffb800; }
+.tab.tab-add { color: #888; font-weight: 400; padding: 6px 12px; }
+.tab.tab-add:hover { color: #0a2a66; background: #f7f8fa; }
 
 .field-editor { display: none; }
 .field-editor.active { display: block; }
