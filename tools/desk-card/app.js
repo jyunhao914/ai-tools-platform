@@ -3,7 +3,8 @@
 
 const state = {
   cardW: 148,          // mm (單面寬，等同展開寬)
-  cardH: 52.5,         // mm (單面高 = 展開高 / 2)
+  cardH: 52.5,         // mm (桌牌：單面高 = 展開高/2；名牌：=展開高)
+  outputMode: 'tent',  // 'tent' | 'badge'
   bgImage: null,       // HTMLImageElement
   bgNaturalW: 0,
   bgNaturalH: 0,
@@ -290,14 +291,44 @@ function updateLayoutHint() {
 [cardWInput, cardHInput].forEach(inp => {
   inp.addEventListener('input', () => {
     pushUndo('edit');
-    const unfoldedW = parseFloat(cardWInput.value) || 148;
-    const unfoldedH = parseFloat(cardHInput.value) || 105;
-    state.cardW = unfoldedW;
-    state.cardH = unfoldedH / 2;
+    const w = parseFloat(cardWInput.value) || 148;
+    const h = parseFloat(cardHInput.value) || 105;
+    state.cardW = w;
+    state.cardH = state.outputMode === 'badge' ? h : h / 2;
     renderPreview();
     updateLayoutHint();
   });
 });
+
+// 輸出模式切換
+$('outputMode').addEventListener('change', e => {
+  pushUndo('mode');
+  const newMode = e.target.value;
+  // 維持「使用者輸入的展開高」不變（讓切換體驗自然）
+  const inputH = parseFloat(cardHInput.value) || (state.outputMode === 'badge' ? state.cardH : state.cardH * 2);
+  state.outputMode = newMode;
+  state.cardH = newMode === 'badge' ? inputH : inputH / 2;
+  syncOutputModeUI();
+  renderPreview();
+  updateLayoutHint();
+});
+
+function syncOutputModeUI() {
+  const m = state.outputMode;
+  $('outputMode').value = m;
+  $('cardWLabel').textContent = m === 'badge' ? '寬' : '展開寬';
+  $('cardHLabel').textContent = m === 'badge' ? '高' : '展開高';
+  $('presetTent').style.display  = m === 'tent'  ? '' : 'none';
+  $('presetBadge').style.display = m === 'badge' ? '' : 'none';
+  $('sizeHint').innerHTML = m === 'badge'
+    ? '📌 名牌單面，無摺線；輸入的就是實際印製尺寸。'
+    : '📌 摺線在中間（橫向對折），上半自動倒轉。單面 = 展開寬 × (展開高 ÷ 2)。';
+  // 預覽工具列描述
+  const ptl = document.querySelector('.preview-toolbar span');
+  if (ptl) ptl.textContent = m === 'badge'
+    ? '預覽（名牌單面，無摺）'
+    : '預覽（展開圖，上半自動倒轉，紅虛線=摺線）';
+}
 
 document.querySelectorAll('.preset').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -305,6 +336,17 @@ document.querySelectorAll('.preset').forEach(btn => {
     cardHInput.value = btn.dataset.h;
     state.cardW = parseFloat(btn.dataset.w);
     state.cardH = parseFloat(btn.dataset.h) / 2;
+    renderPreview();
+    updateLayoutHint();
+  });
+});
+document.querySelectorAll('.preset-badge').forEach(btn => {
+  btn.addEventListener('click', () => {
+    pushUndo('preset');
+    cardWInput.value = btn.dataset.w;
+    cardHInput.value = btn.dataset.h;
+    state.cardW = parseFloat(btn.dataset.w);
+    state.cardH = parseFloat(btn.dataset.h);
     renderPreview();
     updateLayoutHint();
   });
@@ -734,15 +776,23 @@ function drawLineManualSpacing(tctx, text, x, y, ls, align, mode = 'fill') {
 function drawUnfolded(tctx, row, pxPerMm, { showFold = true } = {}) {
   const W = state.cardW * pxPerMm;
   const H = state.cardH * pxPerMm;
-  // Background fill (covers whole unfolded if no image)
+  const isBadge = state.outputMode === 'badge';
+  const totalH = isBadge ? H : H * 2;
+  // Background fill (covers whole drawing area if no image)
   if (!state.bgImage) {
-    if (!applyBgFill(tctx, 0, 0, W, H * 2)) {
-      // empty: leave transparent (parent fills white)
-    }
+    applyBgFill(tctx, 0, 0, W, totalH);
   }
   // Background image
   if (state.bgImage && state.bgMode === 'unfolded') {
-    tctx.drawImage(state.bgImage, 0, 0, W, H * 2);
+    tctx.drawImage(state.bgImage, 0, 0, W, totalH);
+  }
+  // Badge mode: only one face, no fold
+  if (isBadge) {
+    tctx.save();
+    drawFaceBg(tctx, pxPerMm);
+    drawFaceText(tctx, row, pxPerMm);
+    tctx.restore();
+    return;
   }
   // Top face (rotated 180°) — text + (face-mode bg)
   tctx.save();
@@ -774,7 +824,7 @@ function drawUnfolded(tctx, row, pxPerMm, { showFold = true } = {}) {
 function renderPreview() {
   const pxPerMm = PX_PER_MM_PREVIEW * state.zoom;
   const W = state.cardW * pxPerMm;
-  const H = state.cardH * 2 * pxPerMm;
+  const H = (state.outputMode === 'badge' ? state.cardH : state.cardH * 2) * pxPerMm;
   canvas.width = W;
   canvas.height = H;
   canvas.style.width = W + 'px';
@@ -789,8 +839,10 @@ function clickToFaceLocal(px, py, pxPerMm) {
   const xmm = px / pxPerMm;
   const ymm = py / pxPerMm;
   const H = state.cardH;
+  if (state.outputMode === 'badge') {
+    return { x: xmm, y: ymm };
+  }
   if (ymm < H) {
-    // top half (rotated 180°) -> convert back
     return { x: state.cardW - xmm, y: H - ymm };
   }
   return { x: xmm, y: ymm - H };
@@ -875,7 +927,7 @@ function dpiToPxPerMm(dpi) { return dpi / 25.4; }
 function renderCardToCanvas(row, dpi) {
   const pxPerMm = dpiToPxPerMm(dpi);
   const W = Math.round(state.cardW * pxPerMm);
-  const H = Math.round(state.cardH * 2 * pxPerMm);
+  const H = Math.round((state.outputMode === 'badge' ? state.cardH : state.cardH * 2) * pxPerMm);
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const t = c.getContext('2d');
@@ -968,8 +1020,8 @@ function currentPaper() {
 }
 
 function layoutPositions(paper, cardW, cardH, gap = 0) {
-  // unfolded card dimensions
-  const uW = cardW, uH = cardH * 2;
+  const uW = cardW;
+  const uH = (state.outputMode === 'badge') ? cardH : cardH * 2;
   const cols = Math.max(1, Math.floor((paper.w + gap) / (uW + gap)));
   const rows = Math.max(1, Math.floor((paper.h + gap) / (uH + gap)));
   const totalW = cols * uW + (cols - 1) * gap;
@@ -1054,6 +1106,7 @@ function buildImpositionPages() {
       t.translate(pos.x * pxPerMm, pos.y * pxPerMm);
       drawUnfolded(t, row, pxPerMm, { showFold: false });
       t.restore();
+      const cardTotalH = state.outputMode === 'badge' ? state.cardH : state.cardH * 2;
       if (showBleed && bleedMm > 0) {
         t.save();
         t.strokeStyle = '#888';
@@ -1062,10 +1115,10 @@ function buildImpositionPages() {
         t.strokeRect(
           (pos.x - bleedMm) * pxPerMm, (pos.y - bleedMm) * pxPerMm,
           (state.cardW + bleedMm * 2) * pxPerMm,
-          (state.cardH * 2 + bleedMm * 2) * pxPerMm);
+          (cardTotalH + bleedMm * 2) * pxPerMm);
         t.restore();
       }
-      if (showCrop) drawCropMarks(t, pos.x, pos.y, state.cardW, state.cardH * 2, pxPerMm);
+      if (showCrop) drawCropMarks(t, pos.x, pos.y, state.cardW, cardTotalH, pxPerMm);
     }
     pages.push(c);
   }
@@ -1604,6 +1657,7 @@ async function init() {
   ensureHeaders();           // 預設欄位 單位/姓名/職稱（即使沒有 Excel）
   if (!state.rows.length) addBlankRow();
   syncBgFillUI();
+  syncOutputModeUI();
   renderRecList();
   renderPreview();
   updateLayoutHint();

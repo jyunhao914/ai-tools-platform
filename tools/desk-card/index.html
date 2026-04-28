@@ -73,10 +73,16 @@
     </section>
 
     <section>
-      <h2>2. 桌牌尺寸（展開後）</h2>
+      <h2>2. 輸出模式 / 尺寸</h2>
+      <label>輸出模式
+        <select id="outputMode">
+          <option value="tent" selected>桌牌（摺疊式，上半倒轉）</option>
+          <option value="badge">名牌（單面，無摺）</option>
+        </select>
+      </label>
       <div class="size-row">
-        <label>展開寬 (mm)<input type="number" id="cardW" value="148" min="20" max="420" step="0.1"></label>
-        <label>展開高 (mm)<input type="number" id="cardH" value="105" min="20" max="420" step="0.1"></label>
+        <label><span id="cardWLabel">展開寬</span> (mm)<input type="number" id="cardW" value="148" min="20" max="420" step="0.1"></label>
+        <label><span id="cardHLabel">展開高</span> (mm)<input type="number" id="cardH" value="105" min="20" max="420" step="0.1"></label>
       </div>
       <div class="size-row">
         <label>假設背景圖 DPI
@@ -89,8 +95,14 @@
         </label>
         <button id="btnDetectSize" type="button">📐 依背景圖偵測</button>
       </div>
-      <div class="size-row">
-        <button type="button" class="preset" data-w="148" data-h="105">148×105 展開（預設）</button>
+      <div class="size-row" id="presetTent">
+        <button type="button" class="preset" data-w="148" data-h="105">桌牌 148×105 展開</button>
+      </div>
+      <div class="size-row" id="presetBadge" style="display:none;">
+        <button type="button" class="preset-badge" data-w="90" data-h="55">名牌 90×55</button>
+        <button type="button" class="preset-badge" data-w="85" data-h="54">名牌 85×54</button>
+        <button type="button" class="preset-badge" data-w="100" data-h="70">名牌 100×70</button>
+        <button type="button" class="preset-badge" data-w="55" data-h="90">直式 55×90</button>
       </div>
       <p class="hint" id="sizeHint">📌 摺線在中間（橫向對折），上半自動倒轉。單面 = 展開寬 × (展開高 ÷ 2)。</p>
     </section>
