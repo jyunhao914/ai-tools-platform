@@ -885,7 +885,16 @@ function enableStudentMode(token){
   localStorage.setItem('student_token',token);
   var badge=$('studentBadge');
   if(badge)badge.style.display='';
-  renderCards();
+  /* 重新抓資料：原本快取/snapshot 是 public 視角，沒有學員卡片 */
+  gasAPI('getData',null,function(data){
+    if(data&&data.cards){
+      CARDS=data.cards;
+      if(data.pages&&data.pages.length)PAGES=data.pages;
+      if(data.stats)_statsData=data.stats;
+      try{saveCache({cards:CARDS,pages:PAGES,stats:_statsData,settings:_settings});}catch(e){}
+    }
+    renderCards();
+  });
 }
 
 function disableStudentMode(){
@@ -895,7 +904,14 @@ function disableStudentMode(){
   if(badge)badge.style.display='none';
   var menu=document.getElementById('studentBadgeMenu');
   if(menu)menu.remove();
-  renderCards();
+  /* 同樣重抓，避免 cache 殘留學員卡片 */
+  gasAPI('getData',null,function(data){
+    if(data&&data.cards){
+      CARDS=data.cards;
+      try{saveCache({cards:CARDS,pages:PAGES,stats:_statsData,settings:_settings});}catch(e){}
+    }
+    renderCards();
+  });
 }
 
 function showStudentLogin(){
