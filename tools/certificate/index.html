@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>證書產生器 v0.1.0</title>
+<link rel="stylesheet" href="style.css?v=0.1.0">
+<script src="libs/xlsx.full.min.js"></script>
+<script src="libs/jspdf.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>證書產生器 <span class="ver">v0.1.0</span></h1>
+  <div class="header-actions">
+    <button id="btnUndo" title="復原 (⌘Z / Ctrl+Z)">↶ 復原</button>
+    <button id="btnRedo" title="重做 (⇧⌘Z / Ctrl+Y)">↷ 重做</button>
+    <button id="btnPreviewSheets" class="primary">🖨️ 拼版預覽 / 匯出</button>
+    <button id="btnExportEach">🖼️ 匯出單張</button>
+  </div>
+</header>
+
+<main>
+  <!-- LEFT: Controls -->
+  <aside class="panel left">
+    <section>
+      <h2>1. 載入素材</h2>
+      <label class="file-btn">
+        背景圖（證書底圖 / 邊框 / 浮水印）
+        <input type="file" id="bgFile" accept="image/*">
+      </label>
+      <div id="bgInfo" class="muted small">尚未載入</div>
+      <label>背景圖內容
+        <select id="bgMode">
+          <option value="unfolded" selected>展開全圖（整張證書一張圖）</option>
+          <option value="face">單面（會被複製到上下半，上半倒轉）</option>
+        </select>
+      </label>
+
+      <label class="file-btn">
+        名單 Excel / CSV
+        <input type="file" id="xlsxFile" accept=".xlsx,.xls,.csv">
+      </label>
+      <label>或 Google 試算表連結
+        <input type="text" id="gsUrl" placeholder="https://docs.google.com/spreadsheets/d/...">
+      </label>
+      <div class="size-row">
+        <button type="button" id="btnGsLoad">📥 載入</button>
+        <button type="button" id="btnGsRefresh">🔄 重新整理</button>
+      </div>
+      <p class="hint">Google 試算表需設為「知道連結者皆可檢視」或已發布。重新整理會抓最新資料。</p>
+
+      <label>底色 / 漸層（沒上傳背景圖時用）
+        <select id="bgFillType">
+          <option value="none">無</option>
+          <option value="solid">純色</option>
+          <option value="gradient">漸層</option>
+        </select>
+      </label>
+      <div class="size-row" id="bgFillColors" style="display:none;">
+        <label>色 1<input type="color" id="bgFillColor1" value="#ffffff"></label>
+        <label>色 2<input type="color" id="bgFillColor2" value="#dbe8ff"></label>
+        <label>角度<input type="number" id="bgFillAngle" value="90" min="0" max="360" step="15"></label>
+      </div>
+      <label>Excel 第一列是
+        <select id="xlsxHeaderMode">
+          <option value="header">標題（建議：第一列填 單位 / 姓名 / 職稱）</option>
+          <option value="data" selected>資料（用 A、B、C... 當欄位名）</option>
+        </select>
+      </label>
+      <label id="xlsxSheetWrap" style="display:none;">工作表
+        <select id="xlsxSheet"></select>
+      </label>
+      <div id="xlsxInfo" class="muted small">尚未載入</div>
+    </section>
+
+    <section>
+      <h2>2. 輸出模式 / 尺寸</h2>
+      <label>輸出模式
+        <select id="outputMode">
+          <option value="tent">桌牌（摺疊式，上半倒轉）</option>
+          <option value="badge" selected>名牌（單面，無摺）</option>
+        </select>
+      </label>
+      <div class="size-row">
+        <label><span id="cardWLabel">寬</span> (mm)<input type="number" id="cardW" value="210" min="20" max="420" step="0.1"></label>
+        <label><span id="cardHLabel">高</span> (mm)<input type="number" id="cardH" value="297" min="20" max="420" step="0.1"></label>
+      </div>
+      <div class="size-row">
+        <label>假設背景圖 DPI
+          <select id="assumedDpi">
+            <option value="72">72</option>
+            <option value="150">150</option>
+            <option value="200">200</option>
+            <option value="300" selected>300</option>
+          </select>
+        </label>
+        <button id="btnDetectSize" type="button">📐 依背景圖偵測</button>
+      </div>
+      <div class="size-row" id="presetTent" style="display:none;">
+        <button type="button" class="preset" data-w="148" data-h="105">桌牌 148×105 展開</button>
+      </div>
+      <div class="size-row" id="presetBadge">
+        <button type="button" class="preset-badge" data-w="210" data-h="297">A4 直 210×297</button>
+        <button type="button" class="preset-badge" data-w="297" data-h="210">A4 橫 297×210</button>
+        <button type="button" class="preset-badge" data-w="297" data-h="420">A3 直 297×420</button>
+        <button type="button" class="preset-badge" data-w="420" data-h="297">A3 橫 420×297</button>
+        <button type="button" class="preset-badge" data-w="148" data-h="210">A5 直 148×210</button>
+      </div>
+      <p class="hint" id="sizeHint">📌 證書尺寸 = 紙張尺寸（單面、無摺）。直書 / 橫書可在每個欄位獨立切換。</p>
+    </section>
+
+    <section>
+      <h2>3. 欄位對應</h2>
+      <div class="field-map">
+        <label>單位欄位 <select id="mapOrg"></select></label>
+        <label>姓名欄位 <select id="mapName"></select></label>
+        <label>職稱欄位 <select id="mapTitle"></select></label>
+      </div>
+    </section>
+
+    <section>
+      <h2>4. 文字樣式</h2>
+      <div class="tabs">
+        <button class="tab active" data-target="org">單位</button>
+        <button class="tab" data-target="name">姓名</button>
+        <button class="tab" data-target="title">職稱</button>
+      </div>
+      <div id="fieldEditors"></div>
+      <p class="hint">💡 在預覽中點到任一文字 → 自動跳到該欄位的編輯畫面。</p>
+    </section>
+
+    <section>
+      <h2>5. 紙張與拼版</h2>
+      <label>紙張
+        <select id="paper">
+          <option value="A4P" selected>A4 直向 210×297</option>
+          <option value="A4L">A4 橫向 297×210</option>
+          <option value="A3P">A3 直向 297×420</option>
+          <option value="A3L">A3 橫向 420×297</option>
+          <option value="B4P">B4 直向 257×364</option>
+          <option value="B4L">B4 橫向 364×257</option>
+          <option value="custom">自訂尺寸…</option>
+        </select>
+      </label>
+      <div id="customPaperRow" class="size-row" style="display:none;">
+        <label>紙寬 (mm)<input type="number" id="paperW" value="297" min="50" max="1500" step="0.5"></label>
+        <label>紙高 (mm)<input type="number" id="paperH" value="210" min="50" max="1500" step="0.5"></label>
+      </div>
+      <p class="hint" id="layoutHint">每張可放幾個證書會依紙張與證書尺寸自動計算。</p>
+      <div class="size-row">
+        <label>出血 (mm)<input type="number" id="bleed" value="3" min="0" max="10" step="0.5"></label>
+        <label>拼版間距 (mm)<input type="number" id="gap" value="0" min="0" max="40" step="0.5"></label>
+      </div>
+      <label><input type="checkbox" id="cropMarks" checked> 顯示裁切標記</label>
+      <label><input type="checkbox" id="bleedMarks"> 顯示出血框（虛線）</label>
+      <label>輸出 DPI
+        <select id="dpi">
+          <option value="200">200 DPI（快速）</option>
+          <option value="300" selected>300 DPI（印刷品質）</option>
+          <option value="400">400 DPI（高畫質）</option>
+        </select>
+      </label>
+      <div class="size-row">
+        <label>輸出範圍 從<input type="number" id="rangeFrom" value="1" min="1"></label>
+        <label>到<input type="number" id="rangeTo" value="0" min="0" placeholder="0=最後"></label>
+      </div>
+      <p class="hint">⚠️ 輸出為 RGB；印刷店若要 CMYK 請先轉檔（PDF 也同樣是 RGB）。</p>
+    </section>
+
+    <section>
+      <h2>6. 專案 / 模板</h2>
+      <button id="btnSaveProject" class="tpl-btn">💾 儲存專案（含名單）</button>
+      <button id="btnSaveTemplate" class="tpl-btn" style="background:#e0e6ef;">📐 只儲存模板（不含名單）</button>
+      <label class="file-btn">
+        📂 開啟專案 / 模板
+        <input type="file" id="tplFile" accept=".json,application/json">
+      </label>
+      <p class="hint">專案 = 底圖、樣式、尺寸、欄位對應、<b>已輸入名單</b>；模板僅含設計，不含名單。檔名自動以「第一筆單位 + 日期」命名。</p>
+    </section>
+  </aside>
+
+  <!-- CENTER: Preview -->
+  <section class="panel center">
+    <div class="preview-toolbar">
+      <span>預覽（證書）</span>
+      <div>
+        <label>縮放 <input type="range" id="zoom" min="0.3" max="2" value="1" step="0.05"></label>
+      </div>
+    </div>
+    <div class="canvas-wrap">
+      <canvas id="preview"></canvas>
+    </div>
+  </section>
+
+  <!-- RIGHT: Data list -->
+  <aside class="panel right">
+    <h2>名單 <span id="recCount" class="muted"></span></h2>
+    <div class="rec-actions">
+      <button id="btnAddRow">➕ 新增一筆</button>
+      <button id="btnClearRows" class="danger">清空</button>
+    </div>
+    <p class="hint">可直接在欄位輸入；不一定要載入 Excel。</p>
+    <div id="recList" class="rec-list"></div>
+  </aside>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+
+<!-- Imposition preview modal -->
+<div id="impModal" class="modal hidden" style="display:none">
+  <div class="modal-bg"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>拼版預覽 <span id="impMeta" class="muted small"></span></h2>
+      <button id="impClose" class="modal-close">✕</button>
+    </div>
+    <div class="modal-toolbar">
+      <button id="impPrev">‹ 上一頁</button>
+      <span id="impPageInfo">1 / 1</span>
+      <button id="impNext">下一頁 ›</button>
+      <span class="sep"></span>
+      <label>格式
+        <select id="impFormat">
+          <option value="pdf">PDF（多頁合併一檔）</option>
+          <option value="png">PNG（每頁一張）</option>
+        </select>
+      </label>
+      <button id="impPrint">🖨️ 直接列印</button>
+      <button id="impDownload" class="primary">💾 儲存…</button>
+    </div>
+    <div class="imp-canvas-wrap">
+      <canvas id="impCanvas"></canvas>
+    </div>
+    <div class="imp-thumbs" id="impThumbs"></div>
+  </div>
+</div>
+
+<!-- Single-card export modal -->
+<div id="eachModal" class="modal hidden" style="display:none">
+  <div class="modal-bg"></div>
+  <div class="modal-content small">
+    <div class="modal-header">
+      <h2>匯出單張</h2>
+      <button id="eachClose" class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="hint">每人一張展開圖。</p>
+      <label>格式
+        <select id="eachFormat">
+          <option value="pdf">PDF（一個檔，每人一頁）</option>
+          <option value="png">PNG（每人一個 PNG，會問你選資料夾）</option>
+        </select>
+      </label>
+      <div style="margin-top:14px; text-align:right;">
+        <button id="eachCancel">取消</button>
+        <button id="eachConfirm" class="primary">💾 儲存…</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="app.js?v=0.1.0"></script>
+</body>
+</html>
