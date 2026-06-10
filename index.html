@@ -74,6 +74,10 @@ img{display:block;max-width:100%}
 .perm-badge{display:inline-block;font-size:10px;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle;font-weight:600}
 .perm-badge.student{background:rgba(52,211,153,0.15);color:#34d399;border:1px solid rgba(52,211,153,0.3)}
 .perm-badge.admin-perm{background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3)}
+/* 後台每列的權限下拉 */
+.perm-select{font-size:12px;padding:3px 6px;border-radius:6px;margin:0 4px;border:1px solid var(--border2);background:rgba(255,255,255,0.06);color:var(--text2);cursor:pointer;outline:none;flex-shrink:0;width:auto;min-width:74px}
+.perm-select.locked{border-color:rgba(52,211,153,0.45);color:#34d399;background:rgba(52,211,153,0.08)}
+.perm-select:disabled{opacity:.5;cursor:wait}
 
 /* ANNOUNCEMENT BANNER */
 .announcement-banner{display:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;text-align:center;padding:10px 48px 10px 24px;font-size:14px;font-weight:500;position:relative;z-index:99}
@@ -2170,9 +2174,32 @@ function renderAdminCards(filter){
       var titleSpan=ce('span','admin-row-title'+(card.visible===false?' hidden-card':''),typeBadge(card.type||'link')+esc(card.title));
       titleSpan.id='card-title-'+card.id;
       row.appendChild(titleSpan);
-      var _perm=card.permission||'public';
-      if(_perm==='student'){var pb=ce('span','perm-badge student','\uD83D\uDD12\u5B78\u54E1');row.appendChild(pb);}
-      else if(_perm==='admin'){var pb=ce('span','perm-badge admin-perm','\uD83D\uDD11\u7BA1\u7406');row.appendChild(pb);}
+      /* \u6B0A\u9650\uFF1A\u6BCF\u5217\u5E38\u99D0\u4E0B\u62C9\uFF0C\u76F4\u63A5\u6539\u3001\u76F4\u63A5\u5B58 */
+      var permSel=ce('select','perm-select'+(((card.permission||'public'))!=='public'?' locked':''));
+      [{v:'public',l:'\uD83C\uDF10 \u516C\u958B'},{v:'student',l:'\uD83D\uDD12 \u5B78\u54E1'},{v:'admin',l:'\uD83D\uDD11 \u7BA1\u7406'}].forEach(function(o){
+        var opt=ce('option','',o.l);opt.value=o.v;
+        if((card.permission||'public')===o.v)opt.selected=true;
+        permSel.appendChild(opt);
+      });
+      permSel.title='\u700F\u89BD\u6B0A\u9650';
+      permSel.onclick=function(e){e.stopPropagation()};
+      permSel.onchange=function(){
+        var sel=this,nv=sel.value,old=card.permission||'public';
+        card.permission=nv;
+        sel.disabled=true;
+        gasAPI('saveCard',{data:JSON.stringify(card)},function(r){
+          sel.disabled=false;
+          if(r&&r.ok){
+            sel.className='perm-select'+(nv!=='public'?' locked':'');
+            toast('\u6B0A\u9650\u5DF2\u66F4\u65B0\uFF1A'+sel.options[sel.selectedIndex].text);
+            refreshMainData();
+          }else{
+            card.permission=old;sel.value=old;
+            toast('\u66F4\u65B0\u5931\u6557');
+          }
+        });
+      };
+      row.appendChild(permSel);
 
       var upBtn=ce('button','reorder-btn','\u25B2');
       upBtn.title='\u4E0A\u79FB';
