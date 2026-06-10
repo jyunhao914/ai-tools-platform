@@ -90,6 +90,16 @@ img{display:block;max-width:100%}
 .hero-blob.b3{width:400px;height:400px;background:var(--accent3);top:50%;left:60%;transform:translate(-50%,-50%)}
 .star{position:absolute;width:2px;height:2px;background:#fff;border-radius:50%;animation:twinkle var(--d,3s) ease-in-out infinite var(--delay,0s)}
 @keyframes twinkle{0%,100%{opacity:.1}50%{opacity:.8}}
+/* 省效能模式：弱機器（無硬體加速的公司/醫院電腦）自動啟用。
+   blur(120px) 大色塊 + 星星動畫 + backdrop-filter 在軟體渲染下會把整頁拖死。 */
+html.lite .hero-blob{display:none}
+html.lite .star{animation:none;opacity:.25}
+html.lite *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+html.lite .hero-card,html.lite .card{transition:none}
+@media (prefers-reduced-motion:reduce){
+  .hero-blob{display:none}
+  .star{animation:none;opacity:.25}
+}
 .hero-content{position:relative;z-index:1;text-align:center;max-width:720px}
 .hero-badge{display:inline-block;padding:6px 16px;border-radius:99px;font-size:13px;font-weight:600;color:var(--accent);background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);margin-bottom:20px}
 .hero-title{font-size:clamp(36px,6vw,56px);font-weight:700;line-height:1.15;margin-bottom:16px;background:linear-gradient(135deg,#fff 30%,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
@@ -1608,23 +1618,31 @@ function openArticleReader(card){
     cover.style.display='none';
   }
   var _metaParts=[];var _pubDate=card.publishDate?card.publishDate.slice(0,10):'';if(_pubDate)_metaParts.push(_pubDate);$('articleMetaText').textContent=_metaParts.join(' \u30FB ');
-  /* Fetch full content from backend */
-  gasAPI('getArticle',{id:card.id},function(res){
-    if(res&&res.ok&&res.article){
-      $('articleContent').innerHTML=res.article.content||'';
-    }else{
-      $('articleContent').innerHTML=card.content||card.desc||'';
-    }
+  /* 先用本地內容立即顯示（getData / data.json 快照已含 content），
+     GAS 回來內容不同才更新。原本等 getArticle 3~6 秒畫面都是空的，
+     script.google.com 被公司/醫院網路擋掉時更是永遠空白。 */
+  function _renderArticle(html){
+    $('articleContent').innerHTML=html||'';
     hydrateInlineCopyBtns($('articleContent'));
     /* Lazy load images */
     $('articleContent').querySelectorAll('img').forEach(function(img){img.setAttribute('loading','lazy')});
-    /* Build TOC */
     buildArticleToc();
-    /* Reading time */
     updateReadingTime($('articleContent'));
-    /* Reset font size */
     _articleFontSize=15;
     $('articleContent').style.fontSize='';
+  }
+  var _localHtml=card.content||card.desc||'';
+  /* card.content 只是 200 字預覽；完整內文存在 card.extra(JSON).content */
+  try{
+    if(card.extra){
+      var _ex=typeof card.extra==='string'?JSON.parse(card.extra):card.extra;
+      if(_ex&&_ex.content&&_ex.content.length>_localHtml.length)_localHtml=_ex.content;
+    }
+  }catch(e){}
+  _renderArticle(_localHtml);
+  gasAPI('getArticle',{id:card.id},function(res){
+    var fresh=(res&&res.ok&&res.article)?(res.article.content||''):'';
+    if(fresh&&fresh!==_localHtml)_renderArticle(fresh);
   });
   overlay.classList.add('show');
   document.body.style.overflow='hidden';
@@ -4424,6 +4442,32 @@ function hydrateInlineCopyBtns(container){
     }
   });
 }
+
+/* ====== 省效能模式偵測 ======
+   無硬體加速的電腦（公司/醫院 IT 常關掉）跑 blur 特效會整頁卡死。
+   開頁後量 0.8 秒實際 FPS，低於 24 就加上 html.lite 關特效，並記住。 */
+(function(){
+  try{
+    if(localStorage.getItem('lite_mode')==='1'){
+      document.documentElement.classList.add('lite');
+      return;
+    }
+  }catch(e){}
+  if(document.hidden)return; /* 背景分頁 FPS 不準，跳過這次 */
+  var t0=performance.now(),frames=0;
+  function tick(){
+    frames++;
+    var dt=performance.now()-t0;
+    if(dt<800){requestAnimationFrame(tick);return;}
+    if(document.hidden)return;
+    var fps=frames/(dt/1000);
+    if(fps<24){
+      document.documentElement.classList.add('lite');
+      try{localStorage.setItem('lite_mode','1');}catch(e){}
+    }
+  }
+  requestAnimationFrame(tick);
+})();
 
 init();
 })();
