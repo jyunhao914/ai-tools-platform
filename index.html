@@ -905,7 +905,7 @@ function enableStudentMode(token){
   if(badge)badge.style.display='';
   /* 重新抓資料：原本快取/snapshot 是 public 視角，沒有學員卡片 */
   gasAPI('getData',null,function(data){
-    if(data&&data.cards){
+    if(data&&data.cards&&data.cards.length){
       CARDS=data.cards;
       if(data.pages&&data.pages.length)PAGES=data.pages;
       if(data.stats)_statsData=data.stats;
@@ -924,7 +924,7 @@ function disableStudentMode(){
   if(menu)menu.remove();
   /* 同樣重抓，避免 cache 殘留學員卡片 */
   gasAPI('getData',null,function(data){
-    if(data&&data.cards){
+    if(data&&data.cards&&data.cards.length){
       CARDS=data.cards;
       try{saveCache({cards:CARDS,pages:PAGES,stats:_statsData,settings:_settings});}catch(e){}
     }
@@ -3675,9 +3675,11 @@ function loadAdminLog(){
 /* ====== REFRESH MAIN DATA ====== */
 function refreshMainData(){
   gasAPI('getData',null,function(data){
-    if(!data)return;
-    CARDS=data.cards||[];
-    PAGES=data.pages||[];
+    /* GAS 配額爆掉/逾時會回 null 或 {error:...}（沒有 cards）——
+       這時絕不能把 CARDS/PAGES 清空，否則登入後整頁變空白。 */
+    if(!data||!data.cards||!data.cards.length)return;
+    CARDS=data.cards;
+    if(data.pages&&data.pages.length)PAGES=data.pages;
     GEM_URL=data.gemUrl||'';
     var _s=data.stats||{};_statsData=_s.tools||_s;_totalVisits=_s.total||0;
     if(data.settings){
