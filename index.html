@@ -856,29 +856,33 @@ function gasAPI(action,params,callback){
 
 /* POST version for large payloads (articles with images) */
 function gasAPIPost(action,params,callback){
+  /* XHR POST（同 gasLogin）。舊版用隱藏 iframe 表單送出，但 iframe 表單會
+     夾帶瀏覽器的 Google cookies，GAS 會把請求彈去帳號頁 → 寫入靜默失敗、
+     又固定 4 秒回 ok，造成「存了沒生效」。XHR 不帶跨域 cookies，GAS 以
+     匿名處理（部署為 Anyone），回應可直接讀取驗證。 */
   var pw=sessionStorage.getItem('admin_pw')||'';
   var stok=localStorage.getItem('student_token')||'';
   if(!params)params={};
   params.action=action;
   if(pw)params.pw=pw;
   else if(stok)params.token=stok;
+  var body=[];
+  for(var k in params){if(params.hasOwnProperty(k)){body.push(encodeURIComponent(k)+'='+encodeURIComponent(params[k]))}}
   var done=false;
   var timer=setTimeout(function(){if(!done){done=true;if(callback)callback(null)}},30000);
-  /* Use form POST via hidden iframe — all fields as hidden inputs */
-  var frameName='_gasPostFrame';
-  var iframe=document.getElementById(frameName);
-  if(!iframe){iframe=document.createElement('iframe');iframe.id=frameName;iframe.name=frameName;iframe.style.display='none';document.body.appendChild(iframe)}
-  var form=document.createElement('form');
-  form.method='POST';form.action=GAS_API;form.target=frameName;form.style.display='none';
-  for(var k in params){if(params.hasOwnProperty(k)){var inp=document.createElement('input');inp.type='hidden';inp.name=k;inp.value=params[k];form.appendChild(inp)}}
-  document.body.appendChild(form);
-  form.submit();
-  document.body.removeChild(form);
-  /* Can't read cross-origin iframe response, wait then verify via GET */
-  setTimeout(function(){
+  var xhr=new XMLHttpRequest();
+  xhr.open('POST',GAS_API,true);
+  xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
+  xhr.onload=function(){
     if(done)return;done=true;clearTimeout(timer);
-    if(callback)callback({ok:true});
-  },4000);
+    try{
+      var m=xhr.responseText.match(/\{[\s\S]*\}/);
+      if(m){if(callback)callback(JSON.parse(m[0]));return;}
+    }catch(e){}
+    if(callback)callback(xhr.status>=200&&xhr.status<400?{ok:true}:null);
+  };
+  xhr.onerror=function(){if(!done){done=true;clearTimeout(timer);if(callback)callback(null)}};
+  xhr.send(body.join('&'));
 }
 
 /* ====== STUDENT AUTH ====== */
@@ -2185,19 +2189,42 @@ function renderAdminCards(filter){
       permSel.onclick=function(e){e.stopPropagation()};
       permSel.onchange=function(){
         var sel=this,nv=sel.value,old=card.permission||'public';
-        card.permission=nv;
         sel.disabled=true;
-        gasAPI('saveCard',{data:JSON.stringify(card)},function(r){
+        function fail(msg){card.permission=old;sel.value=old;sel.disabled=false;toast(msg||'\u66F4\u65B0\u5931\u6557');}
+        function okDone(){
+          card.permission=nv;
+          sel.className='perm-select'+(nv!=='public'?' locked':'');
           sel.disabled=false;
-          if(r&&r.ok){
-            sel.className='perm-select'+(nv!=='public'?' locked':'');
-            toast('\u6B0A\u9650\u5DF2\u66F4\u65B0\uFF1A'+sel.options[sel.selectedIndex].text);
-            refreshMainData();
-          }else{
-            card.permission=old;sel.value=old;
-            toast('\u66F4\u65B0\u5931\u6557');
-          }
-        });
+          toast('\u6B0A\u9650\u5DF2\u66F4\u65B0\uFF1A'+sel.options[sel.selectedIndex].text);
+          refreshMainData();
+        }
+        if((card.type||'link')==='article'){
+          /* \u6587\u7AE0\u5361\uFF1A\u5167\u6587\u592A\u5927\uFF0CsaveCard \u7684 GET URL \u6703\u8D85\u9650(400)\uFF1B
+             \u800C saveArticle \u4E0D\u5E36 contentB64 \u6703\u628A\u5167\u6587\u6574\u500B\u6E05\u7A7A\u3002
+             \u2192 \u5148\u6293\u5B8C\u6574\u5167\u6587\uFF0CPOST \u5E36\u5167\u6587+\u65B0\u6B0A\u9650\uFF0C\u5B58\u5B8C\u8B80\u56DE\u9A57\u8B49\u3002 */
+          toast('\u66F4\u65B0\u4E2D\u2026');
+          gasAPI('getArticle',{id:card.id},function(res){
+            var content=(res&&res.article&&res.article.content)||'';
+            if(!content){fail('\u8B80\u53D6\u5167\u6587\u5931\u6557\uFF0C\u6B0A\u9650\u672A\u66F4\u6539');return;}
+            var meta=JSON.stringify({id:card.id,title:card.title,desc:card.desc,
+              category:card.category,tag:card.tag||'',visible:card.visible!==false,
+              coverImage:card.coverImage||'',permission:nv});
+            var b64=btoa(unescape(encodeURIComponent(content)));
+            gasAPIPost('saveArticle',{data:meta,contentB64:b64},function(){
+              /* iframe POST \u8B80\u4E0D\u5230\u56DE\u61C9 \u2014 \u8B80\u56DE\u9A57\u8B49\u6B0A\u9650\u751F\u6548\u4E14\u5167\u6587\u5B8C\u6574 */
+              gasAPI('getArticle',{id:card.id},function(chk){
+                var a=chk&&chk.article;
+                if(a&&(a.permission||'public')===nv&&a.content&&a.content.length)okDone();
+                else fail();
+              });
+            });
+          });
+        }else{
+          card.permission=nv;
+          gasAPI('saveCard',{data:JSON.stringify(card)},function(r){
+            if(r&&r.ok)okDone(); else fail();
+          });
+        }
       };
       row.appendChild(permSel);
 
