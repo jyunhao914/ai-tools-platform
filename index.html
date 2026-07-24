@@ -1834,9 +1834,11 @@ $('adminClose').onclick=function(){$('adminOverlay').classList.remove('show')};
 (function(){
   var gear=$('adminGear');
 
-  // 方1：URL 參數 ?admin → 顯示登入畫面
-  if(location.search.indexOf('admin')>=0){
+  // 方1：URL 參數 ?admin → 導向新版 GitHub 後台（?admin=legacy 走舊版 GAS 後台）
+  if(location.search.indexOf('admin=legacy')>=0){
     showAdminLoginPage();
+  }else if(location.search.indexOf('admin')>=0){
+    location.href='admin/';
   }
 
   function showAdminLoginPage(){
@@ -1881,7 +1883,7 @@ $('adminClose').onclick=function(){$('adminOverlay').classList.remove('show')};
   document.addEventListener('keydown',function(e){
     if(((e.ctrlKey&&!e.metaKey)&&e.shiftKey&&(e.key==='A'||e.key==='a'))||(e.altKey&&(e.key==='A'||e.key==='a'))){
       e.preventDefault();
-      openAdmin();
+      location.href='admin/';
     }
   });
 
@@ -1894,8 +1896,7 @@ $('adminClose').onclick=function(){$('adminOverlay').classList.remove('show')};
       clearTimeout(clickTimer);
       if(clickCount>=5){
         clickCount=0;
-        if(sessionStorage.getItem('admin_pw')){openAdmin()}
-        else{showAdminLoginPage()}
+        location.href='admin/';
       } else {
         clickTimer=setTimeout(function(){clickCount=0;},1500);
       }
@@ -3991,19 +3992,32 @@ function init(){
     if(cache.stats)_statsData=cache.stats;
     if(cache.settings){_settings=cache.settings;applyAnnouncement();applySEO();applySiteInfo();}
   }
-  /* 1b. Also try static data.json snapshot (first-visit users have no cache; this is near-instant from GH Pages) */
-  if(!_hasCache&&typeof fetch==='function'){
-    fetch('./data.json',{cache:'default'}).then(function(r){return r.ok?r.json():null}).then(function(d){
-      if(!d||!d.cards||!d.cards.length||_hasCache||CARDS.length)return;
+  /* 1b. 權威資料源：repo 的 data.json + site.json（GitHub Pages 靜態檔，快且穩）。
+     GAS 只負責瀏覽數與學員登入，內容一律以 repo 為準。 */
+  if(typeof fetch==='function'){
+    Promise.all([
+      fetch('./data.json',{cache:'no-cache'}).then(function(r){return r.ok?r.json():null}),
+      fetch('./site.json',{cache:'no-cache'}).then(function(r){return r.ok?r.json():null}).catch(function(){return null})
+    ]).then(function(res){
+      var d=res[0],site=res[1];
+      if(!d||!d.cards||!d.cards.length)return;
       CARDS=d.cards;
-      if(d.pages&&d.pages.length)PAGES=d.pages;
-      if(d.stats)_statsData=d.stats;
-      if(d.settings){_settings=d.settings;applyAnnouncement();applySEO();applySiteInfo();}
+      if(site){
+        if(site.pages&&site.pages.length)PAGES=site.pages;
+        if(site.gemUrl)GEM_URL=site.gemUrl;
+        if(site.heroMeta&&site.heroMeta.length)HERO_META=site.heroMeta;
+        if(site.settings){_settings=site.settings;applyAnnouncement();applySEO();applySiteInfo();}
+      }else{
+        if(d.pages&&d.pages.length)PAGES=d.pages;
+        if(d.settings){_settings=d.settings;applyAnnouncement();applySEO();applySiteInfo();}
+      }
+      if(d.stats){var _s=d.stats;_statsData=_s.tools||_s;_totalVisits=_s.total||0;}
       var h=decodeURIComponent(location.hash.replace('#',''));
       if(h&&PAGES.indexOf(h)>=0)_activeTab=h;
       else if(h.indexOf('article=')===0){if(PAGES.length)_activeTab=_activeTab||PAGES[0];}
       else if(PAGES.length&&!_activeTab)_activeTab=PAGES[0];
       buildNavTabs();buildHeroGrid();renderCards();updateVisit();observeCards();checkArticleHash();
+      saveCache({cards:CARDS,pages:PAGES,stats:_statsData,settings:_settings});
     }).catch(function(){});
   }
   var hash=decodeURIComponent(location.hash.replace('#',''));
@@ -4044,59 +4058,21 @@ function init(){
   /* If no cache: skeleton stays, nav/hero/counter all wait for API */
   /* If no cache, skeleton stays visible until API returns */
 
-  /* 2. Fetch fresh data in background (parallel, failover) */
-  var _gotData=false,_gotAdmin=false,_freshData=null,_adminCards=null;
-  var _applied=false;
-  var _retryCount=0;
-
-  function tryApply(){
-    if(_applied)return;
-    if(_gotData){
-      /* Only commit if we actually have data or cache — prevents blank page on API failure */
-      if(_freshData || CARDS.length){
-        _applied=true;
-        applyFullData(_freshData,_adminCards);
-        if(CARDS.length)saveCache({cards:CARDS,pages:PAGES,stats:_statsData,settings:_settings});
-      }
-      /* If neither, leave _applied=false so retry/failsafe can take over */
-    }
-  }
-
-  function fetchMainData(){
-    _gotData=false;
-    gasAPI('getData',null,function(data){
-      _gotData=true;_freshData=data;
-      if(data){
-        if(_gotAdmin)tryApply();
-        else setTimeout(tryApply,2000);
-      }else if(_retryCount<3&&!CARDS.length){
-        /* API returned null (timeout/error) and no cache — retry with back-off */
-        _retryCount++;
-        setTimeout(fetchMainData,2500*_retryCount);
-      }else{
-        if(_gotAdmin)tryApply();
-        else setTimeout(tryApply,2000);
-      }
-    });
-  }
-  fetchMainData();
-
-  if(sessionStorage.getItem('admin_pw')){
-    gasAPI('getCardsAdmin',null,function(res){
-      _gotAdmin=true;
-      if(res&&res.ok&&res.cards)_adminCards=res.cards;
-      if(_gotData)tryApply();
-    });
-  }else{
-    _gotAdmin=true; /* 非管理員：跳過 getCardsAdmin，直接允許 tryApply */
-  }
+  /* 2. GAS 只補「即時瀏覽數」：不覆蓋內容，掛了也不影響網站 */
+  gasAPI('getData',null,function(data){
+    if(!data||!data.cards)return;
+    var vmap={};
+    data.cards.forEach(function(c){if(c.id)vmap[c.id]=c.views||0});
+    var changed=false;
+    CARDS.forEach(function(c){if(vmap[c.id]!=null&&vmap[c.id]!==c.views){c.views=vmap[c.id];changed=true}});
+    if(data.stats){var _s=data.stats;_statsData=_s.tools||_s;_totalVisits=_s.total||0;updateVisit();}
+    if(changed&&!_searchActive)renderCards();
+  });
 
   /* Failsafe: if data never arrives after 20s, show error with reload button */
   setTimeout(function(){
-    if(_applied)return;
-    _applied=true;
     if(CARDS.length){
-      buildNavTabs();buildHeroGrid();renderCards();updateVisit();observeCards();
+      /* repo data.json 已渲染或快取已渲染 — 不需處理 */
     }else{
       var grid=$('toolsGrid');
       if(grid)grid.innerHTML='<div class="tools-empty" style="padding:60px 24px"><div style="font-size:40px;margin-bottom:16px">⚠️</div><div style="font-size:17px;font-weight:600;color:var(--text);margin-bottom:8px">資料載入失敗</div><div style="font-size:14px;color:var(--text2);margin-bottom:24px">請確認網路連線後重新載入頁面</div><button onclick="location.reload()" style="padding:10px 28px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:14px;font-weight:600;border:none;cursor:pointer">重新載入</button></div>';

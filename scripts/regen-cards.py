@@ -37,17 +37,22 @@ def main():
     cards_dir = os.path.join(here, 'cards')
     os.makedirs(cards_dir, exist_ok=True)
 
-    print(f'Fetching cards from GAS...')
-    try:
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        with urllib.request.urlopen(GAS, context=ctx) as r:
-            data = json.loads(r.read())
-    except Exception:
-        # Fallback to curl (handles cert issues on some systems)
-        raw = subprocess.check_output(['curl', '-sL', GAS])
-        data = json.loads(raw)
+    # 資料源已改為 repo 的 data.json（GAS 僅剩瀏覽數）。--gas 可強制走舊路徑。
+    if '--gas' in sys.argv:
+        print('Fetching cards from GAS...')
+        try:
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            with urllib.request.urlopen(GAS, context=ctx) as r:
+                data = json.loads(r.read())
+        except Exception:
+            raw = subprocess.check_output(['curl', '-sL', GAS])
+            data = json.loads(raw)
+    else:
+        with open(os.path.join(here, 'data.json'), encoding='utf-8') as f:
+            data = json.load(f)
+        print('Loaded local data.json')
     cards = data.get('cards', [])
     print(f'Got {len(cards)} cards')
 
