@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://jyunhao914.github.io/ai-tools-platform/sitemap.xml
