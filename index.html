@@ -140,8 +140,14 @@ html.lite .hero-card,html.lite .card{transition:none}
 .hero-card-go{margin-top:9px;font-size:12px;font-weight:600;color:var(--text3);transition:color .25s,transform .25s;position:relative;z-index:1}
 .hero-card:hover .hero-card-go{color:var(--accent);transform:translateX(3px)}
 
+/* LATEST SECTION */
+.latest{max-width:1200px;margin:0 auto;padding:34px 24px 0}
+.latest-head{font-size:19px;font-weight:700;margin-bottom:18px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.latest-head span{font-size:13px;font-weight:400;color:var(--text3)}
+.pin-flag{position:absolute;top:10px;left:10px;z-index:3;display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600;color:#fff;background:rgba(99,102,241,0.92);backdrop-filter:blur(4px)}
+
 /* TOOLS SECTION */
-.tools{padding:60px 24px 80px;max-width:1200px;margin:0 auto}
+.tools{padding:40px 24px 80px;max-width:1200px;margin:0 auto}
 .tools-head{font-size:22px;font-weight:700;margin-bottom:28px}
 .tools-head span{color:var(--accent)}
 .tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:22px}
@@ -707,6 +713,11 @@ html.lite .hero-card,html.lite .card{transition:none}
   <div class="hero-grid" id="heroGrid"></div>
 </section>
 
+<section class="latest" id="latestSection" style="display:none">
+  <h2 class="latest-head">最新上架 <span id="latestSub">最近新增的內容</span></h2>
+  <div class="tools-grid" id="latestGrid"></div>
+</section>
+
 <section class="tools" id="tools">
   <div class="mobile-search-wrap" id="mobileSearchWrap">
     <input type="search" id="mobileSearch" class="global-search" placeholder="搜尋工具..." style="width:100%;margin-bottom:16px">
@@ -1105,6 +1116,58 @@ function buildStars(){
 }
 
 /* ====== NAV TABS ====== */
+/* ====== 最新上架（置頂優先，其餘按新增時間） ====== */
+var LATEST_N=3;
+function cardTime(c){
+  /* id 是建立時的毫秒時間戳（可能帶 _n 後綴）；文章有 publishDate 就以較大者為準 */
+  var t=parseInt(String(c.id||'').split('_')[0].replace(/\D/g,''),10)||0;
+  if(c.publishDate){var p=Date.parse(c.publishDate);if(!isNaN(p)&&p>t)t=p;}
+  return t;
+}
+function renderLatest(){
+  var sec=$('latestSection'),grid=$('latestGrid');
+  if(!sec||!grid)return;
+  if(_searchActive){sec.style.display='none';return}
+  /* 只取掛在選單上的分類，才不會撈到未分類的殘留檔案 */
+  var valid={};
+  NAV.forEach(function(n){
+    valid[n.name]=1;
+    (n.children||[]).forEach(function(k){valid[k]=1});
+  });
+  var pool=CARDS.filter(function(c){
+    if(c.visible===false)return false;
+    if(!valid[c.page||c.category])return false;
+    var perm=c.permission||'public';
+    if(perm==='student'&&_userRole==='public')return false;
+    if(perm==='admin'&&_userRole!=='admin')return false;
+    return true;
+  });
+  pool.sort(function(a,b){
+    var pa=a.pinned?1:0,pb=b.pinned?1:0;
+    if(pa!==pb)return pb-pa;
+    return cardTime(b)-cardTime(a);
+  });
+  var top=pool.slice(0,LATEST_N);
+  if(!top.length){sec.style.display='none';return}
+  grid.innerHTML='';
+  top.forEach(function(card){
+    var type=card.type||'link';
+    if(type==='article')renderOneArticleCard(grid,card);
+    else if(type==='file')renderOneFileCard(grid,card);
+    else renderOneLinkCard(grid,card);
+    /* 置頂標記 */
+    if(card.pinned){
+      var el=grid.lastElementChild;
+      if(el){var f=ce('span','pin-flag','📌 置頂');el.appendChild(f)}
+    }
+  });
+  var pinned=top.filter(function(c){return c.pinned}).length;
+  var sub=$('latestSub');
+  if(sub)sub.textContent=pinned?('含 '+pinned+' 個置頂項目'):'最近新增的內容';
+  sec.style.display='';
+  observeCards();
+}
+
 /* hash 路由：#父分類 或 #父分類/子分類 */
 function applyHashRoute(){
   var h=decodeURIComponent(location.hash.replace('#',''));
@@ -3955,6 +4018,7 @@ function initSearch(){
       _searchActive=true;
       var tabs=$('navTabs');
       if(tabs)tabs.style.display='none';
+      var ls=$('latestSection');if(ls)ls.style.display='none';
       var results=CARDS.filter(function(c){
         if(c.visible===false)return false;
         var title=(c.title||'').toLowerCase();
@@ -3981,6 +4045,7 @@ function initSearch(){
       var tabs=$('navTabs');
       if(tabs)tabs.style.display='';
       renderCards();
+      renderLatest();
       observeCards();
     }
   }
@@ -4134,7 +4199,7 @@ function applyFullData(data,adminCards){
     else if(hash.indexOf('article=')===0)_activeTab=PAGES[0];
     else{_activeTab=PAGES[0];location.hash=PAGES[0];}
   }
-  buildNavTabs();buildHeroGrid();renderCards();updateVisit();observeCards();
+  buildNavTabs();buildHeroGrid();renderCards();renderLatest();updateVisit();observeCards();
   checkArticleHash();
 }
 
@@ -4184,13 +4249,13 @@ function init(){
       }
       if(d.stats){var _s=d.stats;_statsData=_s.tools||_s;_totalVisits=_s.total||0;_todayVisits=_s.today||0;}
       applyHashRoute();
-      buildNavTabs();buildHeroGrid();renderCards();updateVisit();observeCards();checkArticleHash();
+      buildNavTabs();buildHeroGrid();renderCards();renderLatest();updateVisit();observeCards();checkArticleHash();
       saveCache({cards:CARDS,pages:PAGES,nav:NAV,stats:_statsData,settings:_settings});
     }).catch(function(){});
   }
   applyHashRoute();
   if(_hasCache){
-    buildNavTabs();buildHeroGrid();renderCards();updateVisit();observeCards();
+    buildNavTabs();buildHeroGrid();renderCards();renderLatest();updateVisit();observeCards();
   }
   /* Resume login state — admin 與 student 互斥，管理員優先 */
   if(sessionStorage.getItem('admin_pw')){
@@ -4231,7 +4296,7 @@ function init(){
     var changed=false;
     CARDS.forEach(function(c){if(vmap[c.id]!=null&&vmap[c.id]!==c.views){c.views=vmap[c.id];changed=true}});
     if(data.stats){var _s=data.stats;_statsData=_s.tools||_s;_totalVisits=_s.total||0;_todayVisits=_s.today||0;updateVisit();}
-    if(changed&&!_searchActive)renderCards();
+    if(changed&&!_searchActive){renderCards();renderLatest();}
   });
 
   /* Failsafe: if data never arrives after 20s, show error with reload button */

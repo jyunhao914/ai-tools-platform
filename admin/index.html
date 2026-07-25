@@ -73,6 +73,7 @@ h2.sec{font-size:17px;margin-bottom:16px}
 .pill{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(56,189,248,0.12);color:var(--info);flex-shrink:0}
 .pill.art{background:rgba(139,92,246,0.15);color:#c4b5fd}
 .pill.hid{background:rgba(248,113,113,0.13);color:var(--bad)}
+.pill.pin{background:rgba(99,102,241,0.22);color:#c7d2fe}
 
 /* modal */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:100;display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px}
@@ -302,6 +303,9 @@ h2.sec{font-size:17px;margin-bottom:16px}
     </div>
 
     <div class="field"><label><input type="checkbox" id="f_visible" style="width:auto;margin-right:8px" checked>顯示在網站上</label></div>
+    <div class="field"><label><input type="checkbox" id="f_pinned" style="width:auto;margin-right:8px">📌 置頂到首頁「最新上架」區</label>
+      <div class="hint">置頂的項目會固定排在最新區前面（最新區共顯示 3 個）。</div>
+    </div>
     <div class="foot">
       <button class="btn danger" id="delCardBtn">刪除</button>
       <div style="flex:1"></div>
@@ -510,6 +514,7 @@ function renderCards(){
         +(img?'<img class="thumb" src="'+esc(img)+'" onerror="this.style.visibility=\'hidden\'">':'<div class="thumb"></div>')
         +'<div class="t"><div class="name">'+esc(c.title)+'</div><div class="sub">👁 '+(c.views||0)+' · '+esc(c.tag||'')+'</div></div>'
         +(c.type==='article'?'<span class="pill art">文章</span>':'<span class="pill">連結</span>')
+        +(c.pinned?'<span class="pill pin">📌 置頂</span>':'')
         +((c.visible===false)?'<span class="pill hid">隱藏</span>':'')
         +'<button class="btn small">編輯</button>';
       row.querySelector('button').onclick=function(){openEditor(c)};
@@ -568,6 +573,7 @@ function openEditor(card){
   $('f_linkUrl').value=card?card.linkUrl||'':'';
   $('f_copyContent').value=ex.copyContent||'';
   $('f_visible').checked=!card||card.visible!==false;
+  $('f_pinned').checked=!!(card&&card.pinned);
   var artHtml=ex.content||(card&&card.content)||'';
   $('rteArea').innerHTML=artHtml;
   $('rteSrc').value=artHtml;
@@ -612,6 +618,7 @@ $('saveCardBtn').onclick=function(){
   var img=$('f_image').value.trim();
   c.imageUrls=img?[img]:[];
   c.visible=$('f_visible').checked;
+  c.pinned=$('f_pinned').checked;
   if(type==='link'){
     var behavior=$('f_linkBehavior').value;
     var btnLabel=$('f_btnLabel').value.trim();
@@ -1114,6 +1121,9 @@ $('publishBtn').onclick=function(){
     else if(JSON.stringify(oldIds[c.id])!==JSON.stringify(c))lines.push('✏️ 修改卡片：'+c.title);
   });
   oldData.cards.forEach(function(c){if(!newIds[c.id])lines.push('🗑 刪除卡片：'+c.title)});
+  var pinNow=newData.cards.filter(function(c){return c.pinned}).map(function(c){return c.title});
+  var pinWas=oldData.cards.filter(function(c){return c.pinned}).map(function(c){return c.title});
+  if(pinNow.join('|')!==pinWas.join('|'))lines.push('📌 置頂項目：'+(pinNow.length?pinNow.join('、'):'（無）'));
   if(serSite()!==S.origSite)lines.push('🛠 網站設定 / 分類變更');
   S.pendingAssets.forEach(function(a){lines.push('🖼 上傳圖片：'+a.path)});
   if(!lines.length)lines.push('（順序調整或其他變更）');
