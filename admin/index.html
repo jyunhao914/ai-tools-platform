@@ -1047,7 +1047,7 @@ $('addPageBtn').onclick=function(){
   name=name.trim();
   if(!name)return;
   if(allCategories().some(function(c){return c.name===name})){toast('已有同名分類');return}
-  S.site.nav.push({name:name,ico:'assets/cat-toolbox.jpg',desc:'',children:[]});
+  S.site.nav.push({name:name,ico:'assets/cat-tool-mono.jpg',desc:'',children:[]});
   syncNavDerived();renderPages();markDirty();
 };
 
