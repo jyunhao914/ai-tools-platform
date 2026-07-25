@@ -1148,17 +1148,40 @@ $('pubGoBtn').onclick=function(){
   });
   S.pendingAssets.forEach(function(a){files.push({path:a.path,base64:a.base64})});
   var msg=$('pubMsg').value.trim()||'admin: 更新內容';
-  commitFiles(files,msg).then(function(c){
+  /* 陳舊檢查：後台開很久期間 repo 可能已被別處更新，
+     直接發佈會用舊內容整檔覆蓋掉（實際踩過：把圖示路徑改回舊版） */
+  checkStale().then(function(stale){
+    if(stale.length&&!confirm('⚠️ 這些檔案在你開啟後台後已被更新：\n\n'+stale.join('\n')
+      +'\n\n繼續發佈會用目前畫面的內容覆蓋掉那些變更。\n建議取消 → 重新載入後台 → 再改一次。\n\n仍要覆蓋？')){
+      btn.disabled=false;btn.textContent='確認發佈';
+      return null;
+    }
+    return commitFiles(files,msg);
+  }).then(function(c){
+    if(!c)return;
     $('pubOverlay').classList.remove('show');
     toast('✅ 已發佈（'+c.sha.slice(0,7)+'），約 1 分鐘後上線');
     S.origData=serData();S.origSite=serSite();S.pendingAssets=[];
     markDirty();
+    ['data.json','site.json'].forEach(function(p){
+      gh('/repos/'+OWNER+'/'+REPO+'/contents/'+p+'?ref='+BRANCH+'&t='+Date.now())
+        .then(function(j){S.shas[p]=j.sha}).catch(function(){});
+    });
   }).catch(function(e){
     toast('發佈失敗：'+e.message,6000);
   }).finally(function(){
     btn.disabled=false;btn.textContent='確認發佈';
   });
 };
+/* 比對載入時記下的 blob sha 與遠端現況 */
+function checkStale(){
+  var paths=['data.json','site.json'];
+  return Promise.all(paths.map(function(p){
+    return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+p+'?ref='+BRANCH+'&t='+Date.now())
+      .then(function(j){return (S.shas[p]&&j.sha!==S.shas[p])?p:null})
+      .catch(function(){return null});
+  })).then(function(r){return r.filter(Boolean)});
+}
 
 /* ================= BOOT ================= */
 tryLogin();
