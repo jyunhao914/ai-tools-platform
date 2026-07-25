@@ -5,7 +5,8 @@
     "圖像生成",
     "工具箱",
     "關於我們",
-    "Gremini"
+    "Gremini",
+    "Chat GPT"
   ],
   "nav": [
     {
@@ -46,6 +47,12 @@
       "ico": "assets/cat-toolbox.jpg",
       "desc": "",
       "children": []
+    },
+    {
+      "name": "Chat GPT",
+      "ico": "assets/cat-toolbox.jpg",
+      "desc": "",
+      "children": []
     }
   ],
   "gemUrl": "https://gemini.google.com/gem/1-I-HEXLdgeStt9PmL-dla2q8Blq3Omop?usp=sharing",
@@ -69,6 +76,10 @@
     {
       "ico": "assets/cat-abt-v2.jpg",
       "desc": "關於本平台與 AI 推廣計畫"
+    },
+    {
+      "ico": "assets/cat-toolbox.jpg",
+      "desc": ""
     },
     {
       "ico": "assets/cat-toolbox.jpg",
