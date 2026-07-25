@@ -5,8 +5,8 @@
     "圖像生成",
     "工具箱",
     "關於我們",
-    "Gremini",
-    "Chat GPT"
+    "Gremini GEM",
+    "Chat GPTs"
   ],
   "nav": [
     {
@@ -43,13 +43,13 @@
       "children": []
     },
     {
-      "name": "Gremini",
+      "name": "Gremini GEM",
       "ico": "assets/cat-toolbox.jpg",
       "desc": "",
       "children": []
     },
     {
-      "name": "Chat GPT",
+      "name": "Chat GPTs",
       "ico": "assets/cat-toolbox.jpg",
       "desc": "",
       "children": []
