@@ -124,6 +124,9 @@ html.lite .hero-card,html.lite .card{transition:none}
 .tools-head span{color:var(--accent)}
 .tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:22px}
 .tools-empty{text-align:center;padding:80px 24px;color:var(--text3);font-size:16px}
+.show-more-wrap{grid-column:1/-1;text-align:center;padding:8px 0 4px}
+.show-more-btn{padding:11px 34px;border-radius:999px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:14.5px;cursor:pointer;transition:background 0.2s,transform 0.15s}
+.show-more-btn:hover{background:var(--card-h);transform:translateY(-1px)}
 
 /* CARD */
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;display:flex;flex-direction:column}
@@ -825,6 +828,8 @@ var PAGES=[];
 var GEM_URL="https://gemini.google.com/gem/1-I-HEXLdgeStt9PmL-dla2q8Blq3Omop?usp=sharing";
 var _statsData={};
 var _totalVisits=0;
+var _todayVisits=0;
+var _expandedTabs={};
 var _activeTab='';
 var _adminCards=[];
 var _adminEmails=[];
@@ -1085,7 +1090,7 @@ function updateVisit(){
   var n=totalViews();
   var el=$('navVisit');
   if(n>0){
-    el.innerHTML='\uD83D\uDC41 '+n.toLocaleString()+' \u6B21\u700F\u89BD';
+    el.innerHTML='\uD83D\uDC41 '+n.toLocaleString()+' \u6B21\u700F\u89BD'+(_todayVisits>0?' <span style="opacity:0.65">\u00B7 \u4ECA\u65E5 '+_todayVisits.toLocaleString()+'</span>':'');
     el.style.visibility='visible';
   }
 }
@@ -1211,7 +1216,11 @@ function renderCards(){
     grid.innerHTML='<div class="tools-empty">\uD83D\uDD0D \u6B64\u5206\u985E\u66AB\u7121\u5167\u5BB9</div>';
     return;
   }
-  filtered.forEach(function(card){
+  /* \u6536\u5408\uFF1A\u5361\u7247\u591A\u6642\u5148\u6536\u8D77\u4F86\uFF0C\u7248\u9762\u4E0D\u96A8\u6587\u7AE0\u6578\u7206\u70B8 */
+  var LIMIT=9;
+  var expanded=_expandedTabs[_activeTab]||filtered.length<=LIMIT;
+  var toShow=expanded?filtered:filtered.slice(0,LIMIT);
+  toShow.forEach(function(card){
     var type=card.type||'link';
     if(type==='article'){
       renderOneArticleCard(grid,card);
@@ -1221,6 +1230,17 @@ function renderCards(){
       renderOneLinkCard(grid,card);
     }
   });
+  if(filtered.length>LIMIT){
+    var moreWrap=ce('div','show-more-wrap');
+    var moreBtn=ce('button','show-more-btn',expanded?'\u6536\u5408 \u25B2':'\u986F\u793A\u5168\u90E8\uFF08\u9084\u6709 '+(filtered.length-LIMIT)+' \u9805\uFF09\u25BC');
+    moreBtn.onclick=function(){
+      _expandedTabs[_activeTab]=!expanded;
+      renderCards();
+      if(expanded){var t=$('tools');if(t)t.scrollIntoView({behavior:'smooth'});}
+    };
+    moreWrap.appendChild(moreBtn);
+    grid.appendChild(moreWrap);
+  }
 
   $('toolsHead').innerHTML=esc(_activeTab)+' <span>\u2014 \u5217\u8868\uFF08'+filtered.length+' \u9805\uFF09</span>';
   observeCards();
@@ -1319,17 +1339,23 @@ function renderOneLinkCard(grid,card){
   var link=ce('a','card-link card-link--'+btnStyle,btnIcon+' '+btnLabel);
   if(isCopy){
     link.href='javascript:void(0)';
-    link.onclick=function(e){e.preventDefault();copyText(copyContent);toast('\u5DF2\u8907\u88FD');trackClick(card.title,viewsSpan);};
+    link.onclick=function(e){e.preventDefault();copyText(copyContent);flashBtn(link,'\u2705 \u5DF2\u8907\u88FD');toast('\u5DF2\u8907\u88FD');trackClick(card,viewsSpan);};
   }else{
     link.href=card.linkUrl||'#';link.target='_blank';link.rel='noopener';
-    link.onclick=function(){trackClick(card.title,viewsSpan)};
+    link.onclick=function(e){e.stopPropagation();flashBtn(link,'\u2197 \u958B\u555F\u4E2D\u2026');trackClick(card,viewsSpan)};
   }
   foot.appendChild(link);
-  var views=(_statsData&&_statsData[card.title]!=null)?_statsData[card.title]:0;
+  var views=cardViews(card);
   var viewsSpan=ce('span','card-views','\uD83D\uDC41 '+views+' \u6B21\u9EDE\u95B1');
   foot.appendChild(viewsSpan);
   body.appendChild(foot);
   el.appendChild(body);
+  /* \u6574\u5361\u53EF\u9EDE\uFF1A\u7B49\u540C\u6309\u4E0B\u6309\u9215 */
+  el.style.cursor='pointer';
+  el.onclick=function(e){
+    if(e.target.closest&&(e.target.closest('.card-link')||e.target.closest('.admin-edit-btn')||e.target.closest('.slider-arrow')||e.target.closest('.slider-dot')))return;
+    link.click();
+  };
   grid.appendChild(el);
 }
 
@@ -1347,9 +1373,9 @@ function renderOneFileCard(grid,card){
   var foot=ce('div','card-foot');
   var dl=ce('a','card-link','\uD83D\uDCE5 \u4E0B\u8F09\u6A94\u6848');
   dl.href=card.fileUrl||card.linkUrl||'#';dl.target='_blank';dl.rel='noopener';
-  dl.onclick=function(){trackClick(card.title,viewsSpan)};
+  dl.onclick=function(){flashBtn(dl,'\ud83d\udce5 \u4e0b\u8f09\u4e2d\u2026');trackClick(card,viewsSpan)};
   foot.appendChild(dl);
-  var views=(_statsData&&_statsData[card.title]!=null)?_statsData[card.title]:0;
+  var views=cardViews(card);
   var viewsSpan=ce('span','card-views','\uD83D\uDC41 '+views+' \u6B21\u9EDE\u95B1');
   foot.appendChild(viewsSpan);
   body.appendChild(foot);
@@ -1383,16 +1409,16 @@ function renderOneArticleCard(grid,card){
   var foot=ce('div','card-foot');
   var readBtn=ce('a','card-link','\uD83D\uDCD6 \u95B1\u8B80\u66F4\u591A');
   readBtn.href='javascript:void(0)';
-  readBtn.onclick=function(e){e.stopPropagation();trackClick(card.title,viewsSpan);openArticleReader(card)};
+  readBtn.onclick=function(e){e.stopPropagation();trackClick(card,viewsSpan);openArticleReader(card)};
   foot.appendChild(readBtn);
-  var views=(_statsData&&_statsData[card.title]!=null)?_statsData[card.title]:0;
+  var views=cardViews(card);
   var viewsSpan=ce('span','card-views','\uD83D\uDC41 '+views+' \u6B21\u9EDE\u95B1');
   foot.appendChild(viewsSpan);
   body.appendChild(foot);
   el.appendChild(body);
   el.onclick=function(e){
     if(e.target.closest&&e.target.closest('.admin-edit-btn'))return;
-    trackClick(card.title,viewsSpan);
+    trackClick(card,viewsSpan);
     openArticleReader(card);
   };
   grid.appendChild(el);
@@ -1430,10 +1456,10 @@ function renderOneCopyCard(grid,card){
     this.textContent='✅ 已複製！';
     var self=this;
     setTimeout(function(){self.textContent=orig;},2000);
-    trackClick(card.title,viewsSpan);
+    trackClick(card,viewsSpan);
   };
   foot.appendChild(btn);
-  var views=(_statsData&&_statsData[card.title]!=null)?_statsData[card.title]:0;
+  var views=cardViews(card);
   var viewsSpan=ce('span','card-views','\uD83D\uDC41 '+views+' \u6B21\u9EDE\u95B1');
   foot.appendChild(viewsSpan);
   body.appendChild(foot);
@@ -1441,19 +1467,30 @@ function renderOneCopyCard(grid,card){
   grid.appendChild(el);
 }
 
+/* 按鈕即時回饋：暫時換字 1.6 秒 */
+function flashBtn(btn,msg){
+  if(btn._flashing)return;
+  btn._flashing=true;
+  var orig=btn.textContent;
+  btn.textContent=msg;
+  setTimeout(function(){btn.textContent=orig;btn._flashing=false;},1600);
+}
 function copyText(text){
   if(navigator.clipboard){navigator.clipboard.writeText(text).catch(function(){})}
   else{var ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta)}
 }
 
 /* ====== CLICK TRACKING ====== */
-function trackClick(title,viewsSpan){
-  /* Immediately update local count */
-  if(!_statsData)_statsData={};
-  _statsData[title]=(_statsData[title]||0)+1;
-  if(viewsSpan)viewsSpan.textContent='\uD83D\uDC41 '+_statsData[title]+' \u6B21\u9EDE\u95B1';
-  /* Send to backend */
-  gasAPI('recordClick',{title:title},null);
+function trackClick(card,viewsSpan){
+  /* \u4EE5 id \u70BA\u9375\u8A18\u6578\uFF08GAS Stats \u8868\uFF09\uFF0Ctitle \u50C5\u4F9B\u5831\u8868\u95B1\u8B80 */
+  card.views=(card.views||0)+1;
+  if(viewsSpan)viewsSpan.textContent='\uD83D\uDC41 '+card.views+' \u6B21\u9EDE\u95B1';
+  gasAPI('recordClick',{title:card.title||'',id:card.id||''},null);
+}
+function cardViews(card){
+  var v=card.views||0;
+  var t=(_statsData&&_statsData[card.title])||0;
+  return Math.max(v,t); /* \u820A\u5361\u6B77\u53F2\u8A08\u6578\u5B58\u5728 title \u9375\uFF0C\u53D6\u8F03\u5927\u8005\u4E0D\u5012\u9000 */
 }
 
 /* ====== VIDEO EMBED URL ====== */
@@ -4065,7 +4102,7 @@ function init(){
     data.cards.forEach(function(c){if(c.id)vmap[c.id]=c.views||0});
     var changed=false;
     CARDS.forEach(function(c){if(vmap[c.id]!=null&&vmap[c.id]!==c.views){c.views=vmap[c.id];changed=true}});
-    if(data.stats){var _s=data.stats;_statsData=_s.tools||_s;_totalVisits=_s.total||0;updateVisit();}
+    if(data.stats){var _s=data.stats;_statsData=_s.tools||_s;_totalVisits=_s.total||0;_todayVisits=_s.today||0;updateVisit();}
     if(changed&&!_searchActive)renderCards();
   });
 
