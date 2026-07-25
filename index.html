@@ -67,6 +67,21 @@ img{display:block;max-width:100%}
 .nav-tab:hover{color:var(--text);background:var(--card)}
 .nav-tab.active{color:var(--accent);background:rgba(56,189,248,0.1)}
 .nav-visit{font-size:13px;color:var(--text3);white-space:nowrap;flex-shrink:0}
+/* 二階層選單 */
+.nav-drop{position:relative;flex-shrink:0}
+.nav-caret{font-size:10px;opacity:.7;margin-left:2px}
+/* 選單用 fixed 掛在 body：.nav-tabs 有 overflow-x:auto，absolute 會被裁掉 */
+.nav-drop-menu{position:fixed;min-width:200px;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:6px;box-shadow:0 14px 40px rgba(0,0,0,.55);display:none;z-index:200}
+.nav-drop-menu.open{display:block}
+.nav-drop-item{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:8px 12px;border-radius:8px;font-size:13.5px;color:var(--text2);text-align:left;transition:background .18s,color .18s}
+.nav-drop-item:hover{background:var(--card-h);color:var(--text)}
+.nav-drop-item.active{color:var(--accent);background:rgba(56,189,248,0.1)}
+.ndi-cnt{font-size:11.5px;color:var(--text3);flex-shrink:0}
+.sub-filter{display:flex;flex-wrap:wrap;gap:8px;margin:-14px 0 24px}
+.sub-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 15px;border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--text2);font-size:13px;transition:all .2s}
+.sub-chip:hover{background:var(--card-h);color:var(--text)}
+.sub-chip.active{color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent}
+.sc-cnt{font-size:11px;opacity:.72}
 .student-badge{font-size:12px;color:var(--accent3);cursor:pointer;white-space:nowrap;flex-shrink:0;padding:3px 9px;border-radius:6px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.25);position:relative;user-select:none}
 .student-badge-menu{position:absolute;top:calc(100% + 6px);right:0;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:4px;min-width:90px;z-index:200;box-shadow:0 4px 16px rgba(0,0,0,0.4)}
 .student-badge-menu button{display:block;width:100%;text-align:left;padding:7px 12px;border-radius:6px;font-size:13px;color:var(--text);background:none;border:none;cursor:pointer}
@@ -694,6 +709,7 @@ html.lite .hero-card,html.lite .card{transition:none}
     <input type="search" id="mobileSearch" class="global-search" placeholder="搜尋工具..." style="width:100%;margin-bottom:16px">
   </div>
   <h2 class="tools-head" id="toolsHead"></h2>
+  <div class="sub-filter" id="subFilter" style="display:none"></div>
   <div class="tools-grid" id="toolsGrid">
     <div class="skeleton-card"><div class="sk-img"></div><div class="sk-body"><div class="sk-line medium"></div><div class="sk-line short"></div><div class="sk-line"></div></div></div>
     <div class="skeleton-card"><div class="sk-img"></div><div class="sk-body"><div class="sk-line medium"></div><div class="sk-line short"></div><div class="sk-line"></div></div></div>
@@ -838,6 +854,9 @@ var _totalVisits=0;
 var _todayVisits=0;
 var _expandedTabs={};
 var _activeTab='';
+var _navMenus=[];
+var _activeSub='';
+var NAV=[];
 var _adminCards=[];
 var _adminEmails=[];
 var _adminTab='cards';
@@ -939,7 +958,7 @@ function enableStudentMode(token){
       CARDS=data.cards;
       if(data.pages&&data.pages.length)PAGES=data.pages;
       if(data.stats)_statsData=data.stats;
-      try{saveCache({cards:CARDS,pages:PAGES,stats:_statsData,settings:_settings});}catch(e){}
+      try{saveCache({cards:CARDS,pages:PAGES,nav:NAV,stats:_statsData,settings:_settings});}catch(e){}
     }
     renderCards();
   });
@@ -956,7 +975,7 @@ function disableStudentMode(){
   gasAPI('getData',null,function(data){
     if(data&&data.cards&&data.cards.length){
       CARDS=data.cards;
-      try{saveCache({cards:CARDS,pages:PAGES,stats:_statsData,settings:_settings});}catch(e){}
+      try{saveCache({cards:CARDS,pages:PAGES,nav:NAV,stats:_statsData,settings:_settings});}catch(e){}
     }
     renderCards();
   });
@@ -1083,15 +1102,89 @@ function buildStars(){
 }
 
 /* ====== NAV TABS ====== */
+/* hash 路由：#父分類 或 #父分類/子分類 */
+function applyHashRoute(){
+  var h=decodeURIComponent(location.hash.replace('#',''));
+  if(h.indexOf('article=')===0){if(PAGES.length&&!_activeTab)_activeTab=PAGES[0];return}
+  var parts=h.split('/');
+  var top=parts[0],sub=parts[1]||'';
+  if(top&&PAGES.indexOf(top)>=0){
+    _activeTab=top;
+    _activeSub=(sub&&childrenOf(top).indexOf(sub)>=0)?sub:'';
+  }else if(top&&parentOf(top)){
+    /* 只給子分類名稱也能進去 */
+    _activeTab=parentOf(top);_activeSub=top;
+  }else if(PAGES.length&&!_activeTab){
+    _activeTab=PAGES[0];_activeSub='';
+  }
+}
+
+/* NAV 樹：[{name,ico,desc,children:[名稱]}]；childrenOf 供分類篩選用 */
+function childrenOf(tab){
+  for(var i=0;i<NAV.length;i++){
+    if(NAV[i].name===tab)return (NAV[i].children||[]).slice();
+  }
+  return [];
+}
+function parentOf(sub){
+  for(var i=0;i<NAV.length;i++){
+    if((NAV[i].children||[]).indexOf(sub)>=0)return NAV[i].name;
+  }
+  return '';
+}
+/* 該分類（含子分類）可見卡片數 */
+function countOf(name){
+  var names=[name].concat(childrenOf(name));
+  return CARDS.filter(function(c){
+    return names.indexOf(c.page||c.category)>=0&&c.visible!==false;
+  }).length;
+}
+
 function buildNavTabs(){
   var cont=$('navTabs');
   cont.innerHTML='';
+  clearNavMenus();
   PAGES.forEach(function(p){
-    var btn=ce('button','nav-tab'+(_activeTab===p?' active':''),p);
-    btn.onclick=function(){switchTab(p)};
-    cont.appendChild(btn);
+    var kids=childrenOf(p);
+    if(!kids.length){
+      var btn=ce('button','nav-tab'+(_activeTab===p?' active':''),p);
+      btn.onclick=function(){switchTab(p)};
+      cont.appendChild(btn);
+      return;
+    }
+    /* 有子分類 → 下拉選單（選單掛 body，避免被 nav 的 overflow 裁掉） */
+    var wrap=ce('div','nav-drop');
+    var btn2=ce('button','nav-tab'+(_activeTab===p?' active':''),p+' <span class="nav-caret">▾</span>');
+    var menu=ce('div','nav-drop-menu');
+    var all=ce('button','nav-drop-item'+(_activeTab===p&&!_activeSub?' active':''),'全部 '+esc(p)+' <span class="ndi-cnt">'+countOf(p)+'</span>');
+    all.onclick=function(e){e.stopPropagation();closeNavMenus();switchTab(p)};
+    menu.appendChild(all);
+    kids.forEach(function(k){
+      var it=ce('button','nav-drop-item'+(_activeSub===k?' active':''),esc(k)+' <span class="ndi-cnt">'+countOf(k)+'</span>');
+      it.onclick=function(e){e.stopPropagation();closeNavMenus();switchTab(p,k)};
+      menu.appendChild(it);
+    });
+    document.body.appendChild(menu);
+    _navMenus.push(menu);
+    btn2.onclick=function(e){
+      e.stopPropagation();
+      var wasOpen=menu.classList.contains('open');
+      closeNavMenus();
+      if(wasOpen){switchTab(p);return}
+      var r=btn2.getBoundingClientRect();
+      menu.classList.add('open');
+      menu.style.top=(r.bottom+6)+'px';
+      menu.style.left=Math.max(8,Math.min(window.innerWidth-menu.offsetWidth-8,r.left))+'px';
+    };
+    wrap.appendChild(btn2);
+    cont.appendChild(wrap);
   });
 }
+function closeNavMenus(){_navMenus.forEach(function(m){m.classList.remove('open')})}
+function clearNavMenus(){_navMenus.forEach(function(m){if(m.parentNode)m.parentNode.removeChild(m)});_navMenus=[]}
+document.addEventListener('click',closeNavMenus);
+window.addEventListener('scroll',closeNavMenus);
+window.addEventListener('resize',closeNavMenus);
 
 function updateVisit(){
   var n=totalViews();
@@ -1112,7 +1205,7 @@ function buildHeroGrid(){
     var icoHtml=meta.ico&&meta.ico.match(/\.(jpg|jpeg|png|webp|gif)$/i)
       ?'<div class="hero-card-img"><img src="'+meta.ico+'" alt="'+esc(p)+'" loading="lazy"></div>'
       :'<div class="hero-card-ico">'+meta.ico+'</div>';
-    var _cnt=CARDS.filter(function(c){return (c.page||c.category)===p&&c.visible!==false}).length;
+    var _cnt=countOf(p);
     card.innerHTML=icoHtml+'<div class="hero-card-title">'+esc(p)+'</div><div class="hero-card-desc">'+esc(meta.desc)+'</div>'
       +'<div class="hero-card-go">'+(_cnt?_cnt+' 項工具 →':'前往 →')+'</div>';
     card.onclick=function(){
@@ -1124,9 +1217,10 @@ function buildHeroGrid(){
 }
 
 /* ====== SWITCH TAB ====== */
-function switchTab(tab){
+function switchTab(tab,sub){
   _activeTab=tab;
-  location.hash=tab;
+  _activeSub=sub||'';
+  location.hash=_activeSub?(tab+'/'+_activeSub):tab;
   var searchInput=$('globalSearch');
   if(searchInput&&searchInput.value){searchInput.value='';_searchActive=false;var tabs=$('navTabs');if(tabs)tabs.style.display='';}
   buildNavTabs();
@@ -1214,13 +1308,32 @@ function renderCards(){
     renderAboutPage();
     return;
   }
+  var kids=childrenOf(_activeTab);
+  var accept=_activeSub?[_activeSub]:[_activeTab].concat(kids);
   var filtered=CARDS.filter(function(c){
-    if((c.page||c.category)!==_activeTab||c.visible===false)return false;
+    if(accept.indexOf(c.page||c.category)<0||c.visible===false)return false;
     var perm=c.permission||'public';
     if(perm==='student'&&_userRole==='public')return false;
     if(perm==='admin'&&_userRole!=='admin')return false;
     return true;
   });
+  /* 子分類篩選列 */
+  var chipBar=$('subFilter');
+  if(chipBar){
+    if(kids.length){
+      chipBar.innerHTML='';
+      var mk=function(label,sub,cnt){
+        var b=ce('button','sub-chip'+((_activeSub||'')===sub?' active':''),esc(label)+' <span class="sc-cnt">'+cnt+'</span>');
+        b.onclick=function(){switchTab(_activeTab,sub)};
+        chipBar.appendChild(b);
+      };
+      mk('全部','',countOf(_activeTab));
+      kids.forEach(function(k){mk(k,k,countOf(k))});
+      chipBar.style.display='';
+    }else{
+      chipBar.innerHTML='';chipBar.style.display='none';
+    }
+  }
   if(!filtered.length){
     grid.innerHTML='<div class="tools-empty">\uD83D\uDD0D \u6B64\u5206\u985E\u66AB\u7121\u5167\u5BB9</div>';
     return;
@@ -1251,7 +1364,7 @@ function renderCards(){
     grid.appendChild(moreWrap);
   }
 
-  $('toolsHead').innerHTML=esc(_activeTab)+' <span>\u2014 \u5217\u8868\uFF08'+filtered.length+' \u9805\uFF09</span>';
+  $('toolsHead').innerHTML=esc(_activeTab)+(_activeSub?' <span style="opacity:.7">\u203A</span> '+esc(_activeSub):'')+' <span>\u2014 \u5217\u8868\uFF08'+filtered.length+' \u9805\uFF09</span>';
   observeCards();
 }
 
@@ -4034,7 +4147,8 @@ function init(){
   if(cache&&cache.cards&&cache.cards.length){
     _hasCache=true;
     CARDS=cache.cards;
-    if(cache.pages&&cache.pages.length)PAGES=cache.pages;
+    if(cache.nav&&cache.nav.length){NAV=cache.nav;PAGES=NAV.map(function(n){return n.name});HERO_META=NAV.map(function(n){return{ico:n.ico||'',desc:n.desc||''}});}
+    else if(cache.pages&&cache.pages.length){PAGES=cache.pages;NAV=PAGES.map(function(p){return{name:p,children:[]}});}
     if(cache.stats)_statsData=cache.stats;
     if(cache.settings){_settings=cache.settings;applyAnnouncement();applySEO();applySiteInfo();}
   }
@@ -4049,27 +4163,28 @@ function init(){
       if(!d||!d.cards||!d.cards.length)return;
       CARDS=d.cards;
       if(site){
-        if(site.pages&&site.pages.length)PAGES=site.pages;
+        if(site.nav&&site.nav.length){
+          NAV=site.nav;
+          PAGES=NAV.map(function(n){return n.name});
+          HERO_META=NAV.map(function(n){return {ico:n.ico||'',desc:n.desc||''}});
+        }else if(site.pages&&site.pages.length){
+          PAGES=site.pages;
+          NAV=PAGES.map(function(p,i){var m=(site.heroMeta||[])[i]||{};return{name:p,ico:m.ico||'',desc:m.desc||'',children:[]}});
+          if(site.heroMeta&&site.heroMeta.length)HERO_META=site.heroMeta;
+        }
         if(site.gemUrl)GEM_URL=site.gemUrl;
-        if(site.heroMeta&&site.heroMeta.length)HERO_META=site.heroMeta;
         if(site.settings){_settings=site.settings;applyAnnouncement();applySEO();applySiteInfo();}
       }else{
         if(d.pages&&d.pages.length)PAGES=d.pages;
         if(d.settings){_settings=d.settings;applyAnnouncement();applySEO();applySiteInfo();}
       }
-      if(d.stats){var _s=d.stats;_statsData=_s.tools||_s;_totalVisits=_s.total||0;}
-      var h=decodeURIComponent(location.hash.replace('#',''));
-      if(h&&PAGES.indexOf(h)>=0)_activeTab=h;
-      else if(h.indexOf('article=')===0){if(PAGES.length)_activeTab=_activeTab||PAGES[0];}
-      else if(PAGES.length&&!_activeTab)_activeTab=PAGES[0];
+      if(d.stats){var _s=d.stats;_statsData=_s.tools||_s;_totalVisits=_s.total||0;_todayVisits=_s.today||0;}
+      applyHashRoute();
       buildNavTabs();buildHeroGrid();renderCards();updateVisit();observeCards();checkArticleHash();
-      saveCache({cards:CARDS,pages:PAGES,stats:_statsData,settings:_settings});
+      saveCache({cards:CARDS,pages:PAGES,nav:NAV,stats:_statsData,settings:_settings});
     }).catch(function(){});
   }
-  var hash=decodeURIComponent(location.hash.replace('#',''));
-  if(hash&&PAGES.indexOf(hash)>=0){_activeTab=hash;location.hash=hash;}
-  else if(hash.indexOf('article=')===0){if(PAGES.length)_activeTab=PAGES[0];}
-  else if(PAGES.length){_activeTab=PAGES[0];location.hash=PAGES[0];}
+  applyHashRoute();
   if(_hasCache){
     buildNavTabs();buildHeroGrid();renderCards();updateVisit();observeCards();
   }
@@ -4128,8 +4243,10 @@ function init(){
 
   window.addEventListener('hashchange',function(){
     var h=decodeURIComponent(location.hash.replace('#',''));
-    if(h.indexOf('article=')===0)checkArticleHash();
-    else if(h&&PAGES.indexOf(h)>=0&&h!==_activeTab)switchTab(h);
+    if(h.indexOf('article=')===0){checkArticleHash();return}
+    var prevTab=_activeTab,prevSub=_activeSub;
+    applyHashRoute();
+    if(_activeTab!==prevTab||_activeSub!==prevSub){buildNavTabs();renderCards();}
   });
   checkArticleHash();
 }
