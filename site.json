@@ -3,12 +3,13 @@
     "簡報製作",
     "圖像生成",
     "工具箱",
-    "關於我們"
+    "關於我們",
+    "Gremini"
   ],
   "nav": [
     {
       "name": "簡報製作",
-      "ico": "assets/cat-pres-mono.jpg",
+      "ico": "assets/cat-pres-v2.jpg",
       "desc": "AI 簡報生成工具，一鍵製作精美投影片",
       "children": [
         "chat GPT",
@@ -17,40 +18,50 @@
     },
     {
       "name": "圖像生成",
-      "ico": "assets/cat-post-mono.jpg",
+      "ico": "assets/cat-post-v2.jpg",
       "desc": "快速產出視覺內容",
       "children": []
     },
     {
       "name": "工具箱",
-      "ico": "assets/cat-tool-mono.jpg",
+      "ico": "assets/cat-tool-v2.jpg",
       "desc": "各類 AI 工具整合，提升工作效率",
       "children": []
     },
     {
       "name": "關於我們",
-      "ico": "assets/cat-abt-mono.jpg",
+      "ico": "assets/cat-abt-v2.jpg",
       "desc": "關於本平台與 AI 推廣計畫",
+      "children": []
+    },
+    {
+      "name": "Gremini",
+      "ico": "assets/cat-toolbox.jpg",
+      "desc": "",
       "children": []
     }
   ],
   "gemUrl": "https://gemini.google.com/gem/1-I-HEXLdgeStt9PmL-dla2q8Blq3Omop?usp=sharing",
   "heroMeta": [
     {
-      "ico": "assets/cat-pres-mono.jpg",
+      "ico": "assets/cat-pres-v2.jpg",
       "desc": "AI 簡報生成工具，一鍵製作精美投影片"
     },
     {
-      "ico": "assets/cat-post-mono.jpg",
+      "ico": "assets/cat-post-v2.jpg",
       "desc": "快速產出視覺內容"
     },
     {
-      "ico": "assets/cat-tool-mono.jpg",
+      "ico": "assets/cat-tool-v2.jpg",
       "desc": "各類 AI 工具整合，提升工作效率"
     },
     {
-      "ico": "assets/cat-abt-mono.jpg",
+      "ico": "assets/cat-abt-v2.jpg",
       "desc": "關於本平台與 AI 推廣計畫"
+    },
+    {
+      "ico": "assets/cat-toolbox.jpg",
+      "desc": ""
     }
   ],
   "settings": {
