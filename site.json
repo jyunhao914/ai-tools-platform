@@ -1,6 +1,7 @@
 {
   "pages": [
     "簡報製作",
+    "簡報轉影片",
     "圖像生成",
     "工具箱",
     "關於我們",
@@ -10,11 +11,17 @@
     {
       "name": "簡報製作",
       "ico": "assets/cat-pres-v2.jpg",
-      "desc": "AI 簡報生成工具，一鍵製作精美投影片",
+      "desc": "AI 簡報生成工具，製作精美投影片",
       "children": [
         "chat GPT",
         "Gemini"
       ]
+    },
+    {
+      "name": "簡報轉影片",
+      "ico": "assets/cat-toolbox.jpg",
+      "desc": "",
+      "children": []
     },
     {
       "name": "圖像生成",
@@ -45,7 +52,11 @@
   "heroMeta": [
     {
       "ico": "assets/cat-pres-v2.jpg",
-      "desc": "AI 簡報生成工具，一鍵製作精美投影片"
+      "desc": "AI 簡報生成工具，製作精美投影片"
+    },
+    {
+      "ico": "assets/cat-toolbox.jpg",
+      "desc": ""
     },
     {
       "ico": "assets/cat-post-v2.jpg",
