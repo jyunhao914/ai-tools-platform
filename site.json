@@ -10,7 +10,10 @@
       "name": "簡報生成",
       "ico": "assets/cat-pres-v2.jpg",
       "desc": "AI 簡報生成工具，一鍵製作精美投影片",
-      "children": []
+      "children": [
+        "chat GPT",
+        "Gemini"
+      ]
     },
     {
       "name": "海報製作",
