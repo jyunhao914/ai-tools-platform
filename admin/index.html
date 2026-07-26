@@ -457,9 +457,39 @@ $('patSaveBtn').onclick=function(){
   S.token=v;localStorage.setItem('gh_pat',v);
   tryLogin();
 };
+/* 登出會清掉本機唯一一份 token，而 GitHub 的 PAT 只顯示一次 →
+   沒另存就等於要重新建一個。所以先讓使用者有機會複製起來。 */
 $('logoutBtn').onclick=function(){
-  if(isDirty()&&!confirm('有未發佈的變更，確定登出？'))return;
-  localStorage.removeItem('gh_pat');location.reload();
+  if(isDirty()&&!confirm('有未發佈的變更，登出後會遺失。確定？'))return;
+  var tok=S.token||'';
+  if(!tok){localStorage.removeItem('gh_pat');location.reload();return}
+  var ov=document.createElement('div');
+  ov.className='overlay show';
+  ov.innerHTML='<div class="modal" style="max-width:520px">'
+    +'<h3 style="margin:0 0 10px">登出前先確認</h3>'
+    +'<p class="hint" style="margin:0 0 14px;line-height:1.75">登出會清除這台裝置上的 token。'
+    +'GitHub 的 token <strong>只在建立時顯示一次</strong>，如果你沒有另外保存，'
+    +'登出後就得回 GitHub 重新建立一個才能再進來。</p>'
+    +'<div class="field"><label>目前的 token（建議先複製到密碼管理員）</label>'
+    +'<input id="lgTok" readonly value="'+esc(tok)+'" style="font-family:ui-monospace,monospace;font-size:12px"></div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:16px">'
+    +'<button class="btn" id="lgCancel">取消</button>'
+    +'<button class="btn" id="lgCopy">📋 複製 token</button>'
+    +'<button class="btn danger" id="lgOut">確定登出</button>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+  var done=function(){ov.remove()};
+  ov.querySelector('#lgCancel').onclick=done;
+  ov.querySelector('#lgCopy').onclick=function(){
+    var i=ov.querySelector('#lgTok');
+    i.select();
+    if(navigator.clipboard)navigator.clipboard.writeText(tok).catch(function(){document.execCommand('copy')});
+    else document.execCommand('copy');
+    this.textContent='✅ 已複製';
+  };
+  ov.querySelector('#lgOut').onclick=function(){
+    localStorage.removeItem('gh_pat');location.reload();
+  };
 };
 
 /* ================= LOAD ================= */
