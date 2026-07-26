@@ -148,6 +148,38 @@ function doGet(e) {
         case "getSettings":
           result = { ok:true, settings: getSettings() };
           break;
+        case "listAssets": {
+          // 檔案庫：列出集中上傳資料夾的檔案（新後台用）
+          var laAuth = checkAdmin(p.pw || '');
+          if (!laAuth.ok) { result = { ok:false, error:'auth' }; break; }
+          var laFolderId = getOrCreateUploadFolder();
+          var laFolder = DriveApp.getFolderById(laFolderId);
+          var laFiles = laFolder.getFiles();
+          var laList = [];
+          while (laFiles.hasNext() && laList.length < 200) {
+            var lf = laFiles.next();
+            laList.push({
+              id: lf.getId(), name: lf.getName(), size: lf.getSize(),
+              mimeType: lf.getMimeType(), date: lf.getDateCreated().toISOString(),
+              fileUrl: 'https://drive.google.com/file/d/' + lf.getId() + '/view',
+              directUrl: 'https://lh3.googleusercontent.com/d/' + lf.getId(),
+              dlUrl: 'https://drive.google.com/uc?export=download&id=' + lf.getId()
+            });
+          }
+          laList.sort(function(a,b){ return a.date < b.date ? 1 : -1; });
+          result = { ok:true, folderId: laFolderId,
+                     folderUrl: 'https://drive.google.com/drive/folders/' + laFolderId,
+                     files: laList };
+          break;
+        }
+        case "deleteAsset": {
+          var daAuth = checkAdmin(p.pw || '');
+          if (!daAuth.ok) { result = { ok:false, error:'auth' }; break; }
+          DriveApp.getFileById(p.id).setTrashed(true);
+          logAdminAction('刪除雲端檔案', p.id, '');
+          result = { ok:true };
+          break;
+        }
         case "saveSetting":
           saveSetting(p.key, p.value);
           result = { ok:true };
@@ -867,6 +899,29 @@ function doPost(e) {
       cache.put(failKey, String(fails + 1), 600);
       var fail = {ok:false, error:'invalid'};
       return ContentService.createTextOutput(JSON.stringify(fail)).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  // ── 檔案庫上傳（純上傳到集中資料夾，不建卡片；新後台用）──
+  if (action === 'uploadAsset') {
+    var uaAuth = checkAdmin(p.pw || '');
+    if (!uaAuth.ok) {
+      return ContentService.createTextOutput(JSON.stringify({ ok:false, error:'auth' })).setMimeType(ContentService.MimeType.JSON);
+    }
+    try {
+      var uaBlob = Utilities.newBlob(Utilities.base64Decode(p.fileData), p.mimeType || 'application/octet-stream', p.fileName || 'file');
+      var uaFolder = DriveApp.getFolderById(getOrCreateUploadFolder());
+      var uaFile = uaFolder.createFile(uaBlob);
+      uaFile.setSharing(DriveApp.Access.ANYONE, DriveApp.Permission.VIEW);
+      logAdminAction('檔案庫上傳', p.fileName || '', '');
+      return ContentService.createTextOutput(JSON.stringify({
+        ok: true, id: uaFile.getId(), name: uaFile.getName(), size: uaFile.getSize(),
+        fileUrl: 'https://drive.google.com/file/d/' + uaFile.getId() + '/view',
+        directUrl: 'https://lh3.googleusercontent.com/d/' + uaFile.getId(),
+        dlUrl: 'https://drive.google.com/uc?export=download&id=' + uaFile.getId()
+      })).setMimeType(ContentService.MimeType.JSON);
+    } catch (uaErr) {
+      return ContentService.createTextOutput(JSON.stringify({ ok:false, error:uaErr.message })).setMimeType(ContentService.MimeType.JSON);
     }
   }
 

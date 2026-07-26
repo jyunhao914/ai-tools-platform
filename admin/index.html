@@ -66,6 +66,16 @@ h2.sec{font-size:17px;margin-bottom:16px}
 .card-row .t .name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card-row .t .sub{color:var(--muted);font-size:12px;margin-top:2px}
 .cat-block.is-sub{margin-left:22px;border-left:2px solid rgba(99,102,241,0.45)}
+/* 檔案庫 */
+.filelib-drop{display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:center;padding:22px 16px;margin-bottom:14px;border:1.5px dashed var(--border2);border-radius:12px;text-align:center;font-size:13.5px;color:var(--muted);transition:border-color .2s,background .2s}
+.filelib-drop.dragover{border-color:var(--accent);background:rgba(99,102,241,0.08)}
+.file-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;font-size:13px}
+.file-row:hover{background:rgba(255,255,255,0.04)}
+.file-row .fico{width:34px;height:34px;border-radius:7px;object-fit:cover;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.file-row .fname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-row .fmeta{color:var(--muted);font-size:11.5px;white-space:nowrap}
+.file-row .btn.small{padding:4px 10px;font-size:12px}
+.filelib-empty{padding:14px;color:var(--muted);font-size:13px;text-align:center}
 .sub-ico{color:var(--muted);opacity:.7}
 .sub-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
 .sub-row input{flex:1}
@@ -173,6 +183,7 @@ h2.sec{font-size:17px;margin-bottom:16px}
     <button data-tab="cards" class="on">🗂 卡片管理</button>
     <button data-tab="pages">📑 頁面與分類</button>
     <button data-tab="site">🛠 網站設定</button>
+    <button data-tab="files">📦 檔案庫</button>
     <button data-tab="history">🕘 版本記錄</button>
   </div>
   <div class="main">
@@ -221,6 +232,46 @@ h2.sec{font-size:17px;margin-bottom:16px}
     </div>
 
     <!-- HISTORY TAB -->
+    <div id="tab-files" class="hidden">
+      <h2 class="sec">檔案庫</h2>
+      <p class="hint" style="margin-bottom:14px">集中管理網站用到的圖片與檔案。<b>站內（GitHub）</b>：速度快、跟網站一起版本控制，適合圖片與 20MB 以下檔案。<b>雲端硬碟</b>：適合安裝檔等大檔，全部集中在同一個資料夾。</p>
+
+      <div class="cat-block">
+        <div class="cat-head">🏠 站內檔案（assets/uploads）<span class="cnt" id="repoLibCnt"></span></div>
+        <div style="padding:14px 16px">
+          <div class="filelib-drop" id="repoDrop">
+            <span>拖曳檔案到這裡，或 <button class="btn small" id="repoPickBtn">選擇檔案</button> 上傳到站內</span>
+            <span class="hint">圖片自動壓縮（長邊 1600px）；上傳立即生效，不需按發佈</span>
+          </div>
+          <input type="file" id="repoFile" multiple class="hidden">
+          <div id="repoLibList"></div>
+        </div>
+      </div>
+
+      <div class="cat-block">
+        <div class="cat-head">☁️ 雲端硬碟（Google Drive 集中資料夾）
+          <span class="cnt" id="driveLibCnt"></span>
+          <div style="flex:1"></div>
+          <a class="btn small" id="driveFolderLink" target="_blank" rel="noopener" style="text-decoration:none;display:none">開啟雲端資料夾 ↗</a>
+        </div>
+        <div style="padding:14px 16px">
+          <div id="gasPwRow" class="field">
+            <label>雲端管理密碼（同舊後台密碼，只存這台裝置）</label>
+            <div style="display:flex;gap:8px">
+              <input id="gasPwInput" type="password" placeholder="輸入後即可使用雲端上傳" style="flex:1">
+              <button class="btn small" id="gasPwSaveBtn">儲存</button>
+            </div>
+          </div>
+          <div class="filelib-drop" id="driveDrop" style="display:none">
+            <span>拖曳檔案到這裡，或 <button class="btn small" id="drivePickBtn">選擇檔案</button> 上傳到雲端資料夾</span>
+            <span class="hint">上限約 25MB；上傳後自動開啟「任何人可檢視」分享</span>
+          </div>
+          <input type="file" id="driveFile" multiple class="hidden">
+          <div id="driveLibList"></div>
+        </div>
+      </div>
+    </div>
+
     <div id="tab-history" class="hidden">
       <h2 class="sec">版本記錄</h2>
       <p class="hint" style="margin-bottom:14px">每次發佈都是一個 commit。「還原」會把該版本的內容載入為暫存變更，再按發佈即可回滾。</p>
@@ -508,8 +559,9 @@ document.querySelectorAll('.side button').forEach(function(b){
   b.onclick=function(){
     document.querySelectorAll('.side button').forEach(function(x){x.classList.remove('on')});
     b.classList.add('on');
-    ['cards','pages','site','history'].forEach(function(t){$('tab-'+t).classList.toggle('hidden',t!==b.dataset.tab)});
+    ['cards','pages','site','files','history'].forEach(function(t){$('tab-'+t).classList.toggle('hidden',t!==b.dataset.tab)});
     if(b.dataset.tab==='history')loadHistory();
+    if(b.dataset.tab==='files')loadFileLib();
   };
 });
 
@@ -1222,6 +1274,172 @@ function checkStale(){
       .catch(function(){return null});
   })).then(function(r){return r.filter(Boolean)});
 }
+
+/* ================= 檔案庫 ================= */
+var GAS_API='https://script.google.com/macros/s/AKfycbx6qfQFbhAwiqA4AdRisH2HuZDw8iLQEEw-pxraTYCCoMInj0O9cpygBSsB6ii32j21/exec';
+var SITE_BASE='https://jyunhao914.github.io/ai-tools-platform/';
+function gasPw(){return localStorage.getItem('gas_pw')||''}
+/* GAS GET 走 JSONP（跟前台同一套，醫院網路實測可用） */
+var _jsonpId=0;
+function gasGet(params){
+  return new Promise(function(res,rej){
+    var cb='_flcb_'+(++_jsonpId);
+    var q=Object.keys(params).map(function(k){return k+'='+encodeURIComponent(params[k])}).join('&');
+    var s=document.createElement('script');
+    var t=setTimeout(function(){delete window[cb];rej(new Error('逾時'))},20000);
+    window[cb]=function(d){clearTimeout(t);delete window[cb];res(d)};
+    s.src=GAS_API+'?'+q+'&callback='+cb;
+    s.onerror=function(){clearTimeout(t);delete window[cb];rej(new Error('連線失敗'))};
+    document.head.appendChild(s);
+  });
+}
+function gasPost(params){
+  var body=new URLSearchParams();
+  Object.keys(params).forEach(function(k){body.set(k,params[k])});
+  return fetch(GAS_API,{method:'POST',body:body}).then(function(r){return r.json()});
+}
+function fmtSize(n){return n>1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB'}
+function copyText(t,btn){
+  (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).catch(function(){
+    var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();
+  });
+  if(btn){var o=btn.textContent;btn.textContent='✅';setTimeout(function(){btn.textContent=o},1200)}
+}
+function readAsB64(file){
+  return new Promise(function(res){
+    var r=new FileReader();
+    r.onload=function(){res(r.result.split(',')[1])};
+    r.readAsDataURL(file);
+  });
+}
+
+function loadFileLib(){loadRepoLib();initGasPwUI();if(gasPw())loadDriveLib();}
+
+/* ── 站內（repo）── */
+function loadRepoLib(){
+  gh('/repos/'+OWNER+'/'+REPO+'/contents/assets/uploads?ref='+BRANCH+'&t='+Date.now()).then(function(items){
+    var list=$('repoLibList');list.innerHTML='';
+    items=(items||[]).filter(function(i){return i.type==='file'}).sort(function(a,b){return a.name<b.name?1:-1});
+    $('repoLibCnt').textContent=items.length+' 個檔案';
+    if(!items.length){list.innerHTML='<div class="filelib-empty">還沒有檔案</div>';return}
+    items.forEach(function(it){
+      var url=SITE_BASE+'assets/uploads/'+encodeURIComponent(it.name);
+      var isImg=/\.(jpe?g|png|webp|gif|svg)$/i.test(it.name);
+      var row=document.createElement('div');row.className='file-row';
+      row.innerHTML=(isImg?'<img class="fico" loading="lazy" src="../assets/uploads/'+esc(it.name)+'">':'<span class="fico">📄</span>')
+        +'<span class="fname" title="'+esc(it.name)+'">'+esc(it.name)+'</span>'
+        +'<span class="fmeta">'+fmtSize(it.size)+'</span>'
+        +'<button class="btn small" data-copy>📋 複製網址</button>'
+        +'<button class="btn small danger" data-del>刪除</button>';
+      row.querySelector('[data-copy]').onclick=function(){copyText(url,this)};
+      row.querySelector('[data-del]').onclick=function(){
+        if(!confirm('刪除「'+it.name+'」？網站上引用它的地方會破圖。'))return;
+        gh('/repos/'+OWNER+'/'+REPO+'/contents/assets/uploads/'+encodeURIComponent(it.name),{
+          method:'DELETE',
+          body:JSON.stringify({message:'admin: 檔案庫刪除 '+it.name,sha:it.sha,branch:BRANCH})
+        }).then(function(){toast('已刪除');loadRepoLib()}).catch(function(e){toast('刪除失敗：'+e.message,5000)});
+      };
+      list.appendChild(row);
+    });
+  }).catch(function(e){$('repoLibList').innerHTML='<div class="filelib-empty">載入失敗：'+esc(e.message)+'</div>'});
+}
+function uploadToRepo(file){
+  var doUpload=function(b64,ext){
+    var safe=file.name.replace(/\.[^.]+$/,'').replace(/[^\w一-鿿-]+/g,'_').slice(0,40);
+    var path='assets/uploads/'+Date.now()+'_'+safe+(ext||('.'+(file.name.split('.').pop()||'bin')));
+    toast('上傳中：'+file.name);
+    gh('/repos/'+OWNER+'/'+REPO+'/contents/'+path,{
+      method:'PUT',
+      body:JSON.stringify({message:'admin: 檔案庫上傳 '+file.name,content:b64,branch:BRANCH})
+    }).then(function(){toast('✅ 已上傳（約 1 分鐘後可在網站使用）');loadRepoLib()})
+      .catch(function(e){toast('上傳失敗：'+e.message,6000)});
+  };
+  if(/^image\/(jpeg|png|webp)/.test(file.type)){
+    processImage(file,function(b64,ext){doUpload(b64,ext)});
+  }else{
+    if(file.size>20*1024*1024){toast('站內上限 20MB，大檔請改用雲端硬碟',5000);return}
+    readAsB64(file).then(function(b64){doUpload(b64,null)});
+  }
+}
+
+/* ── 雲端（Drive via GAS）── */
+function initGasPwUI(){
+  var has=!!gasPw();
+  $('gasPwRow').style.display=has?'none':'';
+  $('driveDrop').style.display=has?'':'none';
+}
+$('gasPwSaveBtn').onclick=function(){
+  var v=$('gasPwInput').value.trim();
+  if(!v){toast('請輸入密碼');return}
+  localStorage.setItem('gas_pw',v);
+  gasGet({action:'listAssets',pw:v}).then(function(d){
+    if(d&&d.ok){toast('✅ 已連上雲端資料夾');initGasPwUI();renderDriveLib(d)}
+    else{localStorage.removeItem('gas_pw');toast('密碼不正確',4000)}
+  }).catch(function(e){localStorage.removeItem('gas_pw');toast('連線失敗：'+e.message,5000)});
+};
+function loadDriveLib(){
+  $('driveLibList').innerHTML='<div class="filelib-empty">載入中…</div>';
+  gasGet({action:'listAssets',pw:gasPw()}).then(function(d){
+    if(!d||!d.ok){
+      if(d&&d.error==='auth'){localStorage.removeItem('gas_pw');initGasPwUI();toast('雲端密碼已失效，請重新輸入')}
+      else $('driveLibList').innerHTML='<div class="filelib-empty">載入失敗</div>';
+      return;
+    }
+    renderDriveLib(d);
+  }).catch(function(){$('driveLibList').innerHTML='<div class="filelib-empty">連線失敗（script.google.com 可能被網路擋住）</div>'});
+}
+function renderDriveLib(d){
+  var fl=$('driveFolderLink');fl.href=d.folderUrl;fl.style.display='';
+  $('driveLibCnt').textContent=d.files.length+' 個檔案';
+  var list=$('driveLibList');list.innerHTML='';
+  if(!d.files.length){list.innerHTML='<div class="filelib-empty">資料夾是空的</div>';return}
+  d.files.forEach(function(f){
+    var isImg=/^image\//.test(f.mimeType||'');
+    var row=document.createElement('div');row.className='file-row';
+    row.innerHTML=(isImg?'<img class="fico" loading="lazy" src="'+esc(f.directUrl)+'=w80">':'<span class="fico">☁️</span>')
+      +'<span class="fname" title="'+esc(f.name)+'">'+esc(f.name)+'</span>'
+      +'<span class="fmeta">'+fmtSize(f.size)+' · '+f.date.slice(0,10)+'</span>'
+      +'<button class="btn small" data-c="fileUrl" title="開啟預覽頁的連結">📋 連結</button>'
+      +(isImg?'<button class="btn small" data-c="directUrl" title="可直接當 img src 的網址">🖼 直連</button>'
+             :'<button class="btn small" data-c="dlUrl" title="點了直接下載的網址">⬇ 下載連結</button>')
+      +'<button class="btn small danger" data-del>刪除</button>';
+    row.querySelectorAll('[data-c]').forEach(function(b){
+      b.onclick=function(){copyText(f[b.dataset.c],b)};
+    });
+    row.querySelector('[data-del]').onclick=function(){
+      if(!confirm('把「'+f.name+'」移到雲端垃圾桶？'))return;
+      gasGet({action:'deleteAsset',pw:gasPw(),id:f.id}).then(function(r){
+        if(r&&r.ok){toast('已刪除');loadDriveLib()}else toast('刪除失敗',4000);
+      });
+    };
+    list.appendChild(row);
+  });
+}
+function uploadToDrive(file){
+  if(file.size>25*1024*1024){toast('雲端上傳上限約 25MB；更大的檔案請直接放進雲端資料夾',6000);return}
+  toast('上傳中：'+file.name+'（'+fmtSize(file.size)+'）');
+  readAsB64(file).then(function(b64){
+    return gasPost({action:'uploadAsset',pw:gasPw(),fileData:b64,fileName:file.name,mimeType:file.type||'application/octet-stream'});
+  }).then(function(r){
+    if(r&&r.ok){toast('✅ 已上傳到雲端資料夾');loadDriveLib()}
+    else toast('上傳失敗：'+((r&&r.error)||'未知錯誤'),6000);
+  }).catch(function(e){toast('上傳失敗：'+e.message,6000)});
+}
+
+/* 綁定：選檔與拖曳 */
+function bindDrop(zone,input,handler){
+  zone.addEventListener('dragover',function(e){e.preventDefault();zone.classList.add('dragover')});
+  zone.addEventListener('dragleave',function(){zone.classList.remove('dragover')});
+  zone.addEventListener('drop',function(e){
+    e.preventDefault();zone.classList.remove('dragover');
+    [].slice.call(e.dataTransfer.files).forEach(handler);
+  });
+  input.onchange=function(){[].slice.call(this.files).forEach(handler);this.value=''};
+}
+$('repoPickBtn').onclick=function(){$('repoFile').click()};
+$('drivePickBtn').onclick=function(){$('driveFile').click()};
+bindDrop($('repoDrop'),$('repoFile'),uploadToRepo);
+bindDrop($('driveDrop'),$('driveFile'),uploadToDrive);
 
 /* ================= BOOT ================= */
 tryLogin();
