@@ -739,7 +739,6 @@ html.lite .hero-card,html.lite .card{transition:none}
 <section class="hero" id="hero">
   <div class="hero-bg" id="heroBg"></div>
   <div class="hero-content">
-    <div class="hero-badge">&#10022; AI-Powered</div>
     <h1 class="hero-title" id="heroTitle">AI 工具資源平台</h1>
     <p class="hero-sub" id="heroSub">為教師、學生、行政與影音製作人員
 整合最新 AI 科技工具，提升每日工作效能</p>
@@ -765,7 +764,7 @@ html.lite .hero-card,html.lite .card{transition:none}
   </div>
 </section>
 
-<footer class="footer" id="siteFooter">AI 工具資源平台 &middot; 持續更新中 &middot; 聯絡：<a href="mailto:zxc80057@gmail.com" style="color:inherit;text-decoration:none">zxc80057@gmail.com</a><span style="opacity:0.35;margin-left:10px;font-size:11px">v2.1.3 · 2026-05-04</span><span id="studentLoginDot" style="cursor:pointer;opacity:0.25;font-size:11px;margin-left:10px;user-select:none" title="">&#9679;</span></footer>
+<footer class="footer" id="siteFooter">AI 工具資源平台 &middot; 持續更新中 &middot; 聯絡：<a href="mailto:zxc80057@gmail.com" style="color:inherit;text-decoration:none">zxc80057@gmail.com</a><span style="opacity:0.35;margin-left:10px;font-size:11px" id="siteUpdated"></span><span id="studentLoginDot" style="cursor:pointer;opacity:0.25;font-size:11px;margin-left:10px;user-select:none" title="">&#9679;</span></footer>
 
 <button class="admin-gear" id="adminGear" title="管理後台">&#9881;</button>
 
@@ -891,6 +890,16 @@ if(!String.prototype.startsWith){String.prototype.startsWith=function(s,p){p=p||
 if(!Element.prototype.closest){Element.prototype.closest=function(sel){var el=this;while(el&&el.nodeType===1){if(el.matches(sel))return el;el=el.parentElement;}return null;};}
 if(!Element.prototype.matches){Element.prototype.matches=Element.prototype.msMatchesSelector||Element.prototype.webkitMatchesSelector||function(s){var m=this.ownerDocument.querySelectorAll(s);for(var i=0;i<m.length;i++){if(m[i]===this)return true;}return false;};}
 
+/* ====== SAFE STORAGE ====== */
+/* 受管理/封鎖 cookie 的 Chrome 會讓 localStorage 一碰就丟例外 → 全頁白屏。
+   一律走 try/catch 包裝，存取失敗就當沒有快取。 */
+var LS={get:function(k){try{return window.LS.get(k)}catch(e){return null}},
+        set:function(k,v){try{window.LS.set(k,v)}catch(e){}},
+        rm:function(k){try{window.LS.rm(k)}catch(e){}}};
+var SS={get:function(k){try{return window.SS.get(k)}catch(e){return null}},
+        set:function(k,v){try{window.SS.set(k,v)}catch(e){}},
+        rm:function(k){try{window.SS.rm(k)}catch(e){}}};
+
 /* ====== CONFIG ====== */
 var GAS_API='https://script.google.com/macros/s/AKfycbx6qfQFbhAwiqA4AdRisH2HuZDw8iLQEEw-pxraTYCCoMInj0O9cpygBSsB6ii32j21/exec';
 var _cbId=0;
@@ -926,8 +935,8 @@ var HERO_META=[
 /* ====== JSONP ====== */
 function gasAPI(action,params,callback){
   var url=GAS_API+'?action='+encodeURIComponent(action);
-  var pw=sessionStorage.getItem('admin_pw')||'';
-  var stok=localStorage.getItem('student_token')||'';
+  var pw=SS.get('admin_pw')||'';
+  var stok=LS.get('student_token')||'';
   if(pw){if(!params)params={};if(!params.pw)params.pw=pw;}
   else if(stok){if(!params)params={};if(!params.token)params.token=stok;}
   if(params){for(var k in params){if(params.hasOwnProperty(k)){url+='&'+encodeURIComponent(k)+'='+encodeURIComponent(params[k])}}}
@@ -952,8 +961,8 @@ function gasAPIPost(action,params,callback){
      夾帶瀏覽器的 Google cookies，GAS 會把請求彈去帳號頁 → 寫入靜默失敗、
      又固定 4 秒回 ok，造成「存了沒生效」。XHR 不帶跨域 cookies，GAS 以
      匿名處理（部署為 Anyone），回應可直接讀取驗證。 */
-  var pw=sessionStorage.getItem('admin_pw')||'';
-  var stok=localStorage.getItem('student_token')||'';
+  var pw=SS.get('admin_pw')||'';
+  var stok=LS.get('student_token')||'';
   if(!params)params={};
   params.action=action;
   if(pw)params.pw=pw;
@@ -994,13 +1003,13 @@ function gasLogin(username,password,callback){
 
 function enableStudentMode(token){
   /* 互斥：若已是管理員，先清掉管理員身份 */
-  if(sessionStorage.getItem('admin_pw')){
-    sessionStorage.removeItem('admin_pw');
+  if(SS.get('admin_pw')){
+    SS.rm('admin_pw');
     document.body.classList.remove('admin-mode');
     var _ab=document.getElementById('adminBar');if(_ab)_ab.remove();
   }
   _userRole='student';
-  localStorage.setItem('student_token',token);
+  LS.set('student_token',token);
   var badge=$('studentBadge');
   if(badge)badge.style.display='';
   /* 重新抓資料：原本快取/snapshot 是 public 視角，沒有學員卡片 */
@@ -1017,7 +1026,7 @@ function enableStudentMode(token){
 
 function disableStudentMode(){
   _userRole='public';
-  localStorage.removeItem('student_token');
+  LS.rm('student_token');
   var badge=$('studentBadge');
   if(badge)badge.style.display='none';
   var menu=document.getElementById('studentBadgeMenu');
@@ -1535,8 +1544,8 @@ function addAdminEditBtn(el,card){
 
 function enableAdminMode(){
   /* 互斥：若已是學員，先清掉學員身份 */
-  if(localStorage.getItem('student_token')){
-    localStorage.removeItem('student_token');
+  if(LS.get('student_token')){
+    LS.rm('student_token');
     var _sb=$('studentBadge');if(_sb)_sb.style.display='none';
     var _sm=document.getElementById('studentBadgeMenu');if(_sm)_sm.remove();
   }
@@ -1569,7 +1578,7 @@ function enableAdminMode(){
     bar.appendChild(barBtnAdmin);
     var barBtnLogout=ce('button','','\u767B\u51FA');
     barBtnLogout.style.cssText='margin-left:8px;padding:4px 12px;border-radius:6px;border:none;background:rgba(239,68,68,0.3);color:#fff;cursor:pointer';
-    barBtnLogout.onclick=function(){_userRole='public';document.body.classList.remove('admin-mode');bar.remove();sessionStorage.removeItem('admin_pw');renderCards()};
+    barBtnLogout.onclick=function(){_userRole='public';document.body.classList.remove('admin-mode');bar.remove();SS.rm('admin_pw');renderCards()};
     bar.appendChild(barBtnLogout);
     document.body.insertBefore(bar,document.body.firstChild);
   }
@@ -1579,7 +1588,7 @@ function enableAdminMode(){
 
 /* 管理員快速切換檢視身份；不影響登入狀態，只改前端顯示 */
 function setAdminViewAs(role,skipRender){
-  if(!sessionStorage.getItem('admin_pw'))return;
+  if(!SS.get('admin_pw'))return;
   _userRole=role;
   if(role==='admin')document.body.classList.add('admin-mode');
   else document.body.classList.remove('admin-mode');
@@ -1842,7 +1851,7 @@ function insertCompressedImage(file,altText){
   compressImage(file,function(dataUrl){
     /* Upload compressed image to Google Drive via uploadFile doPost */
     var base64Data=dataUrl.split(',')[1];
-    var pw=sessionStorage.getItem('admin_pw')||'';
+    var pw=SS.get('admin_pw')||'';
     var fileName='article_img_'+Date.now()+'.jpg';
 
     /* Use XMLHttpRequest to POST to Apps Script (form-encoded) */
@@ -1930,6 +1939,7 @@ function applySiteInfo(){
   if(_settings.site_subtitle&&s)s.textContent=_settings.site_subtitle;
   if(_settings.site_badge&&b)b.textContent=_settings.site_badge;
   if(_settings.site_footer&&f)f.textContent=_settings.site_footer;
+  var su=$('siteUpdated');if(su&&_settings.site_updated)su.textContent='更新於 '+String(_settings.site_updated).slice(0,10);
   if(_settings.site_nav_title&&n)n.textContent=_settings.site_nav_title;
 }
 
@@ -2122,11 +2132,11 @@ document.addEventListener('keydown',function(e){
 
 /* ====== ADMIN ====== */
 function openAdmin(){
-  var savedPw=sessionStorage.getItem('admin_pw')||'';
+  var savedPw=SS.get('admin_pw')||'';
   function tryAuth(pw){
     gasAPI('checkAdmin',{pw:pw},function(res){
       if(res&&res.ok){
-        sessionStorage.setItem('admin_pw',pw);
+        SS.set('admin_pw',pw);
         enableAdminMode();
         $('adminOverlay').classList.add('show');
         _adminTab='cards';
@@ -2824,7 +2834,7 @@ function openEditModal(card,defaultPage){
             imgUpBtn.textContent='\u4E0A\u50B3\u4E2D...';imgUpBtn.disabled=true;
             compressImage(file,function(dataUrl){
               var base64=dataUrl.split(',')[1];
-              var pw=sessionStorage.getItem('admin_pw')||'';
+              var pw=SS.get('admin_pw')||'';
               var fd=new URLSearchParams();
               fd.set('action','uploadFile');fd.set('pw',pw);
               fd.set('fileData',base64);fd.set('fileName','card_img_'+Date.now()+'.jpg');fd.set('mimeType','image/jpeg');
@@ -3044,7 +3054,7 @@ function openEditModal(card,defaultPage){
         canvas.getContext('2d').drawImage(img,0,0,w,h);
         var dataUrl=canvas.toDataURL('image/jpeg',0.85);
         var base64=dataUrl.split(',')[1];
-        var pw=sessionStorage.getItem('admin_pw')||'';
+        var pw=SS.get('admin_pw')||'';
         var formData=new URLSearchParams();
         formData.set('action','uploadFile');
         formData.set('pw',pw);
@@ -3363,7 +3373,7 @@ function openEditModal(card,defaultPage){
       reader.onload=function(){
         prog.style.width='30%';
         var base64=reader.result.split(',')[1];
-        var pw=sessionStorage.getItem('admin_pw')||'';
+        var pw=SS.get('admin_pw')||'';
         var formData=new URLSearchParams();
         formData.set('action','uploadFile');
         formData.set('pw',pw);
@@ -3467,7 +3477,7 @@ function openEditModal(card,defaultPage){
   /* Autosave to localStorage every 30s */
   var _autosaveKey='article_draft_'+(card?card.id:'new');
   /* Restore draft if exists */
-  var draft=localStorage.getItem(_autosaveKey);
+  var draft=LS.get(_autosaveKey);
   if(draft&&!editor.innerHTML.trim()){
     editor.innerHTML=draft;
     autosaveLabel.textContent='已還原草稿';
@@ -3478,7 +3488,7 @@ function openEditModal(card,defaultPage){
     if(!ed)return;
     var content=ed.innerHTML;
     if(content&&content!=='<br>'){
-      localStorage.setItem(_autosaveKey,content);
+      LS.set(_autosaveKey,content);
       var lbl=$('autosaveLabel');
       if(lbl){lbl.textContent='已自動存稿 '+new Date().toLocaleTimeString();lbl.className='autosave-indicator saved';}
     }
@@ -3680,7 +3690,7 @@ $('modalSave').onclick=function(){
         var xhr=new XMLHttpRequest();
         var formData=new URLSearchParams();
         formData.set('action','uploadFile');
-        formData.set('pw',sessionStorage.getItem('admin_pw')||'');
+        formData.set('pw',SS.get('admin_pw')||'');
         formData.set('fileData',base64);
         formData.set('fileName',file.name);
         formData.set('mimeType',file.type||'application/octet-stream');
@@ -4039,18 +4049,18 @@ function refreshMainData(){
 
 /* ====== DARK/LIGHT THEME TOGGLE ====== */
 function initTheme(){
-  var saved=localStorage.getItem('theme')||'dark';
+  var saved=LS.get('theme')||'dark';
   applyTheme(saved);
 }
 function applyTheme(theme){
   document.documentElement.setAttribute('data-theme',theme);
   var btn=$('themeToggle');
   if(btn)btn.textContent=theme==='dark'?'\u2600\uFE0F':'\uD83C\uDF19';
-  localStorage.setItem('theme',theme);
+  LS.set('theme',theme);
 }
 if($('themeToggle')){
   $('themeToggle').onclick=function(){
-    var current=localStorage.getItem('theme')||'dark';
+    var current=LS.get('theme')||'dark';
     applyTheme(current==='dark'?'light':'dark');
   };
 }
@@ -4151,30 +4161,30 @@ var CACHE_KEY='aitools_v4';
 var CACHE_TTL=300000; /* 5 min */
 
 function saveCache(obj){
-  try{obj._ts=Date.now();obj._ver=4;localStorage.setItem(CACHE_KEY,JSON.stringify(obj));
+  try{obj._ts=Date.now();obj._ver=4;LS.set(CACHE_KEY,JSON.stringify(obj));
   /* clear ALL old cache keys */
-  try{['aitools_cache','aitools_v2','aitools_v3'].forEach(function(k){localStorage.removeItem(k)})}catch(e2){}
+  try{['aitools_cache','aitools_v2','aitools_v3'].forEach(function(k){LS.rm(k)})}catch(e2){}
   }catch(e){}
 }
 function loadCache(){
   try{
     /* clear ALL legacy caches */
-    try{['aitools_cache','aitools_v2','aitools_v3'].forEach(function(k){localStorage.removeItem(k)})}catch(e2){}
-    var raw=localStorage.getItem(CACHE_KEY);
+    try{['aitools_cache','aitools_v2','aitools_v3'].forEach(function(k){LS.rm(k)})}catch(e2){}
+    var raw=LS.get(CACHE_KEY);
     if(!raw)return null;
     var obj;
-    try{obj=JSON.parse(raw)}catch(pe){localStorage.removeItem(CACHE_KEY);return null}
+    try{obj=JSON.parse(raw)}catch(pe){LS.rm(CACHE_KEY);return null}
     /* Validate cache: must have cards array with items and valid pages */
     if(!obj||typeof obj!=='object'||!Array.isArray(obj.cards)||!obj.cards.length||!Array.isArray(obj.pages)||!obj.pages.length){
-      localStorage.removeItem(CACHE_KEY);return null;
+      LS.rm(CACHE_KEY);return null;
     }
     /* Expire cache after 1 hour */
     if(obj._ts&&(Date.now()-obj._ts>3600000)){
-      localStorage.removeItem(CACHE_KEY);return null;
+      LS.rm(CACHE_KEY);return null;
     }
     return obj;
   }catch(e){
-    try{localStorage.removeItem(CACHE_KEY)}catch(e2){}
+    try{LS.rm(CACHE_KEY)}catch(e2){}
     return null;
   }
 }
@@ -4194,13 +4204,13 @@ function mergeAdminExtra(cards,adminCards){
     ['meta1','copyContent','btnLabel','btnIcon','btnStyle'].forEach(function(k){if(full[k])c[k]=full[k]});
   });
   /* Auto-migrate: if admin has pw, write meta1/meta2/meta3 for cards missing them */
-  if(sessionStorage.getItem('admin_pw')){
+  if(SS.get('admin_pw')){
     autoMigrateMeta(cards);
   }
 }
 
 function autoMigrateMeta(cards){
-  var migrated=localStorage.getItem('_meta_migrated_v1');
+  var migrated=LS.get('_meta_migrated_v1');
   if(migrated)return;
   var queue=[];
   cards.forEach(function(c){
@@ -4218,11 +4228,11 @@ function autoMigrateMeta(cards){
     c.meta3=JSON.stringify({i:c.linkBtnIcon||c.btnIcon||'',s:c.btnStyle||'primary',c:c.copyContent||''});
     queue.push(JSON.parse(JSON.stringify(c)));
   });
-  if(!queue.length){localStorage.setItem('_meta_migrated_v1','1');return;}
+  if(!queue.length){LS.set('_meta_migrated_v1','1');return;}
   var idx=0;
   function saveNext(){
     if(idx>=queue.length){
-      localStorage.setItem('_meta_migrated_v1','1');
+      LS.set('_meta_migrated_v1','1');
       console.log('[Migration] Done, updated '+queue.length+' cards');
       return;
     }
@@ -4311,12 +4321,12 @@ function init(){
     buildNavTabs();buildHeroGrid();renderCards();renderLatest();updateVisit();observeCards();
   }
   /* Resume login state — admin 與 student 互斥，管理員優先 */
-  if(sessionStorage.getItem('admin_pw')){
+  if(SS.get('admin_pw')){
     /* 若有殘留學員 token，清除以維持互斥 */
-    if(localStorage.getItem('student_token'))localStorage.removeItem('student_token');
+    if(LS.get('student_token'))LS.rm('student_token');
     enableAdminMode();
   } else {
-    var stok=localStorage.getItem('student_token');
+    var stok=LS.get('student_token');
     if(stok){_userRole='student';var badge=$('studentBadge');if(badge)badge.style.display='';}
   }
   /* Footer hidden student login dot */
@@ -4775,7 +4785,7 @@ function hydrateInlineCopyBtns(container){
    開頁後量 0.8 秒實際 FPS，低於 24 就加上 html.lite 關特效，並記住。 */
 (function(){
   try{
-    if(localStorage.getItem('lite_mode')==='1'){
+    if(LS.get('lite_mode')==='1'){
       document.documentElement.classList.add('lite');
       return;
     }
@@ -4790,7 +4800,7 @@ function hydrateInlineCopyBtns(container){
     var fps=frames/(dt/1000);
     if(fps<24){
       document.documentElement.classList.add('lite');
-      try{localStorage.setItem('lite_mode','1');}catch(e){}
+      try{LS.set('lite_mode','1');}catch(e){}
     }
   }
   requestAnimationFrame(tick);

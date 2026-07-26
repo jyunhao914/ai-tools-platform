@@ -1219,6 +1219,7 @@ $('pubGoBtn').onclick=function(){
   btn.disabled=true;btn.innerHTML='<span class="spin"></span>發佈中…';
   /* sync pages/gemUrl into data.json for frontend cache compat */
   ensureNav();syncNavDerived();
+  S.site.settings.site_updated=new Date().toISOString();
   S.data.pages=S.site.pages;
   S.data.nav=S.site.nav;
   S.data.gemUrl=S.site.gemUrl;
