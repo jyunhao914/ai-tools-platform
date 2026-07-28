@@ -1499,7 +1499,7 @@ function renderCards(){
       chipBar.innerHTML='';chipBar.style.display='none';
     }
   }
-  $('toolsHead').innerHTML=esc(_activeTab)+(_activeSub?' <span style="opacity:.7">\u203A</span> '+esc(_activeSub):'')+' <span>\u2014 \u5217\u8868\uFF08'+filtered.length+' \u9805\uFF09</span>';
+  $('toolsHead').innerHTML=esc(_activeTab)+(_activeSub?' <span style="opacity:.7">\u203A</span> '+esc(_activeSub):'')+' <span style="font-size:12px;font-weight:400;color:var(--text3)">\u2014 \u5217\u8868\uFF08'+filtered.length+' \u9805\uFF09</span>';
   if(!filtered.length){
     grid.innerHTML='<div class="tools-empty">\uD83D\uDD0D \u6B64\u5206\u985E\u66AB\u7121\u5167\u5BB9</div>';
     return;
