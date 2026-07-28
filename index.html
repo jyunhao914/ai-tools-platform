@@ -1424,6 +1424,14 @@ function buildSlider(imgs,card){
     img.alt='';
     img.loading='lazy';
     img.decoding='async';
+    /* 後台剛發佈時 Pages 尚未部署完成會 404，最多重試 5 次（每 20 秒） */
+    var _retries=0;
+    img.onerror=function(){
+      if(_retries>=5)return;
+      _retries++;
+      var base=spec.url.split('?')[0];
+      setTimeout(function(){img.src=base+'?r='+Date.now()},20000);
+    };
     img.style.objectFit=spec.fit;
     img.style.objectPosition=spec.pos;
     if(i===0)img.classList.add('active');
@@ -1611,7 +1619,7 @@ function renderOneLinkCard(grid,card){
   var imgs=getCardImages(card);
   el.appendChild(buildSlider(imgs,card));
   var body=ce('div','card-body');
-  if(card.tag)body.appendChild(ce('div','card-tag',esc(card.tag)));
+  /* 卡片不再顯示 tag 標籤（後台/搜尋仍保留 tag 欄位） */
   body.appendChild(ce('div','card-title',esc(card.title)));
   var _desc=card.description||card.desc;if(_desc)body.appendChild(ce('div','card-desc',esc(_desc)));
   /* Parse meta3 JSON config (stored by save for getData compatibility) */
@@ -1653,7 +1661,7 @@ function renderOneFileCard(grid,card){
   ph.style.fontSize='56px';
   el.appendChild(ph);
   var body=ce('div','card-body');
-  if(card.tag)body.appendChild(ce('div','card-tag',esc(card.tag)));
+  /* 卡片不再顯示 tag 標籤（後台/搜尋仍保留 tag 欄位） */
   body.appendChild(ce('div','card-title',esc(card.title)));
   var _desc=card.description||card.desc;if(_desc)body.appendChild(ce('div','card-desc',esc(_desc)));
   if(card.fileName){body.appendChild(ce('div','card-meta','<span>'+esc(card.fileName)+'</span>'));}
@@ -1686,7 +1694,7 @@ function renderOneArticleCard(grid,card){
     el.appendChild(ph);
   }
   var body=ce('div','card-body');
-  if(card.tag)body.appendChild(ce('div','card-tag',esc(card.tag)));
+  /* 卡片不再顯示 tag 標籤（後台/搜尋仍保留 tag 欄位） */
   body.appendChild(ce('div','card-title',esc(card.title)));
   /* excerpt */
   var tmp=document.createElement('div');
@@ -1721,7 +1729,7 @@ function renderOneCopyCard(grid,card){
     el.appendChild(ph);
   }
   var body=ce('div','card-body');
-  if(card.tag)body.appendChild(ce('div','card-tag',esc(card.tag)));
+  /* 卡片不再顯示 tag 標籤（後台/搜尋仍保留 tag 欄位） */
   body.appendChild(ce('div','card-title',esc(card.title||'複製內容')));
   if(card.desc)body.appendChild(ce('div','card-desc',esc(card.desc)));
   if(card.copyContent){

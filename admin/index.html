@@ -764,11 +764,23 @@ function processImage(file,cb){
       var cv=document.createElement('canvas');
       cv.width=Math.round(w*scale);cv.height=Math.round(h*scale);
       var ctx=cv.getContext('2d');
-      if(!isPng){ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height)}
+      /* 檢查是否有透明像素：不透明的大 PNG 一律轉 JPEG，避免 repo 塞爆 */
       ctx.drawImage(img,0,0,cv.width,cv.height);
-      var mime=isPng?'image/png':'image/jpeg';
-      var dataUrl=cv.toDataURL(mime,0.86);
-      cb(dataUrl.split(',')[1],isPng?'.png':'.jpg',dataUrl);
+      var hasAlpha=false;
+      if(isPng){
+        try{
+          var px=ctx.getImageData(0,0,cv.width,cv.height).data;
+          for(var i=3;i<px.length;i+=16){if(px[i]<250){hasAlpha=true;break}}
+        }catch(e){hasAlpha=true}
+      }
+      var useJpg=!isPng||!hasAlpha;
+      if(useJpg){
+        ctx.globalCompositeOperation='destination-over';
+        ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);
+        ctx.globalCompositeOperation='source-over';
+      }
+      var dataUrl=cv.toDataURL(useJpg?'image/jpeg':'image/png',0.86);
+      cb(dataUrl.split(',')[1],useJpg?'.jpg':'.png',dataUrl);
     };
     img.onerror=function(){toast('圖片讀取失敗')};
     img.src=reader.result;
