@@ -2,6 +2,27 @@
  "ok": true,
  "cards": [
   {
+   "id": "outline-gpt",
+   "category": "簡報製作",
+   "title": "簡報大綱產生器（GPT）",
+   "desc": "出題目、丟資料或多份文件融合，快速產出乾淨的簡報大綱，直接貼進簡報風格專案逐頁生成投影片。",
+   "linkUrl": "https://chatgpt.com/g/g-6a66c31e1cdc8191a0fb91072e7334f5-jian-bao-da-gang-chan-sheng-qi",
+   "tag": "ChatGPT GPTs",
+   "imageUrls": [
+    "assets/outline-gpt-thumb.jpg"
+   ],
+   "iconUrl": "",
+   "views": 0,
+   "type": "link",
+   "permission": "public",
+   "meta1": "open",
+   "meta2": "開啟 GPT",
+   "meta3": "{\"i\":\"\",\"s\":\"primary\",\"c\":\"\"}",
+   "extra": "{\"linkBehavior\":\"open\",\"linkBtnLabel\":\"開啟 GPT\",\"linkBtnIcon\":\"\",\"copyContent\":\"\",\"btnStyle\":\"primary\"}",
+   "page": "chat GPT",
+   "visible": true
+  },
+  {
    "id": "gpt-slides-hub",
    "category": "簡報製作",
    "title": "chat GPT 專案｜簡報風格指令庫",

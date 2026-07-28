@@ -1173,6 +1173,7 @@ function cardTime(c){
 function renderLatest(){
   var sec=$('latestSection'),grid=$('latestGrid');
   if(!sec||!grid)return;
+  sec.style.display='none';return;
   if(_searchActive){sec.style.display='none';return}
   /* 只取掛在選單上的分類，才不會撈到未分類的殘留檔案 */
   var valid={};
