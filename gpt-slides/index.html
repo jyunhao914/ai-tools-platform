@@ -46,12 +46,6 @@ header{background:var(--card);border-bottom:1px solid var(--line);position:stick
 .btn-copy.ok{background:#2563eb}
 footer{border-top:1px solid var(--line);padding:26px 0 40px;text-align:center;color:var(--sub);font-size:.85rem}
 footer a{color:var(--accent)}
-.thumb img{transition:transform .25s}
-.card:hover .thumb img{transform:scale(1.06)}
-#peek{position:fixed;z-index:50;pointer-events:none;opacity:0;transition:opacity .15s;filter:drop-shadow(0 12px 32px rgba(0,0,0,.25))}
-#peek.show{opacity:1}
-#peek img{display:block;width:min(560px,44vw);border-radius:12px;border:1px solid var(--line);background:#fff}
-@media (hover:none){#peek{display:none}}
 .toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(20px);background:#202123;color:#fff;padding:10px 22px;border-radius:999px;font-size:.88rem;opacity:0;pointer-events:none;transition:.25s;z-index:99}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
@@ -89,8 +83,6 @@ footer a{color:var(--accent)}
 </footer>
 
 <div class="toast" id="toast">已複製指令</div>
-<div id="peek"><img alt=""></div>
-
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
 var toastT;
@@ -101,17 +93,6 @@ function copyText(txt,btn){
   if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(txt).then(done).catch(fallback)}
   else{fallback()}
 }
-var peek=document.getElementById('peek'),peekImg=peek.querySelector('img');
-function showPeek(src,card){
-  peekImg.src=src;
-  var r=card.getBoundingClientRect(),w=Math.min(560,window.innerWidth*.44),h=w*2/3;
-  var x=r.right+14, y=Math.max(12,Math.min(r.top,window.innerHeight-h-12));
-  if(x+w>window.innerWidth-12)x=r.left-w-14;
-  if(x<12){x=Math.max(12,(window.innerWidth-w)/2);y=r.top-h-14;if(y<12)y=r.bottom+14}
-  peek.style.left=x+'px';peek.style.top=y+'px';
-  peek.classList.add('show');
-}
-function hidePeek(){peek.classList.remove('show')}
 fetch('data.json?t='+Date.now()).then(function(r){return r.json()}).then(function(data){
   var g=document.getElementById('grid');
   (data.styles||[]).forEach(function(s){
@@ -120,11 +101,6 @@ fetch('data.json?t='+Date.now()).then(function(r){return r.json()}).then(functio
       +'<div class="info"><div class="scene">'+esc(s.scene)+'</div><div class="name">'+esc(s.name)+'</div>'
       +'<button class="btn btn-copy">📋 複製指令</button></div>';
     el.querySelector('button').addEventListener('click',function(){copyText(s.prompt,this)});
-    if(s.thumb){
-      var th=el.querySelector('.thumb');
-      th.addEventListener('mouseenter',function(){showPeek(s.thumb,el)});
-      th.addEventListener('mouseleave',hidePeek);
-    }
     g.appendChild(el);
   });
 }).catch(function(){document.getElementById('grid').innerHTML='<p style="color:#999">資料載入失敗，請稍後再試。</p>'});
