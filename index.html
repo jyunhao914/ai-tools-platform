@@ -43,8 +43,8 @@
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap"></noscript>
 <style>
 :root{
-  --bg:#0a0a0b;--bg2:#141416;--bg3:#1a1a1d;
-  --card:rgba(255,255,255,0.035);--card-h:rgba(255,255,255,0.062);
+  --bg:#191b23;--bg2:#20232d;--bg3:#272b37;
+  --card:rgba(255,255,255,0.045);--card-h:rgba(255,255,255,0.075);
   --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.11);
   --text:#ededf0;--text2:#8b8b95;--text3:#5c5c66;
   /* 內斂兩色：只有一個主色，accent2/3 指回同色以免舊規則跑出第二種顏色 */
@@ -60,7 +60,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 img{display:block;max-width:100%}
 
 /* NAV */
-.nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:60px;background:rgba(7,9,15,0.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
+.nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:60px;background:rgba(23,25,33,0.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
 .nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;flex-shrink:0}
 .nav-logo-icon{width:32px;height:32px;border-radius:8px;object-fit:cover;display:block;flex-shrink:0}
 .nav-tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
@@ -893,12 +893,12 @@ if(!Element.prototype.matches){Element.prototype.matches=Element.prototype.msMat
 /* ====== SAFE STORAGE ====== */
 /* 受管理/封鎖 cookie 的 Chrome 會讓 localStorage 一碰就丟例外 → 全頁白屏。
    一律走 try/catch 包裝，存取失敗就當沒有快取。 */
-var LS={get:function(k){try{return window.LS.get(k)}catch(e){return null}},
-        set:function(k,v){try{window.LS.set(k,v)}catch(e){}},
-        rm:function(k){try{window.LS.rm(k)}catch(e){}}};
-var SS={get:function(k){try{return window.SS.get(k)}catch(e){return null}},
-        set:function(k,v){try{window.SS.set(k,v)}catch(e){}},
-        rm:function(k){try{window.SS.rm(k)}catch(e){}}};
+var LS={get:function(k){try{return window.localStorage.getItem(k)}catch(e){return null}},
+        set:function(k,v){try{window.localStorage.setItem(k,v)}catch(e){}},
+        rm:function(k){try{window.localStorage.removeItem(k)}catch(e){}}};
+var SS={get:function(k){try{return window.sessionStorage.getItem(k)}catch(e){return null}},
+        set:function(k,v){try{window.sessionStorage.setItem(k,v)}catch(e){}},
+        rm:function(k){try{window.sessionStorage.removeItem(k)}catch(e){}}};
 
 /* ====== CONFIG ====== */
 var GAS_API='https://script.google.com/macros/s/AKfycbx6qfQFbhAwiqA4AdRisH2HuZDw8iLQEEw-pxraTYCCoMInj0O9cpygBSsB6ii32j21/exec';
