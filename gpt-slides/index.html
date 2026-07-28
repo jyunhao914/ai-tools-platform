@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChatGPT 簡報風格指令庫</title>
+<link rel="icon" href="../favicon.ico">
+<style>
+:root{
+  --bg:#f7f7f8; --card:#ffffff; --text:#202123; --sub:#6e6e80;
+  --line:#e5e5e9; --accent:#10a37f; --accent-h:#0d8a6c;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+header{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+.hd{display:flex;align-items:center;justify-content:space-between;padding:14px 0;gap:12px}
+.hd h1{font-size:1.15rem;font-weight:700;display:flex;align-items:center;gap:10px}
+.hd h1 .logo{width:30px;height:30px;border-radius:8px;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:1rem}
+.back{font-size:.85rem;color:var(--sub);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:7px 14px;white-space:nowrap;transition:.15s}
+.back:hover{color:var(--accent);border-color:var(--accent)}
+.hero{padding:34px 0 8px}
+.hero h2{font-size:1.5rem;font-weight:800}
+.hero>p{color:var(--sub);margin-top:6px;font-size:.95rem}
+.feat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin-top:18px}
+.feat summary{cursor:pointer;font-weight:700;font-size:.95rem;list-style:none;display:flex;align-items:center;gap:8px;user-select:none}
+.feat summary::-webkit-details-marker{display:none}
+.feat summary::after{content:'▾';margin-left:auto;color:var(--sub);transition:.2s}
+.feat[open] summary::after{transform:rotate(180deg)}
+.feat ul{margin:12px 0 2px;padding-left:2px;list-style:none;display:grid;gap:8px}
+.feat li{font-size:.88rem;color:#3c3c46;padding-left:24px;position:relative}
+.feat li::before{content:'✓';position:absolute;left:2px;color:var(--accent);font-weight:700}
+.sec-title{margin:30px 0 14px;font-size:1.05rem;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px;padding-bottom:60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;transition:.18s;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.09)}
+.thumb{aspect-ratio:3/2;background:#ececf1;overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.card .info{padding:12px 14px 14px;display:flex;flex-direction:column;gap:4px;flex:1}
+.card .scene{font-size:.95rem;font-weight:700}
+.card .name{font-size:.78rem;color:var(--sub)}
+.btn{appearance:none;border:none;cursor:pointer;border-radius:9px;font-size:.85rem;font-weight:600;padding:9px 14px;transition:.15s;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+.btn-copy{background:var(--accent);color:#fff;margin-top:auto;width:100%}
+.info .btn-copy{margin-top:9px}
+.btn-copy:hover{background:var(--accent-h)}
+.btn-copy.ok{background:#2563eb}
+footer{border-top:1px solid var(--line);padding:26px 0 40px;text-align:center;color:var(--sub);font-size:.85rem}
+footer a{color:var(--accent)}
+.toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(20px);background:#202123;color:#fff;padding:10px 22px;border-radius:999px;font-size:.88rem;opacity:0;pointer-events:none;transition:.25s;z-index:99}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<header><div class="wrap hd">
+  <h1><span class="logo">✦</span>ChatGPT 簡報風格指令庫</h1>
+  <a class="back" href="https://jyunhao914.github.io/ai-tools-platform/#%E7%B0%A1%E5%A0%B1%E8%A3%BD%E4%BD%9C/chat%20GPT">← 回 AI 工具平台</a>
+</div></header>
+
+<div class="wrap">
+  <div class="hero">
+    <h2>ChatGPT 簡報投影片專案</h2>
+    <p>挑一種風格、複製專案指令貼進 ChatGPT 專案，再貼上簡報大綱，即可逐頁連續生成整套投影片圖片。</p>
+    <details class="feat">
+      <summary>📌 ChatGPT 專案功能說明</summary>
+      <ul>
+        <li>依照簡報大綱，逐頁連續生成獨立的投影片圖片。</li>
+        <li>使用同一份風格檔，統一全套簡報的配色、字體、插畫、圖示、構圖與版面規則。</li>
+        <li>頁數較多時，可分批生成並接續前次進度，維持跨批次的內容與視覺一致性。</li>
+        <li>將生成完成的圖片依照頁碼排序，自動組裝成 PowerPoint 檔。</li>
+        <li>可同時讀取多份簡報，整合重複內容、重新安排資訊順序，規劃成一份結構完整的新簡報。</li>
+        <li>可針對單份簡報進行視覺優化，在不增加、不刪除、不合併頁面的前提下，保留原有頁數、內容重點與排列順序，僅重新套用指定的視覺風格。</li>
+        <li>可依需求製作「圖像式簡報」或進一步重建為文字、圖形與圖表可編輯的 PowerPoint 版本。</li>
+      </ul>
+    </details>
+  </div>
+
+  <div class="sec-title">選擇風格，複製專案指令</div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<footer>
+  <div class="wrap">本頁為 <a href="https://jyunhao914.github.io/ai-tools-platform/#%E7%B0%A1%E5%A0%B1%E8%A3%BD%E4%BD%9C/chat%20GPT">AI 工具平台｜簡報製作</a> 的延伸工具頁</div>
+</footer>
+
+<div class="toast" id="toast">已複製指令</div>
+
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
+var toastT;
+function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){t.classList.remove('show')},1800)}
+function copyText(txt,btn){
+  function done(){toast('已複製指令');if(btn){var o=btn.innerHTML;btn.classList.add('ok');btn.innerHTML='✓ 已複製';setTimeout(function(){btn.classList.remove('ok');btn.innerHTML=o},1600)}}
+  function fallback(){var ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);done()}
+  if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(txt).then(done).catch(fallback)}
+  else{fallback()}
+}
+fetch('data.json?t='+Date.now()).then(function(r){return r.json()}).then(function(data){
+  var g=document.getElementById('grid');
+  (data.styles||[]).forEach(function(s){
+    var el=document.createElement('div');el.className='card';
+    el.innerHTML='<div class="thumb">'+(s.thumb?'<img loading="lazy" src="'+esc(s.thumb)+'" alt="'+esc(s.scene)+'">':'')+'</div>'
+      +'<div class="info"><div class="scene">'+esc(s.scene)+'</div><div class="name">'+esc(s.name)+'</div>'
+      +'<button class="btn btn-copy">📋 複製指令</button></div>';
+    el.querySelector('button').addEventListener('click',function(){copyText(s.prompt,this)});
+    g.appendChild(el);
+  });
+}).catch(function(){document.getElementById('grid').innerHTML='<p style="color:#999">資料載入失敗，請稍後再試。</p>'});
+</script>
+</body>
+</html>

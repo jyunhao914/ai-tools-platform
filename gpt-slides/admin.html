@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>指令庫後台｜ChatGPT 簡報風格</title>
+<link rel="icon" href="../favicon.ico">
+<style>
+:root{--bg:#f7f7f8;--card:#fff;--text:#202123;--sub:#6e6e80;--line:#e5e5e9;--accent:#10a37f;--accent-h:#0d8a6c;--danger:#dc2626}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+.wrap{max-width:900px;margin:0 auto;padding:0 20px 80px}
+header{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+.hd{max-width:900px;margin:0 auto;padding:13px 20px;display:flex;align-items:center;gap:10px}
+.hd h1{font-size:1.05rem;font-weight:700;flex:1}
+.btn{appearance:none;border:none;cursor:pointer;border-radius:9px;font-size:.85rem;font-weight:600;padding:8px 14px;transition:.15s;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.btn-pri{background:var(--accent);color:#fff}
+.btn-pri:hover{background:var(--accent-h)}
+.btn-pri:disabled{opacity:.5;cursor:not-allowed}
+.btn-line{background:transparent;border:1px solid var(--line);color:var(--text)}
+.btn-line:hover{border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:transparent;border:1px solid var(--line);color:var(--danger)}
+.btn-danger:hover{border-color:var(--danger)}
+.btn-sm{padding:5px 10px;font-size:.8rem;border-radius:7px}
+.hint{font-size:.83rem;color:var(--sub)}
+.box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-top:22px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:.82rem;font-weight:600;color:var(--sub);margin-bottom:4px}
+.field input[type=text],.field textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 12px;font:inherit;font-size:.9rem;background:#fff}
+.field textarea{min-height:140px;resize:vertical;font-family:ui-monospace,Menlo,monospace;font-size:.82rem;line-height:1.55}
+.field input:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
+.item{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-top:14px;overflow:hidden}
+.item-hd{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;user-select:none}
+.item-hd img{width:72px;height:48px;object-fit:cover;border-radius:7px;background:#ececf1;flex-shrink:0}
+.item-hd .t{flex:1;min-width:0}
+.item-hd .t .scene{font-weight:700;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-hd .t .name{font-size:.78rem;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-hd .ops{display:flex;gap:6px;flex-shrink:0}
+.item-body{border-top:1px solid var(--line);padding:16px;display:none}
+.item.open .item-body{display:block}
+.thumb-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.thumb-row img{width:140px;height:93px;object-fit:cover;border-radius:9px;background:#ececf1}
+.dirty-bar{position:fixed;left:0;right:0;bottom:0;background:#202123;color:#fff;padding:12px 20px;display:none;z-index:20}
+.dirty-bar.show{display:block}
+.dirty-in{max-width:900px;margin:0 auto;display:flex;align-items:center;gap:14px}
+.dirty-in .msg{flex:1;font-size:.9rem}
+.toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:#202123;color:#fff;padding:10px 22px;border-radius:999px;font-size:.88rem;opacity:0;pointer-events:none;transition:.25s;z-index:99}
+.toast.show{opacity:1}
+.hidden{display:none!important}
+#loginBox ol{padding-left:20px;font-size:.88rem;color:var(--sub);margin:10px 0 16px}
+.badge{font-size:.72rem;background:#eef7f4;color:var(--accent);border-radius:6px;padding:2px 8px;font-weight:600}
+</style>
+</head>
+<body>
+<header><div class="hd">
+  <h1>🛠 ChatGPT 簡報風格指令庫｜後台</h1>
+  <a class="btn btn-line btn-sm" href="index.html" target="_blank">預覽前台 ↗</a>
+  <button class="btn btn-line btn-sm" id="logoutBtn">登出</button>
+</div></header>
+
+<div class="wrap">
+  <div class="box hidden" id="loginBox">
+    <h2 style="font-size:1.05rem;margin-bottom:8px">登入</h2>
+    <p class="hint">本後台與 <a href="../admin/" target="_blank">平台後台</a> 共用同一顆 GitHub token；若你已在平台後台登入過，本頁會自動登入。</p>
+    <ol>
+      <li>開啟 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">GitHub → 建立 Fine-grained token</a></li>
+      <li>Repository access 選 Only select repositories → ai-tools-platform</li>
+      <li>Permissions → Contents 設為 Read and write</li>
+      <li>產生後複製貼到下面</li>
+    </ol>
+    <div class="field"><input type="text" id="tokenInput" placeholder="github_pat_..."></div>
+    <button class="btn btn-pri" id="loginBtn">登入</button>
+  </div>
+
+  <div class="hidden" id="app">
+    <div class="box">
+      <div style="display:flex;align-items:center;gap:10px">
+        <strong style="flex:1">風格卡片（<span id="cnt">0</span> 張）</strong>
+        <span class="badge" id="stateBadge">已同步</span>
+        <button class="btn btn-pri btn-sm" id="addBtn">＋ 新增風格</button>
+      </div>
+      <p class="hint" style="margin-top:6px">點卡片展開編輯；用 ↑ ↓ 調整前台顯示順序。改完按下方「儲存發佈」才會上線。</p>
+    </div>
+    <div id="list"></div>
+  </div>
+</div>
+
+<div class="dirty-bar" id="dirtyBar"><div class="dirty-in">
+  <span class="msg">有未儲存的變更</span>
+  <button class="btn btn-line btn-sm" id="revertBtn" style="color:#fff;border-color:#555">還原</button>
+  <button class="btn btn-pri" id="saveBtn">💾 儲存發佈</button>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var OWNER='jyunhao914',REPO='ai-tools-platform',BRANCH='main',API='https://api.github.com';
+var DATA_PATH='gpt-slides/data.json',THUMB_DIR='gpt-slides/thumbs';
+var S={token:localStorage.getItem('gh_pat')||'',data:null,orig:'',dataSha:'',dirty:false,newThumbs:{}};
+
+function $(id){return document.getElementById(id)}
+function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
+var toastT;
+function toast(m){var t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){t.classList.remove('show')},2200)}
+function b64encodeUtf8(s){return btoa(unescape(encodeURIComponent(s)))}
+function b64decodeUtf8(b){return decodeURIComponent(escape(atob(b.replace(/\n/g,''))))}
+
+function gh(path,opt){
+  opt=opt||{};opt.headers={'Authorization':'Bearer '+S.token,'Accept':'application/vnd.github+json'};
+  return fetch(API+path,opt).then(function(r){
+    if(r.status===401||r.status===403){throw new Error('token 無效或權限不足（'+r.status+'）')}
+    if(!r.ok)return r.json().catch(function(){return{}}).then(function(j){throw new Error(j.message||('HTTP '+r.status))});
+    return r.status===204?{}:r.json();
+  });
+}
+
+function boot(){
+  if(!S.token){$('loginBox').classList.remove('hidden');$('app').classList.add('hidden');return}
+  $('loginBox').classList.add('hidden');
+  gh('/repos/'+OWNER+'/'+REPO+'/contents/'+DATA_PATH+'?ref='+BRANCH+'&t='+Date.now()).then(function(j){
+    S.dataSha=j.sha;
+    S.data=JSON.parse(b64decodeUtf8(j.content));
+    S.orig=JSON.stringify(S.data);
+    S.newThumbs={};setDirty(false);
+    $('app').classList.remove('hidden');
+    render();
+  }).catch(function(e){
+    if(String(e.message).indexOf('token')>=0){localStorage.removeItem('gh_pat');S.token='';boot();toast(e.message)}
+    else toast('載入失敗：'+e.message);
+  });
+}
+
+$('loginBtn').onclick=function(){
+  var v=$('tokenInput').value.trim();
+  if(!v){toast('請貼上 token');return}
+  S.token=v;localStorage.setItem('gh_pat',v);boot();
+};
+$('logoutBtn').onclick=function(){
+  if(!confirm('登出會清除這台裝置上的 token（GitHub 只在建立時顯示一次，請確認已另外保存）。確定登出？'))return;
+  localStorage.removeItem('gh_pat');S.token='';location.reload();
+};
+
+function setDirty(v){S.dirty=v;$('dirtyBar').classList.toggle('show',v);$('stateBadge').textContent=v?'未儲存':'已同步'}
+window.addEventListener('beforeunload',function(e){if(S.dirty){e.preventDefault();e.returnValue=''}});
+
+function render(){
+  var list=$('list');list.innerHTML='';
+  $('cnt').textContent=S.data.styles.length;
+  S.data.styles.forEach(function(s,i){
+    var thumbSrc=S.newThumbs[s.id]?S.newThumbs[s.id].dataUrl:(s.thumb?s.thumb+'?t=1':'');
+    var el=document.createElement('div');el.className='item';el.dataset.open=el.dataset.open||'';
+    el.innerHTML=
+      '<div class="item-hd">'
+      +(thumbSrc?'<img src="'+esc(thumbSrc)+'">':'<img>')
+      +'<div class="t"><div class="scene">'+esc(s.scene||'（未填適用場景）')+'</div><div class="name">'+esc(s.name||'')+'</div></div>'
+      +'<div class="ops">'
+      +'<button class="btn btn-line btn-sm" data-act="up" title="上移">↑</button>'
+      +'<button class="btn btn-line btn-sm" data-act="down" title="下移">↓</button>'
+      +'<button class="btn btn-danger btn-sm" data-act="del">刪除</button>'
+      +'</div></div>'
+      +'<div class="item-body">'
+      +'<div class="thumb-row">'+(thumbSrc?'<img src="'+esc(thumbSrc)+'">':'<img>')
+      +'<div><button class="btn btn-line btn-sm" data-act="pick">更換縮圖</button><p class="hint" style="margin-top:6px">建議 3:2 橫式圖，會自動壓縮上傳</p>'
+      +'<input type="file" accept="image/*" class="hidden" data-act="file"></div></div>'
+      +'<div class="field"><label>適用場景（卡片主標）</label><input type="text" data-f="scene" value="'+esc(s.scene||'')+'"></div>'
+      +'<div class="field"><label>專案名稱（卡片小字）</label><input type="text" data-f="name" value="'+esc(s.name||'')+'"></div>'
+      +'<div class="field"><label>完整指令（按「複製指令」時複製的內容）</label><textarea data-f="prompt"></textarea></div>'
+      +'</div>';
+    el.querySelector('textarea[data-f=prompt]').value=s.prompt||'';
+    el.querySelector('.item-hd').addEventListener('click',function(ev){
+      if(ev.target.closest('button'))return;
+      el.classList.toggle('open');
+    });
+    el.querySelectorAll('[data-f]').forEach(function(inp){
+      inp.addEventListener('input',function(){
+        s[inp.dataset.f]=inp.value;setDirty(true);
+        if(inp.dataset.f!=='prompt'){var q=el.querySelector('.item-hd .'+(inp.dataset.f==='scene'?'scene':'name'));if(q)q.textContent=inp.value||(inp.dataset.f==='scene'?'（未填適用場景）':'')}
+      });
+    });
+    el.querySelector('[data-act=up]').onclick=function(){move(i,-1)};
+    el.querySelector('[data-act=down]').onclick=function(){move(i,1)};
+    el.querySelector('[data-act=del]').onclick=function(){
+      if(!confirm('確定刪除「'+(s.scene||s.name)+'」？儲存發佈後才會真正生效。'))return;
+      S.data.styles.splice(i,1);delete S.newThumbs[s.id];setDirty(true);render();
+    };
+    var fileInp=el.querySelector('[data-act=file]');
+    el.querySelector('[data-act=pick]').onclick=function(){fileInp.click()};
+    fileInp.addEventListener('change',function(){
+      var f=fileInp.files[0];if(!f)return;
+      compressImage(f,function(dataUrl){
+        S.newThumbs[s.id]={dataUrl:dataUrl,base64:dataUrl.split(',')[1]};
+        s.thumb='thumbs/'+s.id+'.jpg';
+        setDirty(true);render();
+      });
+    });
+    list.appendChild(el);
+  });
+}
+
+function move(i,dir){
+  var a=S.data.styles,j=i+dir;
+  if(j<0||j>=a.length)return;
+  var t=a[i];a[i]=a[j];a[j]=t;
+  setDirty(true);render();
+}
+
+$('addBtn').onclick=function(){
+  var id='s'+Date.now().toString(36);
+  S.data.styles.push({id:id,name:'',key:'',scene:'',prompt:'',thumb:''});
+  setDirty(true);render();
+  var items=$('list').children;
+  if(items.length){items[items.length-1].classList.add('open');items[items.length-1].scrollIntoView({behavior:'smooth',block:'center'})}
+};
+
+function compressImage(file,cb){
+  var img=new Image();
+  img.onload=function(){
+    var w=Math.min(1120,img.width),h=Math.round(img.height*w/img.width);
+    var c=document.createElement('canvas');c.width=w;c.height=h;
+    c.getContext('2d').drawImage(img,0,0,w,h);
+    cb(c.toDataURL('image/jpeg',.78));
+    URL.revokeObjectURL(img.src);
+  };
+  img.src=URL.createObjectURL(file);
+}
+
+$('revertBtn').onclick=function(){
+  if(!confirm('放棄所有未儲存的變更？'))return;
+  S.data=JSON.parse(S.orig);S.newThumbs={};setDirty(false);render();
+};
+
+$('saveBtn').onclick=function(){
+  var bad=S.data.styles.find(function(s){return !s.scene||!s.prompt});
+  if(bad&&!confirm('有卡片缺「適用場景」或「指令內容」，仍要發佈？'))return;
+  var btn=$('saveBtn');btn.disabled=true;btn.textContent='發佈中…';
+  var thumbIds=Object.keys(S.newThumbs);
+  var chain=Promise.resolve();
+  thumbIds.forEach(function(id){
+    chain=chain.then(function(){
+      var path=THUMB_DIR+'/'+id+'.jpg';
+      return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+path+'?ref='+BRANCH+'&t='+Date.now())
+        .then(function(j){return j.sha}).catch(function(){return null})
+        .then(function(sha){
+          var body={message:'gpt-slides: update thumb '+id,content:S.newThumbs[id].base64,branch:BRANCH};
+          if(sha)body.sha=sha;
+          return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+path,{method:'PUT',body:JSON.stringify(body)});
+        });
+    });
+  });
+  chain.then(function(){
+    return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+DATA_PATH+'?ref='+BRANCH+'&t='+Date.now()).then(function(j){return j.sha}).catch(function(){return S.dataSha});
+  }).then(function(sha){
+    return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+DATA_PATH,{method:'PUT',body:JSON.stringify({
+      message:'gpt-slides: update data.json',content:b64encodeUtf8(JSON.stringify(S.data,null,1)),branch:BRANCH,sha:sha
+    })});
+  }).then(function(j){
+    S.dataSha=j.content?j.content.sha:S.dataSha;
+    S.orig=JSON.stringify(S.data);S.newThumbs={};setDirty(false);
+    toast('已發佈 ✓ GitHub Pages 約 1 分鐘後更新');
+  }).catch(function(e){
+    toast('發佈失敗：'+e.message);
+  }).finally(function(){btn.disabled=false;btn.textContent='💾 儲存發佈'});
+};
+
+boot();
+</script>
+</body>
+</html>
