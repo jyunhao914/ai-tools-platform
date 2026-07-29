@@ -34,7 +34,7 @@ img{display:block;max-width:100%}
 .nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:60px;background:rgba(31,34,44,0.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
 [data-theme="light"] .nav{background:rgba(250,250,250,0.9);border-bottom-color:rgba(0,0,0,0.08)}
 .nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;cursor:pointer;user-select:none}
-.nav-logo .mark{width:30px;height:30px;border-radius:8px;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:15px}
+.nav-logo .mark{width:32px;height:32px;border-radius:8px;object-fit:cover;display:block;flex-shrink:0}
 .nav-right{display:flex;align-items:center;gap:8px}
 .back{font-size:13px;color:var(--text2);border:1px solid var(--border2);border-radius:8px;padding:7px 14px;white-space:nowrap;transition:.2s}
 .back:hover{color:var(--accent);border-color:var(--accent)}
@@ -112,7 +112,7 @@ img{display:block;max-width:100%}
 </head>
 <body>
 <nav class="nav">
-  <div class="nav-logo" id="logo"><span class="mark">✦</span><span id="siteTitle">載入中…</span></div>
+  <div class="nav-logo" id="logo"><img class="mark" src="../assets/logo.png" alt="logo"><span id="siteTitle">載入中…</span></div>
   <div class="nav-right">
     <a class="back" id="backLink" href="https://jyunhao914.github.io/ai-tools-platform/">← 回 AI 工具平台</a>
     <button class="theme-toggle" id="themeToggle" title="切換主題">🌙</button>
