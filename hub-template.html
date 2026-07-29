@@ -240,7 +240,11 @@ function loadData(){
 loadData().then(function(data){
   var site=data.site||{};
   document.getElementById('siteTitle').textContent=site.title||'工具頁';
-  document.title=site.title||'工具頁';
+  if(!_isPreview)document.title=site.title||'工具頁';
+  if(site.desc){
+    var md=document.querySelector('meta[name=description]')||document.head.appendChild(Object.assign(document.createElement('meta'),{name:'description'}));
+    md.content=site.desc;
+  }
   if(site.backUrl)document.getElementById('backLink').href=site.backUrl;
   if(site.backLabel)document.getElementById('backLink').textContent='← '+site.backLabel;
   document.getElementById('siteFooter').textContent=site.footer||'';

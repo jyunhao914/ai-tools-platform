@@ -132,6 +132,7 @@ a{color:var(--accent);text-decoration:none}
         <h2 style="font-size:15px;margin-bottom:4px">網站文字設定</h2>
         <p class="hint" style="margin-bottom:14px">改前台頁面上的文字，儲存發佈後生效。</p>
         <div class="field"><label>網站標題（左上角 Logo 文字與瀏覽器分頁標題）</label><input id="site_title"></div>
+        <div class="field"><label>頁面描述（搜尋結果與分享時顯示的簡介）</label><textarea id="site_desc" style="min-height:64px"></textarea></div>
         <div class="field"><label>頁尾文字</label><input id="site_footer"></div>
         <div class="field"><label>右上角返回按鈕文字</label><input id="site_backLabel" placeholder="回 AI 工具平台"></div>
         <div class="field"><label>返回按鈕連結網址</label><input id="site_backUrl"></div>
@@ -485,13 +486,69 @@ function normalizeHtml(v){
   if(/<\w+[^>]*>/.test(v))return v;
   return v.split(/\n{2,}/).map(function(p){return '<p>'+esc(p).replace(/\n/g,'<br>')+'</p>'}).join('');
 }
+/* 視覺化編輯器：儲存時 img 換回相對路徑，顯示時換成可見網址 */
+function htmlToEditor(html){
+  var d=document.createElement('div');d.innerHTML=html||'';
+  d.querySelectorAll('img').forEach(function(im){
+    var src=im.getAttribute('src')||'';
+    if(src.indexOf('thumbs/')===0){im.dataset.rel=src;im.src=imgSrc(src)}
+  });
+  return d.innerHTML;
+}
+function editorToHtml(editor){
+  var d=editor.cloneNode(true);
+  d.querySelectorAll('img').forEach(function(im){
+    if(im.dataset.rel){im.setAttribute('src',im.dataset.rel);im.removeAttribute('data-rel')}
+    im.removeAttribute('style');
+  });
+  return d.innerHTML;
+}
 function htmlField(body,m,label){
   var f=document.createElement('div');f.className='field';
-  f.innerHTML='<label>'+label+'</label><textarea style="min-height:180px"></textarea>'
-    +'<p class="hint" style="margin-top:5px">純文字即可（空一行分段）。進階可用 HTML：&lt;h3&gt;小標&lt;/h3&gt;、&lt;b&gt;粗體&lt;/b&gt;、&lt;a href="…"&gt;連結&lt;/a&gt;、&lt;ul&gt;&lt;li&gt;清單&lt;/li&gt;&lt;/ul&gt;、&lt;img src="…"&gt;</p>';
-  var ta=f.querySelector('textarea');
-  ta.value=m.html||'';
+  f.innerHTML='<label>'+label+'</label>'
+    +'<div class="rte-bar" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">'
+    +'<button type="button" class="btn btn-line btn-sm" data-c="bold"><b>B</b></button>'
+    +'<button type="button" class="btn btn-line btn-sm" data-c="italic"><i>I</i></button>'
+    +'<button type="button" class="btn btn-line btn-sm" data-c="h3">小標</button>'
+    +'<button type="button" class="btn btn-line btn-sm" data-c="ul">• 清單</button>'
+    +'<button type="button" class="btn btn-line btn-sm" data-c="link">🔗 連結</button>'
+    +'<button type="button" class="btn btn-line btn-sm" data-c="img">🖼 插圖</button>'
+    +'<button type="button" class="btn btn-line btn-sm" data-c="src">&lt;/&gt; 原始碼</button>'
+    +'<input type="file" accept="image/*" class="hidden"></div>'
+    +'<div class="rte" contenteditable="true" style="min-height:150px;background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;line-height:1.7;outline:none"></div>'
+    +'<textarea class="hidden" style="min-height:150px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px"></textarea>';
+  var ed=f.querySelector('.rte'),ta=f.querySelector('textarea'),fi=f.querySelector('input[type=file]');
+  ed.innerHTML=htmlToEditor(m.html);
+  function sync(){m.html=editorToHtml(ed);setDirty(true)}
+  ed.addEventListener('input',sync);
+  f.querySelectorAll('[data-c]').forEach(function(b){
+    b.onclick=function(){
+      var c=b.dataset.c;
+      if(c==='src'){
+        if(ta.classList.contains('hidden')){ta.value=editorToHtml(ed);ta.classList.remove('hidden');ed.classList.add('hidden');b.textContent='視覺編輯'}
+        else{m.html=normalizeHtml(ta.value);ed.innerHTML=htmlToEditor(m.html);ta.classList.add('hidden');ed.classList.remove('hidden');b.innerHTML='&lt;/&gt; 原始碼';setDirty(true)}
+        return;
+      }
+      ed.focus();
+      if(c==='bold')document.execCommand('bold');
+      else if(c==='italic')document.execCommand('italic');
+      else if(c==='h3')document.execCommand('formatBlock',false,'<h3>');
+      else if(c==='ul')document.execCommand('insertUnorderedList');
+      else if(c==='link'){var u=prompt('連結網址：','https://');if(u)document.execCommand('createLink',false,u)}
+      else if(c==='img'){fi.click();return}
+      sync();
+    };
+  });
   ta.oninput=function(){m.html=normalizeHtml(ta.value);setDirty(true)};
+  fi.addEventListener('change',function(){
+    var file=fi.files[0];if(!file)return;
+    stageImage(file,function(rel,dataUrl){
+      ed.focus();
+      document.execCommand('insertHTML',false,'<img src="'+dataUrl+'" data-rel="'+rel+'" style="max-width:100%">');
+      sync();
+    });
+    fi.value='';
+  });
   body.appendChild(f);
 }
 function renderArticleEditor(body,m){htmlField(body,m,'內文')}
@@ -549,10 +606,11 @@ function renderVideoEditor(body,m){
 function renderSite(){
   var site=S.data.site;
   $('site_title').value=site.title||'';
+  $('site_desc').value=site.desc||'';
   $('site_footer').value=site.footer||'';
   $('site_backLabel').value=site.backLabel||'';
   $('site_backUrl').value=site.backUrl||'';
-  [['site_title','title'],['site_footer','footer'],['site_backLabel','backLabel'],['site_backUrl','backUrl']].forEach(function(p){
+  [['site_title','title'],['site_desc','desc'],['site_footer','footer'],['site_backLabel','backLabel'],['site_backUrl','backUrl']].forEach(function(p){
     $(p[0]).oninput=function(){S.data.site[p[1]]=this.value;setDirty(true)};
   });
 }

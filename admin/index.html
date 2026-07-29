@@ -1641,9 +1641,16 @@ $('hubCreateBtn').onclick=function(){
       /* 2. 讀模板 */
       return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+TEMPLATE_PATH+'?ref='+BRANCH);
     }).then(function(t){
-      /* 3. 寫 index.html */
+      /* 3. 寫 index.html：注入標題與 SEO/分享 meta（靜態，爬蟲讀得到） */
+      var html=b64decodeUtf8(t.content);
+      var url=BASE_URL+'/'+slug+'/';
+      html=html.replace('<title>載入中…</title>',
+        '<title>'+name+'</title>\n<meta name="description" content="'+name+'">\n'
+        +'<meta property="og:title" content="'+name+'">\n'
+        +'<meta property="og:type" content="website">\n'
+        +'<meta property="og:url" content="'+url+'">');
       return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+slug+'/index.html',{method:'PUT',body:JSON.stringify({
-        message:'admin: 建立子頁面 '+slug,content:t.content.replace(/\n/g,''),branch:BRANCH})});
+        message:'admin: 建立子頁面 '+slug,content:b64encodeUtf8(html),branch:BRANCH})});
     }).then(function(){
       /* 4. 寫 data.json（空卡片 + 網站文字） */
       var data={styles:[],site:{title:name,featureTitle:'',features:[],secTitle:'',footer:'',backUrl:BASE_URL+'/'}};
