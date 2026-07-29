@@ -148,6 +148,30 @@ h2.sec{font-size:17px;margin-bottom:16px}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:sp 0.8s linear infinite;vertical-align:-2px;margin-right:6px}
 @keyframes sp{to{transform:rotate(360deg)}}
 @media(max-width:760px){.wrap{flex-direction:column}.side{width:100%;display:flex;overflow-x:auto;border-right:none;border-bottom:1px solid var(--border)}.side button{width:auto;white-space:nowrap}.row2{grid-template-columns:1fr}}
+
+/* ── 行動版後台補強（≤760px 已有基本 RWD，這裡補區塊/統計/子頁面新分頁）── */
+@media(max-width:760px){
+  .bk-hd{padding:10px 11px;gap:9px}
+  .bk-hd .bk-ico{width:32px;height:32px;font-size:16px}
+  .bk-body{padding:13px}
+  .bk-flex{gap:12px}
+  .bk-stage{width:100%}
+  .bk-dispgrid{grid-template-columns:1fr;min-width:0}
+  .bk-caroimgs .ci{width:calc(50% - 5px);height:78px}
+  #statCards{grid-template-columns:1fr 1fr!important}
+  #statChart{height:120px!important;gap:6px!important}
+  #tab-hubs .row2{grid-template-columns:1fr!important}
+  #hubList > div{flex-wrap:wrap;gap:8px!important}
+  #hubList > div strong{flex:1 0 100%}
+  input,textarea,select{font-size:16px}
+  /* 頂欄在窄螢幕改為換行，避免發佈鈕被擠出畫面 */
+  .topbar{flex-wrap:wrap;gap:8px;padding:10px 14px}
+  .topbar h1{font-size:15px;flex:1 0 auto}
+  .topbar .badge{font-size:10.5px}
+  .topbar #repoBadge{display:none}
+  .topbar .spacer{flex:1 0 100%;height:0}
+  .topbar .btn{flex:1;justify-content:center;padding:8px 10px;font-size:12.5px;text-align:center}
+}
 </style>
 </head>
 <body>
@@ -291,6 +315,14 @@ h2.sec{font-size:17px;margin-bottom:16px}
         <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px 18px">
           <strong style="display:block;margin-bottom:10px;font-size:13.5px">子頁面瀏覽數</strong>
           <div id="statHubs" class="hint">載入中…</div>
+        </div>
+        <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px 18px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <strong style="flex:1;font-size:13.5px">資料備份</strong>
+            <button class="btn small" id="backupNowBtn" type="button">立即備份</button>
+          </div>
+          <p class="hint" style="margin-bottom:8px">每週一凌晨自動把試算表（瀏覽數、學員帳號）匯出到雲端硬碟，保留最近 8 份。</p>
+          <div id="statBackup" class="hint">載入中…</div>
         </div>
       </div>
     </div>
@@ -925,8 +957,12 @@ function processImage(file,cb){
         ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);
         ctx.globalCompositeOperation='source-over';
       }
-      var dataUrl=cv.toDataURL(useJpg?'image/jpeg':'image/png',0.86);
-      cb(dataUrl.split(',')[1],useJpg?'.jpg':'.png',dataUrl);
+      /* WebP 同時支援透明且更小；不支援才退回 JPEG/PNG */
+      var _webp=(function(){try{return cv.toDataURL('image/webp').indexOf('data:image/webp')===0}catch(e){return false}})();
+      var mime=_webp?'image/webp':(useJpg?'image/jpeg':'image/png');
+      var ext=_webp?'.webp':(useJpg?'.jpg':'.png');
+      var dataUrl=cv.toDataURL(mime,0.86);
+      cb(dataUrl.split(',')[1],ext,dataUrl);
     };
     img.onerror=function(){toast('圖片讀取失敗')};
     img.src=reader.result;
@@ -1823,6 +1859,10 @@ function blkImgSrc(rel){
   if(_blkPrev[rel])return _blkPrev[rel];
   return /^https?:/.test(rel)?rel:('../'+rel);
 }
+var _blkWebp=(function(){
+  try{return document.createElement('canvas').toDataURL('image/webp').indexOf('data:image/webp')===0}
+  catch(e){return false}
+})();
 function blkStageImage(file,cb){
   var img=new Image();
   img.onload=function(){
@@ -1831,9 +1871,9 @@ function blkStageImage(file,cb){
     var ctx=c.getContext('2d');
     ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
     ctx.drawImage(img,0,0,w,h);
-    var dataUrl=c.toDataURL('image/jpeg',.82);
+    var dataUrl=c.toDataURL(_blkWebp?'image/webp':'image/jpeg',.82);
     URL.revokeObjectURL(img.src);
-    var path='assets/uploads/blk_'+blkUid()+'.jpg';
+    var path='assets/uploads/blk_'+blkUid()+(_blkWebp?'.webp':'.jpg');
     S.pendingAssets.push({path:path,base64:dataUrl.split(',')[1]});
     _blkPrev[path]=dataUrl;
     markDirty();
@@ -2259,6 +2299,34 @@ window.loadBlocks=blkRender;
 })();
 
 /* ================= 數據總覽 ================= */
+function loadBackupStatus(){
+  var el=$('statBackup');
+  if(!el)return;
+  if(!gasPw()){el.innerHTML='<span class="hint">需要雲端密碼才能查看（到「檔案庫」分頁輸入一次）</span>';return}
+  el.textContent='載入中…';
+  gasGet({action:'backupStatus',pw:gasPw()}).then(function(j){
+    if(!j||!j.ok){el.textContent=(j&&j.error==='auth')?'雲端密碼已失效':'載入失敗';return}
+    el.classList.remove('hint');
+    var rows=(j.files||[]).slice(0,5).map(function(f){
+      var d=new Date(f.at);
+      return statRow(f.name,(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'));
+    }).join('');
+    el.innerHTML=(j.scheduled?'<div class="hint" style="margin-bottom:6px">✓ 每週自動備份已啟用</div>':'<div class="hint" style="margin-bottom:6px;color:var(--warn)">⚠ 尚未排程，按「立即備份」即會自動啟用</div>')
+      +(rows||'<span class="hint">尚無備份檔</span>')
+      +(j.folder?'<div style="margin-top:8px"><a href="'+esc(j.folder)+'" target="_blank">開啟備份資料夾 ↗</a></div>':'');
+  }).catch(function(){el.textContent='載入失敗'});
+}
+if($('backupNowBtn'))$('backupNowBtn').onclick=function(){
+  if(!gasPw()){toast('請先到「檔案庫」分頁輸入雲端密碼');return}
+  var b=this;b.disabled=true;b.textContent='備份中…';
+  gasGet({action:'runBackup',pw:gasPw()}).then(function(j){
+    if(j&&j.ok)toast('✅ 已備份：'+j.saved);
+    else toast('備份失敗：'+((j&&j.error)||'未知錯誤'),5000);
+    loadBackupStatus();
+  }).catch(function(e){toast('備份失敗：'+e.message,5000)})
+   .finally(function(){b.disabled=false;b.textContent='立即備份'});
+};
+
 function statRow(label,value,sub){
   return '<div style="display:flex;align-items:center;gap:10px;padding:7px 2px;border-bottom:1px solid var(--border);font-size:13px">'
     +'<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(label)+'</span>'
@@ -2310,6 +2378,9 @@ function loadStats(){
         +'<span style="font-size:11px;color:var(--muted)">'+label+'</span></div>';
     }).join('');
   }).catch(function(){chart.innerHTML='<span class="hint">載入失敗</span>'});
+
+  /* 備份狀態 */
+  loadBackupStatus();
 
   /* 子頁面瀏覽數 */
   var hubsEl=$('statHubs');

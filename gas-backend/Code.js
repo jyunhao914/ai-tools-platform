@@ -69,6 +69,7 @@ function filterCardsByRole_(cards, role) {
 // ============================================
 
 function doGet(e) {
+  maybeBackup_();
   var p = (e && e.parameter) || {};
   var action = p.action || "";
   var cb = p.callback || "";
@@ -78,7 +79,7 @@ function doGet(e) {
     var role = getRole_(p.pw || '', p.token || '');
 
     // Admin-only actions
-    var adminActions = {saveCard:1,deleteCard:1,reorderCard:1,reorderAll:1,batchUpdate:1,resetStats:1,setStats:1,setVisitCount:1,getCardsAdmin:1,getAdmins:1,saveAdmins:1,resetCardsSheet:1,saveSetting:1,savePages:1,getSettings:1,getAdminLog:1,saveArticle:1,changeStudentPw:1};
+    var adminActions = {runBackup:1,backupStatus:1,saveCard:1,deleteCard:1,reorderCard:1,reorderAll:1,batchUpdate:1,resetStats:1,setStats:1,setVisitCount:1,getCardsAdmin:1,getAdmins:1,saveAdmins:1,resetCardsSheet:1,saveSetting:1,savePages:1,getSettings:1,getAdminLog:1,saveArticle:1,changeStudentPw:1};
     if (adminActions[action]) {
       if (role !== 'admin') {
         result = { ok:false, error:'auth' };
@@ -145,6 +146,19 @@ function doGet(e) {
           recordToolClick(p.title || "", p.id || "");
           result = { ok:true };
           break;
+        case "runBackup":
+          result = weeklyBackup();
+          break;
+        case "backupStatus": {
+          var bf = getBackupFolder_();
+          var bl = [], bit = bf.getFiles();
+          while (bit.hasNext()) { var bfile = bit.next(); bl.push({ name: bfile.getName(), at: bfile.getDateCreated().toISOString() }); }
+          bl.sort(function(a, b) { return a.at < b.at ? 1 : -1; });
+          var lastAt = Number(PropertiesService.getScriptProperties().getProperty('lastBackupAt') || 0);
+          result = { ok: true, folder: bf.getUrl(), files: bl.slice(0, 10),
+                     scheduled: true, lastAt: lastAt || null };
+          break;
+        }
         case "getStatsByIds":
           result = { ok:true, stats: getStatsByIds_(p.ids || "") };
           break;
@@ -416,6 +430,53 @@ function recordVisit() {
     sheet.appendRow(['日期時間', '類型', '內容']);
   }
   sheet.appendRow([new Date(), 'visit', 'page_view']);
+}
+
+
+// ============================================
+// 每週自動備份（Drive 複製試算表；只用既有 Drive 權限，
+// 不用 ScriptApp 觸發器以免需要重新授權）
+// 排程方式：任何 API 呼叫時檢查距上次備份是否已滿 7 天
+// ============================================
+const BACKUP_FOLDER_NAME = 'AI工具平台_備份';
+const BACKUP_KEEP = 8;          // 保留最近 8 份
+const BACKUP_INTERVAL_MS = 7 * 24 * 3600 * 1000;
+
+function getBackupFolder_() {
+  var it = DriveApp.getFoldersByName(BACKUP_FOLDER_NAME);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(BACKUP_FOLDER_NAME);
+}
+
+function runBackup_() {
+  var folder = getBackupFolder_();
+  var stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmm');
+  var name = '平台資料備份_' + stamp;
+  DriveApp.getFileById(SHEET_ID).makeCopy(name, folder);
+
+  // 只留最近 N 份
+  var files = [], it = folder.getFiles();
+  while (it.hasNext()) files.push(it.next());
+  files.sort(function(a, b) { return b.getDateCreated() - a.getDateCreated(); });
+  for (var i = BACKUP_KEEP; i < files.length; i++) files[i].setTrashed(true);
+
+  PropertiesService.getScriptProperties().setProperty('lastBackupAt', String(Date.now()));
+  return { ok: true, saved: name, kept: Math.min(files.length + 1, BACKUP_KEEP), folder: folder.getUrl() };
+}
+
+// 惰性排程：距上次備份滿 7 天就在下一次 API 呼叫時補做（失敗不影響 API）
+function maybeBackup_() {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var last = Number(props.getProperty('lastBackupAt') || 0);
+    if (Date.now() - last < BACKUP_INTERVAL_MS) return;
+    props.setProperty('lastBackupAt', String(Date.now()));   // 先記時間，避免同時多次觸發
+    runBackup_();
+  } catch (e) { /* 靜默略過 */ }
+}
+
+function weeklyBackup() {
+  try { return runBackup_(); }
+  catch (e) { return { ok: false, error: String(e) }; }
 }
 
 function getStatsByIds_(idsCsv) {

@@ -77,6 +77,34 @@ a{color:var(--accent);text-decoration:none}
 .color-row{display:flex;align-items:center;gap:8px}
 .color-row input[type=color]{width:42px;height:34px;padding:2px;flex-shrink:0}
 .addmenu{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+
+/* ── 行動版（≤600px）── */
+@media(max-width:600px){
+  body{font-size:14px}
+  .top{flex-wrap:wrap;gap:8px;padding:10px 14px}
+  .top h1{flex:1 0 100%;font-size:14.5px;line-height:1.35}
+  .top .btn{flex:1;justify-content:center;padding:7px 8px;font-size:12px}
+  .tabs{padding:10px 14px 0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs button{padding:8px 12px;font-size:12.5px;white-space:nowrap;flex-shrink:0}
+  .wrap{padding:14px 14px 110px}
+  .box{padding:14px 15px;border-radius:12px}
+  .addmenu .btn{flex:1 1 calc(50% - 4px);justify-content:center}
+  .item-hd{padding:10px 11px;gap:9px}
+  .item-hd .th{width:56px;height:38px}
+  .item-hd .ops .btn{padding:6px 9px}
+  .item-body{padding:13px}
+  .thumb-flex{gap:12px}
+  .thumb-stage{width:100%}
+  .disp-grid{grid-template-columns:1fr;min-width:0}
+  .caro-imgs .ci{width:calc(50% - 5px);height:78px}
+  .dirty-in{gap:8px}
+  .dirty-in .msg{font-size:12.5px}
+  .dirty-bar .btn{padding:9px 12px}
+  .hist-row{flex-wrap:wrap;gap:8px}
+  .hist-row .msg{flex:1 0 100%}
+  input,textarea,select{font-size:16px}  /* iOS 聚焦不自動放大 */
+}
 </style>
 </head>
 <body>
@@ -291,6 +319,11 @@ function setDirty(v){S.dirty=v;$('dirtyBar').classList.toggle('show',v);$('state
 window.addEventListener('beforeunload',function(e){if(S.dirty){e.preventDefault();e.returnValue=''}});
 
 /* 圖片壓縮＋暫存（發佈時一併上傳到 <hub>/thumbs/） */
+/* WebP 比 JPEG 再省約三成；瀏覽器不支援時自動退回 JPEG */
+var _webpOk=(function(){
+  try{return document.createElement('canvas').toDataURL('image/webp').indexOf('data:image/webp')===0}
+  catch(e){return false}
+})();
 function compressImage(file,cb){
   var img=new Image();
   img.onload=function(){
@@ -299,14 +332,15 @@ function compressImage(file,cb){
     var ctx=c.getContext('2d');
     ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
     ctx.drawImage(img,0,0,w,h);
-    cb(c.toDataURL('image/jpeg',.82));
+    var type=_webpOk?'image/webp':'image/jpeg';
+    cb(c.toDataURL(type,.82),_webpOk?'.webp':'.jpg');
     URL.revokeObjectURL(img.src);
   };
   img.src=URL.createObjectURL(file);
 }
 function stageImage(file,cb){
-  compressImage(file,function(dataUrl){
-    var rel='thumbs/'+uid()+'.jpg';
+  compressImage(file,function(dataUrl,ext){
+    var rel='thumbs/'+uid()+(ext||'.jpg');
     S.newFiles[rel]={dataUrl:dataUrl,base64:dataUrl.split(',')[1]};
     setDirty(true);
     cb(rel,dataUrl);
