@@ -1679,7 +1679,18 @@ function gasPost(action,params){
       }else if(j&&j.error==='notset'){
         msg.innerHTML='這個站還沒啟用密碼登入。請先在<b>已登入的電腦</b>上，於「網站設定」按一次「啟用密碼登入」。';
       }else if(j&&j.error==='locked'){
-        msg.textContent=j.msg||'嘗試次數過多，請 15 分鐘後再試';
+        var saved=localStorage.getItem('gh_pat')||'';
+        if(saved){
+          msg.innerHTML='嘗試次數過多，已鎖定。<button id="unlockBtn" style="margin-left:6px;padding:4px 10px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer">用本機 token 立即解鎖</button>';
+          document.getElementById('unlockBtn').onclick=function(){
+            this.disabled=true;this.textContent='解鎖中…';
+            gasPost('clearAdminLock',{ghtoken:saved}).then(function(r){
+              msg.textContent=(r&&r.ok)?'已解鎖，請重新輸入密碼':'解鎖失敗（token 無效或無寫入權限）';
+            }).catch(function(){msg.textContent='解鎖失敗，請稍後再試'});
+          };
+        }else{
+          msg.textContent=(j.msg||'嘗試次數過多，請 15 分鐘後再試')+'（或到已登入的電腦解鎖）';
+        }
       }else{
         msg.textContent='管理密碼錯誤';
       }
@@ -1694,7 +1705,9 @@ function enablePwLogin(){
   if(!S.token){toast('請先登入');return}
   var pw=prompt('設定／確認管理密碼（存放在你的 Google 試算表「Admins」分頁 B1）：');
   if(!pw)return;
-  gasPost('setGhToken',{pw:pw.trim(),value:S.token}).then(function(j){
+  /* 先用 token 解除可能存在的密碼鎖定，避免剛好卡在 15 分鐘封鎖裡 */
+  gasPost('clearAdminLock',{ghtoken:S.token}).catch(function(){}).then(function(){
+  return gasPost('setGhToken',{pw:pw.trim(),value:S.token})}).then(function(j){
     if(j&&j.ok)toast('✅ 已啟用：其他裝置現在可用管理密碼登入');
     else if(j&&j.error==='locked')toast(j.msg||'嘗試次數過多，請稍後再試',6000);
     else toast('管理密碼錯誤，未啟用',6000);
