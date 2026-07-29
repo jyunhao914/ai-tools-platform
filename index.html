@@ -1995,10 +1995,7 @@ function openArticleReader(card){
     }
   }catch(e){}
   _renderArticle(_localHtml);
-  gasAPI('getArticle',{id:card.id},function(res){
-    var fresh=(res&&res.ok&&res.article)?(res.article.content||''):'';
-    if(fresh&&fresh!==_localHtml)_renderArticle(fresh);
-  });
+  /* repo data.json 為唯一資料源；舊 GAS getArticle 會用停用後台的舊內文蓋掉新內容，已移除 */
   overlay.classList.add('show');
   document.body.style.overflow='hidden';
 }
