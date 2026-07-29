@@ -74,6 +74,29 @@ img{display:block;max-width:100%}
 .video-wrap{position:relative;width:100%;padding-bottom:56.25%;border-radius:var(--r2);overflow:hidden;background:#000;border:1px solid var(--border)}
 .video-wrap iframe,.video-wrap video{position:absolute;inset:0;width:100%;height:100%;border:0}
 .video-text{margin-top:14px}
+.faq-item{background:var(--card);border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px}
+.faq-item summary{list-style:none;cursor:pointer;padding:13px 18px;font-weight:600;font-size:14.5px;display:flex;gap:8px;align-items:center}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-item summary .arrow{margin-left:auto;color:var(--text3);transition:transform .2s;font-size:12px}
+.faq-item[open] summary .arrow{transform:rotate(180deg)}
+.faq-item .fa{padding:0 18px 14px;color:var(--text2);font-size:13.5px}
+.dl-row{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;margin-bottom:10px}
+.dl-row .dn{flex:1;min-width:0;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dl-row a{flex-shrink:0;padding:8px 16px;border-radius:8px;background:var(--accent);color:#fff;font-size:13px;font-weight:600}
+.dl-row a:hover{filter:brightness(1.12)}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap}
+.btn-row a{padding:11px 20px;border-radius:10px;font-size:14px;font-weight:600;transition:.2s}
+.btn-row a.pri{background:var(--accent);color:#fff}
+.btn-row a.pri:hover{filter:brightness(1.12)}
+.btn-row a.line{border:1px solid var(--border2);color:var(--text)}
+.btn-row a.line:hover{border-color:var(--accent);color:var(--accent)}
+.twocol{display:flex;gap:22px;align-items:flex-start;background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:20px}
+.twocol img{width:44%;border-radius:10px;flex-shrink:0}
+.twocol .tc-text{flex:1;font-size:14.5px}
+.twocol.img-right{flex-direction:row-reverse}
+@media(max-width:700px){.twocol,.twocol.img-right{flex-direction:column}.twocol img{width:100%}}
+.embed-wrap{border-radius:var(--r2);overflow:hidden;border:1px solid var(--border);background:var(--bg3)}
+.embed-wrap iframe{display:block;width:100%;border:0}
 .footer{text-align:center;padding:32px 24px;color:var(--text3);font-size:13px;border-top:1px solid var(--border)}
 .footer a{color:var(--text2)}
 .footer a:hover{color:var(--accent)}
@@ -139,6 +162,56 @@ function copyText(txt,btn){
 }
 
 /* ── 模組渲染 ── */
+function renderFaqModule(host,m){
+  (m.items||[]).forEach(function(it){
+    var d=document.createElement('details');d.className='faq-item';
+    var sm=document.createElement('summary');
+    sm.innerHTML='<span></span><span class="arrow">▼</span>';
+    sm.querySelector('span').textContent=it.q||'';
+    d.appendChild(sm);
+    var a=document.createElement('div');a.className='fa';
+    a.innerHTML=/<\w+[^>]*>/.test(it.a||'')?it.a:esc(it.a||'').replace(/\n/g,'<br>');
+    d.appendChild(a);
+    host.appendChild(d);
+  });
+}
+function renderFilesModule(host,m){
+  (m.files||[]).forEach(function(f){
+    var row=document.createElement('div');row.className='dl-row';
+    row.innerHTML='<span style="font-size:20px">📎</span><span class="dn"></span>'
+      +'<a href="'+esc(f.url||'')+'" '+(/^https?:/.test(f.url||'')?'target="_blank" rel="noopener"':'download')+'>⬇ 下載</a>';
+    row.querySelector('.dn').textContent=f.name||f.url;
+    host.appendChild(row);
+  });
+}
+function renderButtonsModule(host,m){
+  var row=document.createElement('div');row.className='btn-row';
+  (m.buttons||[]).forEach(function(b){
+    var a=document.createElement('a');
+    a.className=b.style==='line'?'line':'pri';
+    a.href=b.url||'#';
+    if(/^https?:/.test(b.url||'')){a.target='_blank';a.rel='noopener'}
+    a.textContent=b.label||'按鈕';
+    row.appendChild(a);
+  });
+  host.appendChild(row);
+}
+function renderTwocolModule(host,m){
+  var d=document.createElement('div');d.className='twocol'+(m.side==='right'?' img-right':'');
+  if(m.image){var im=document.createElement('img');im.loading='lazy';im.src=m.image;d.appendChild(im)}
+  var tx=document.createElement('div');tx.className='tc-text';tx.innerHTML=m.html||'';
+  d.appendChild(tx);
+  host.appendChild(d);
+}
+function renderEmbedModule(host,m){
+  if(!m.url)return;
+  var w=document.createElement('div');w.className='embed-wrap';
+  var f=document.createElement('iframe');
+  f.src=m.url;f.height=parseInt(m.height,10)||480;f.loading='lazy';
+  f.setAttribute('sandbox','allow-scripts allow-same-origin allow-popups allow-forms');
+  w.appendChild(f);
+  host.appendChild(w);
+}
 function applyDisplay(img,s){
   img.style.objectFit=s.fit||'cover';
   img.style.objectPosition=s.pos||'center';
@@ -237,6 +310,15 @@ function loadData(){
   }
   return fetch('data.json?t='+Date.now()).then(function(r){return r.json()});
 }
+var GAS_API='https://script.google.com/macros/s/AKfycbx6qfQFbhAwiqA4AdRisH2HuZDw8iLQEEw-pxraTYCCoMInj0O9cpygBSsB6ii32j21/exec';
+function trackVisit(title){
+  if(_isPreview)return;
+  try{
+    if(sessionStorage.getItem('hubv_'+HUB))return;
+    sessionStorage.setItem('hubv_'+HUB,'1');
+  }catch(e){}
+  fetch(GAS_API+'?action=recordClick&id=hub:'+encodeURIComponent(HUB)+'&title='+encodeURIComponent(title||HUB),{mode:'no-cors'}).catch(function(){});
+}
 loadData().then(function(data){
   var site=data.site||{};
   document.getElementById('siteTitle').textContent=site.title||'工具頁';
@@ -248,6 +330,7 @@ loadData().then(function(data){
   if(site.backUrl)document.getElementById('backLink').href=site.backUrl;
   if(site.backLabel)document.getElementById('backLink').textContent='← '+site.backLabel;
   document.getElementById('siteFooter').textContent=site.footer||'';
+  trackVisit(site.title);
 
   var mods=data.modules;
   if(site.featureTitle&&site.features&&site.features.length&&!(mods||[]).some(function(m){return m.type==='accordion'})){
@@ -265,6 +348,11 @@ loadData().then(function(data){
     else if(m.type==='article')renderArticleModule(sec,m);
     else if(m.type==='carousel')renderCarouselModule(sec,m);
     else if(m.type==='video')renderVideoModule(sec,m);
+    else if(m.type==='faq')renderFaqModule(sec,m);
+    else if(m.type==='files')renderFilesModule(sec,m);
+    else if(m.type==='buttons')renderButtonsModule(sec,m);
+    else if(m.type==='twocol')renderTwocolModule(sec,m);
+    else if(m.type==='embed')renderEmbedModule(sec,m);
     host.appendChild(sec);
   });
 }).catch(function(){document.getElementById('modules').innerHTML='<p style="color:var(--text3);margin-top:30px">資料載入失敗，請稍後再試。</p>'});

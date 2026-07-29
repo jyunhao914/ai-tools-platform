@@ -122,6 +122,11 @@ a{color:var(--accent);text-decoration:none}
           <button class="btn btn-line btn-sm" data-add="article" title="標題＋內文的圖文段落">＋ 文字區塊</button>
           <button class="btn btn-line btn-sm" data-add="carousel" title="多張圖片左右滑動展示，可附說明文字">＋ 圖片輪播</button>
           <button class="btn btn-line btn-sm" data-add="video" title="YouTube 或 MP4 影片嵌入，可附說明文字">＋ 影片</button>
+          <button class="btn btn-line btn-sm" data-add="faq" title="常見問答，逐題收合展開">＋ FAQ 問答</button>
+          <button class="btn btn-line btn-sm" data-add="files" title="提供 PDF、簡報等檔案下載">＋ 檔案下載</button>
+          <button class="btn btn-line btn-sm" data-add="buttons" title="一排行動按鈕（連結）">＋ 按鈕列</button>
+          <button class="btn btn-line btn-sm" data-add="twocol" title="圖片＋文字左右排版">＋ 雙欄圖文</button>
+          <button class="btn btn-line btn-sm" data-add="embed" title="嵌入外部網頁（iframe）">＋ 嵌入頁面</button>
         </div>
       </div>
       <div id="list"></div>
@@ -177,7 +182,12 @@ var TYPE_META={
   cards:{ico:'🗂',label:'卡片格'},
   article:{ico:'📝',label:'文字區塊'},
   carousel:{ico:'🖼',label:'圖片輪播'},
-  video:{ico:'🎬',label:'影片'}
+  video:{ico:'🎬',label:'影片'},
+  faq:{ico:'❓',label:'FAQ 問答'},
+  files:{ico:'📎',label:'檔案下載'},
+  buttons:{ico:'🔘',label:'按鈕列'},
+  twocol:{ico:'📰',label:'雙欄圖文'},
+  embed:{ico:'🧩',label:'嵌入頁面'}
 };
 
 function $(id){return document.getElementById(id)}
@@ -346,6 +356,11 @@ function render(){
     else if(m.type==='article')renderArticleEditor(body,m);
     else if(m.type==='carousel')renderCarouselEditor(body,m);
     else if(m.type==='video')renderVideoEditor(body,m);
+    else if(m.type==='faq')renderFaqEditor(body,m);
+    else if(m.type==='files')renderFilesEditor(body,m);
+    else if(m.type==='buttons')renderButtonsEditor(body,m);
+    else if(m.type==='twocol')renderTwocolEditor(body,m);
+    else if(m.type==='embed')renderEmbedEditor(body,m);
     list.appendChild(el);
   });
 }
@@ -361,6 +376,11 @@ document.querySelectorAll('[data-add]').forEach(function(b){
     var m={id:'m'+uid(),type:t,title:''};
     if(t==='cards')m.items=[];
     if(t==='accordion')m.items=[];
+    if(t==='faq')m.items=[];
+    if(t==='files')m.files=[];
+    if(t==='buttons')m.buttons=[];
+    if(t==='twocol'){m.image='';m.side='left';m.html=''}
+    if(t==='embed'){m.url='';m.height=480}
     if(t==='article')m.html='';
     if(t==='carousel'){m.images=[];m.html=''}
     if(t==='video'){m.video='';m.html=''}
@@ -600,6 +620,125 @@ function renderVideoEditor(body,m){
   inp.oninput=function(){m.video=this.value.trim();setDirty(true)};
   body.appendChild(f);
   htmlField(body,m,'說明文字（選填，顯示於影片下方）');
+}
+
+/* ── 列表型小工具：泛用列編輯 ── */
+function listEditor(body,arr,opts){
+  /* opts: {label, addLabel, fields:[{key,label,ph,type}], onChange} */
+  var box=document.createElement('div');box.className='field';
+  var head=document.createElement('div');
+  head.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:6px';
+  head.innerHTML='<label style="flex:1;margin:0">'+opts.label+'（'+arr.length+'）</label><button class="btn btn-pri btn-sm" type="button">＋ '+opts.addLabel+'</button>';
+  head.querySelector('button').onclick=function(){
+    var o={};opts.fields.forEach(function(f){o[f.key]=''});
+    arr.push(o);setDirty(true);renderKeepOpen();
+  };
+  box.appendChild(head);
+  arr.forEach(function(row,i){
+    var r=document.createElement('div');
+    r.style.cssText='display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:10px';
+    var col=document.createElement('div');col.style.cssText='flex:1;display:grid;gap:6px';
+    opts.fields.forEach(function(f){
+      var inp=document.createElement(f.type==='textarea'?'textarea':'input');
+      if(f.type==='textarea')inp.style.minHeight='60px';
+      inp.placeholder=f.label+(f.ph?('，'+f.ph):'');
+      inp.value=row[f.key]||'';
+      inp.oninput=function(){row[f.key]=inp.value;setDirty(true)};
+      col.appendChild(inp);
+    });
+    r.appendChild(col);
+    var ops=document.createElement('div');ops.style.cssText='display:flex;flex-direction:column;gap:4px';
+    [['↑',-1],['↓',1]].forEach(function(mv){
+      var b=document.createElement('button');b.className='btn btn-line btn-sm';b.type='button';b.textContent=mv[0];
+      b.onclick=function(){var j=i+mv[1];if(j<0||j>=arr.length)return;var t=arr[i];arr[i]=arr[j];arr[j]=t;setDirty(true);renderKeepOpen()};
+      ops.appendChild(b);
+    });
+    var del=document.createElement('button');del.className='btn btn-danger btn-sm';del.type='button';del.textContent='✕';
+    del.onclick=function(){arr.splice(i,1);setDirty(true);renderKeepOpen()};
+    ops.appendChild(del);
+    r.appendChild(ops);
+    box.appendChild(r);
+  });
+  body.appendChild(box);
+}
+
+/* ── FAQ 編輯器 ── */
+function renderFaqEditor(body,m){
+  listEditor(body,m.items,{label:'問答',addLabel:'新增問答',fields:[
+    {key:'q',label:'問題'},
+    {key:'a',label:'答案',type:'textarea'}
+  ]});
+}
+
+/* ── 檔案下載編輯器 ── */
+function stageFile(file,cb){
+  if(file.size>20*1024*1024){toast('檔案超過 20MB，請改用雲端連結');return}
+  var r=new FileReader();
+  r.onload=function(){
+    var safe=file.name.replace(/[^\w.\u4e00-\u9fff-]/g,'_');
+    var rel='files/'+uid()+'_'+safe;
+    S.newFiles[rel]={dataUrl:'',base64:String(r.result).split(',')[1]};
+    setDirty(true);cb(rel);
+  };
+  r.readAsDataURL(file);
+}
+function renderFilesEditor(body,m){
+  var up=document.createElement('div');up.className='field';
+  up.innerHTML='<button class="btn btn-line btn-sm" type="button">⬆ 上傳檔案（≤20MB）</button><input type="file" class="hidden">'
+    +'<span class="hint" style="margin-left:8px">大檔請貼雲端硬碟連結</span>';
+  var fi=up.querySelector('input');
+  up.querySelector('button').onclick=function(){fi.click()};
+  fi.addEventListener('change',function(){
+    var f=fi.files[0];if(!f)return;
+    stageFile(f,function(rel){m.files.push({name:f.name,url:rel});renderKeepOpen()});
+    fi.value='';
+  });
+  body.appendChild(up);
+  listEditor(body,m.files,{label:'檔案清單',addLabel:'加外部連結',fields:[
+    {key:'name',label:'顯示名稱'},
+    {key:'url',label:'網址或已上傳路徑'}
+  ]});
+}
+
+/* ── 按鈕列編輯器 ── */
+function renderButtonsEditor(body,m){
+  listEditor(body,m.buttons,{label:'按鈕',addLabel:'新增按鈕',fields:[
+    {key:'label',label:'按鈕文字'},
+    {key:'url',label:'連結網址'},
+    {key:'style',label:'樣式',ph:'pri＝實心（預設）/ line＝外框'}
+  ]});
+}
+
+/* ── 雙欄圖文編輯器 ── */
+function renderTwocolEditor(body,m){
+  var f=document.createElement('div');f.className='field';
+  f.innerHTML='<label>圖片</label>'
+    +'<div style="display:flex;gap:12px;align-items:center">'
+    +'<div class="thumb-stage" style="width:180px">'+(m.image?'<img src="'+esc(imgSrc(m.image))+'">':'')+'</div>'
+    +'<div><button class="btn btn-line btn-sm" type="button">更換圖片</button><input type="file" accept="image/*" class="hidden">'
+    +'<div class="field" style="margin-top:10px"><label>圖片位置</label><select><option value="left">靠左</option><option value="right">靠右</option></select></div></div></div>';
+  var fi=f.querySelector('input[type=file]');
+  f.querySelector('button').onclick=function(){fi.click()};
+  fi.addEventListener('change',function(){
+    var file=fi.files[0];if(!file)return;
+    stageImage(file,function(rel){m.image=rel;renderKeepOpen()});
+  });
+  var sel=f.querySelector('select');sel.value=m.side||'left';
+  sel.onchange=function(){m.side=sel.value;setDirty(true)};
+  body.appendChild(f);
+  htmlField(body,m,'文字內容');
+}
+
+/* ── 嵌入編輯器 ── */
+function renderEmbedEditor(body,m){
+  var f=document.createElement('div');f.className='field';
+  f.innerHTML='<label>嵌入網址（對方網站需允許被嵌入）</label><input type="text" placeholder="https://…">'
+    +'<div class="field" style="margin-top:10px"><label>高度（px）</label><input type="number" min="100" max="2000" step="20"></div>';
+  var u=f.querySelectorAll('input')[0],h=f.querySelectorAll('input')[1];
+  u.value=m.url||'';h.value=parseInt(m.height,10)||480;
+  u.oninput=function(){m.url=u.value.trim();setDirty(true)};
+  h.oninput=function(){m.height=parseInt(h.value,10)||480;setDirty(true)};
+  body.appendChild(f);
 }
 
 /* ── 網站設定 ── */

@@ -145,6 +145,9 @@ function doGet(e) {
           recordToolClick(p.title || "", p.id || "");
           result = { ok:true };
           break;
+        case "getStatsByIds":
+          result = { ok:true, stats: getStatsByIds_(p.ids || "") };
+          break;
         case "getSettings":
           result = { ok:true, settings: getSettings() };
           break;
@@ -413,6 +416,22 @@ function recordVisit() {
     sheet.appendRow(['日期時間', '類型', '內容']);
   }
   sheet.appendRow([new Date(), 'visit', 'page_view']);
+}
+
+function getStatsByIds_(idsCsv) {
+  var out = {};
+  try {
+    var ids = String(idsCsv).split(',').map(function(s){return s.trim()}).filter(String);
+    if (!ids.length) return out;
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    var st = ss.getSheetByName('Stats');
+    if (!st || st.getLastRow() < 2) return out;
+    var rows = st.getRange(2, 1, st.getLastRow() - 1, 2).getValues();
+    var map = {};
+    rows.forEach(function(r){ map[String(r[0])] = Number(r[1]) || 0; });
+    ids.forEach(function(id){ out[id] = map[id] || 0; });
+  } catch(e) {}
+  return out;
 }
 
 function recordToolClick(toolTitle, cardId) {

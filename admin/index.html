@@ -1555,12 +1555,24 @@ function loadHubs(){
     _hubReg=reg;
     el.innerHTML='';
     if(!reg.hubs.length){el.innerHTML='<p class="hint">還沒有子頁面</p>';return}
+    /* 瀏覽數（GAS Stats 表，id=hub:資料夾） */
+    (function(){
+      var ids=reg.hubs.map(function(h){return 'hub:'+h.folder}).join(',');
+      fetch(GAS_API+'?action=getStatsByIds&ids='+encodeURIComponent(ids)).then(function(r){return r.json()}).then(function(j){
+        if(!j||!j.ok||!j.stats)return;
+        el.querySelectorAll('[data-hubviews]').forEach(function(sp){
+          var n=j.stats['hub:'+sp.dataset.hubviews];
+          if(n!=null)sp.textContent='👁 '+n;
+        });
+      }).catch(function(){});
+    })();
     reg.hubs.forEach(function(h,i){
       var row=document.createElement('div');
       row.style.cssText='display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid var(--border);font-size:13.5px'+(h.archived?';opacity:.55':'');
       row.innerHTML='<strong style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(h.title||h.folder)
         +(h.archived?' <span class="hint">（已下架）</span>':'')+'</strong>'
         +'<span class="hint">/'+esc(h.folder)+'/</span>'
+        +'<span class="hint" data-hubviews="'+esc(h.folder)+'">👁 –</span>'
         +'<button class="btn small" data-a="up">↑</button>'
         +'<button class="btn small" data-a="down">↓</button>'
         +'<button class="btn small" data-a="rename">改名</button>'
