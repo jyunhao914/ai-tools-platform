@@ -160,6 +160,7 @@ a{color:var(--accent);text-decoration:none}
 <div class="dirty-bar" id="dirtyBar"><div class="dirty-in">
   <span class="msg">有未儲存的變更</span>
   <button class="btn btn-line btn-sm" id="revertBtn">還原</button>
+  <button class="btn btn-line btn-sm" id="previewBtn">👁 預覽</button>
   <button class="btn btn-pri" id="saveBtn">💾 儲存發佈</button>
 </div></div>
 
@@ -628,10 +629,48 @@ function loadHistory(){
   }).catch(function(){$('histList').textContent='載入失敗'});
 }
 
+$('previewBtn').onclick=function(){
+  /* 把暫存內容（含尚未上傳的圖，直接用 dataURL）寫進 localStorage，前台 ?preview=1 讀取渲染 */
+  var draft=JSON.parse(JSON.stringify(S.data));
+  var str=JSON.stringify(draft);
+  Object.keys(S.newFiles).forEach(function(rel){
+    str=str.split(JSON.stringify(rel)).join(JSON.stringify(S.newFiles[rel].dataUrl));
+  });
+  try{localStorage.setItem('hub_preview_'+HUB,str)}
+  catch(e){toast('預覽資料太大（新圖太多），請先發佈部分變更');return}
+  window.open(HUB+'/index.html?preview=1','hubPreview_'+HUB);
+};
+
 $('revertBtn').onclick=function(){
   if(!confirm('放棄所有未儲存的變更？'))return;
   S.data=JSON.parse(S.orig);S.newFiles={};setDirty(false);render();renderSite();
 };
+
+/* 發佈後輪詢線上檔案，回報部署進度 */
+var _deployTimer=null;
+function watchDeploy(){
+  var badge=$('stateBadge');
+  badge.textContent='🚀 部署中…';
+  clearInterval(_deployTimer);
+  var expect=JSON.stringify(S.data);
+  var t0=Date.now();
+  _deployTimer=setInterval(function(){
+    fetch(HUB+'/data.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(txt){
+      var live;
+      try{live=JSON.stringify(JSON.parse(txt))}catch(e){return}
+      if(live===expect){
+        clearInterval(_deployTimer);
+        badge.textContent='✓ 已上線';
+        toast('✅ 已上線，前台現在就是最新內容');
+        setTimeout(function(){if(!S.dirty)badge.textContent='已同步'},6000);
+      }else if(Date.now()-t0>180000){
+        clearInterval(_deployTimer);
+        badge.textContent='已同步';
+        toast('部署時間比平常久，稍後可自行確認前台');
+      }
+    }).catch(function(){});
+  },8000);
+}
 
 $('saveBtn').onclick=function(){
   var btn=$('saveBtn');btn.disabled=true;btn.textContent='發佈中…';
@@ -665,7 +704,7 @@ $('saveBtn').onclick=function(){
     S.dataSha=j.content?j.content.sha:S.dataSha;
     S.orig=JSON.stringify(S.data);S.newFiles={};setDirty(false);
     loadHistory();
-    toast('已發佈 ✓ GitHub Pages 約 1 分鐘後更新');
+    watchDeploy();
   }).catch(function(e){
     if(e.message!=='__abort__')toast('發佈失敗：'+e.message);
   }).finally(function(){btn.disabled=false;btn.textContent='💾 儲存發佈'});

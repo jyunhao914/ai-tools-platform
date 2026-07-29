@@ -221,7 +221,23 @@ function renderVideoModule(host,m){
   if(m.html){var t=document.createElement('div');t.className='article-box video-text';t.innerHTML=m.html;host.appendChild(t)}
 }
 
-fetch('data.json?t='+Date.now()).then(function(r){return r.json()}).then(function(data){
+var _isPreview=location.search.indexOf('preview=1')>=0;
+function loadData(){
+  if(_isPreview){
+    try{
+      var d=localStorage.getItem('hub_preview_'+HUB);
+      if(d){
+        var bar=document.createElement('div');
+        bar.style.cssText='background:rgba(251,191,36,.14);color:#fbbf24;padding:8px 20px;font-size:13px;text-align:center';
+        bar.textContent='👁 預覽模式：這是後台尚未發佈的草稿內容';
+        document.body.insertBefore(bar,document.body.firstChild);
+        return Promise.resolve(JSON.parse(d));
+      }
+    }catch(e){}
+  }
+  return fetch('data.json?t='+Date.now()).then(function(r){return r.json()});
+}
+loadData().then(function(data){
   var site=data.site||{};
   document.getElementById('siteTitle').textContent=site.title||'工具頁';
   document.title=site.title||'工具頁';
