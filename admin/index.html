@@ -1685,7 +1685,7 @@ function gasPost(action,params,_retry){
       if(j&&j.ok&&j.token){
         S.token=j.token;localStorage.setItem('gh_pat',j.token);
         msg.textContent='登入成功，載入中…';
-        boot();
+        tryLogin();
       }else if(j&&j.error==='notset'){
         msg.innerHTML='這個站還沒啟用密碼登入。請先在<b>已登入的電腦</b>上，於「網站設定」按一次「啟用密碼登入」。';
       }else if(j&&j.error==='locked'){
