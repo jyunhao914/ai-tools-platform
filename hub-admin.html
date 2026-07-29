@@ -90,6 +90,7 @@ a{color:var(--accent);text-decoration:none}
 <div class="tabs hidden" id="tabs">
   <button data-tab="modules" class="on">📦 頁面內容</button>
   <button data-tab="site">🛠 網站設定</button>
+  <button data-tab="files">🧹 圖片檔案</button>
   <button data-tab="history">🕘 版本記錄</button>
 </div>
 
@@ -137,6 +138,15 @@ a{color:var(--accent);text-decoration:none}
       </div>
     </div>
 
+    <div id="tab-files" class="hidden">
+      <div class="box">
+        <h2 style="font-size:15px;margin-bottom:4px">圖片檔案</h2>
+        <p class="hint" style="margin-bottom:10px">本頁面用到的圖片都存在 thumbs 資料夾。「未引用」代表已沒有任何區塊使用（刪卡片或換圖後留下的舊檔），可放心清除。</p>
+        <div style="margin-bottom:10px"><button class="btn btn-danger btn-sm" id="cleanAllBtn">🧹 清除全部未引用</button></div>
+        <div id="fileList" class="hint">載入中…</div>
+      </div>
+    </div>
+
     <div id="tab-history" class="hidden">
       <div class="box">
         <h2 style="font-size:15px;margin-bottom:4px">版本記錄</h2>
@@ -176,9 +186,26 @@ function b64encodeUtf8(s){return btoa(unescape(encodeURIComponent(s)))}
 function b64decodeUtf8(b){return decodeURIComponent(escape(atob(b.replace(/\n/g,''))))}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 
+var _tokWarned=false;
+function checkTokenExpiry(r){
+  if(_tokWarned)return;
+  var exp=r.headers.get('github-authentication-token-expiration');
+  if(!exp)return;
+  var d=new Date(exp.replace(' UTC','Z').replace(' ','T'));
+  if(isNaN(d))return;
+  var days=Math.floor((d-Date.now())/86400000);
+  if(days<=14){
+    _tokWarned=true;
+    var bar=document.createElement('div');
+    bar.style.cssText='background:'+(days<=3?'rgba(248,113,113,.15)':'rgba(251,191,36,.12)')+';color:'+(days<=3?'#f87171':'#fbbf24')+';padding:8px 20px;font-size:13px;text-align:center';
+    bar.innerHTML='⚠️ GitHub token 將於 <b>'+days+' 天後</b>（'+d.toLocaleDateString()+'）到期，請儘早到 <a href="https://github.com/settings/personal-access-tokens" target="_blank" style="color:inherit;text-decoration:underline">GitHub 設定</a> 延長或重建，否則後台將無法發佈。';
+    document.body.insertBefore(bar,document.body.children[1]);
+  }
+}
 function gh(path,opt){
   opt=opt||{};opt.headers={'Authorization':'Bearer '+S.token,'Accept':'application/vnd.github+json'};
   return fetch(API+path,opt).then(function(r){
+    checkTokenExpiry(r);
     if(r.status===401||r.status===403){throw new Error('token 無效或權限不足（'+r.status+'）')}
     if(!r.ok)return r.json().catch(function(){return{}}).then(function(j){throw new Error(j.message||('HTTP '+r.status))});
     return r.status===204?{}:r.json();
@@ -236,7 +263,8 @@ $('logoutBtn').onclick=function(){
 document.querySelectorAll('.tabs button').forEach(function(b){
   b.onclick=function(){
     document.querySelectorAll('.tabs button').forEach(function(x){x.classList.toggle('on',x===b)});
-    ['modules','site','history'].forEach(function(t){$('tab-'+t).classList.toggle('hidden',t!==b.dataset.tab)});
+    ['modules','site','files','history'].forEach(function(t){$('tab-'+t).classList.toggle('hidden',t!==b.dataset.tab)});
+    if(b.dataset.tab==='files')loadFiles();
   };
 });
 
@@ -528,6 +556,53 @@ function renderSite(){
   });
 }
 
+/* ── 圖片檔案（孤兒清理） ── */
+function referencedSet(){
+  var used={};
+  JSON.stringify(S.data).replace(/thumbs\/[\w.-]+/g,function(m){used[m]=1;return m});
+  Object.keys(S.newFiles).forEach(function(k){used[k]=1});
+  return used;
+}
+function loadFiles(){
+  var el=$('fileList');el.textContent='載入中…';
+  gh('/repos/'+OWNER+'/'+REPO+'/contents/'+HUB+'/thumbs?ref='+BRANCH+'&t='+Date.now()).then(function(items){
+    el.innerHTML='';el.classList.remove('hint');
+    var used=referencedSet();
+    var orphans=[];
+    items.forEach(function(it){
+      if(it.type!=='file')return;
+      var rel='thumbs/'+it.name;
+      var isUsed=!!used[rel];
+      if(!isUsed)orphans.push(it);
+      var row=document.createElement('div');
+      row.className='hist-row';
+      row.innerHTML='<img src="'+HUB+'/'+rel+'?t=1" style="width:64px;height:42px;object-fit:cover;border-radius:6px;background:var(--panel2)">'
+        +'<span class="msg">'+esc(it.name)+'<span class="hint" style="margin-left:8px">'+Math.round(it.size/1024)+' KB</span></span>'
+        +(isUsed?'<span class="badge">使用中</span>':'<span class="badge" style="background:rgba(248,113,113,.15);color:#f87171">未引用</span>'
+          +'<button class="btn btn-danger btn-sm">刪除</button>');
+      var del=row.querySelector('button');
+      if(del)del.onclick=function(){deleteRepoFile(HUB+'/thumbs/'+it.name,it.sha,function(){row.remove()})};
+      el.appendChild(row);
+    });
+    if(!items.length)el.textContent='（沒有圖片檔）';
+    $('cleanAllBtn').onclick=function(){
+      if(!orphans.length){toast('沒有未引用的圖檔');return}
+      if(!confirm('刪除 '+orphans.length+' 個未引用圖檔？此動作直接生效、不可從後台復原。'))return;
+      var chain=Promise.resolve();
+      orphans.forEach(function(it){
+        chain=chain.then(function(){return deleteRepoFile(HUB+'/thumbs/'+it.name,it.sha)});
+      });
+      chain.then(function(){toast('已清除 '+orphans.length+' 個檔案');loadFiles()})
+        .catch(function(e){toast('清除失敗：'+e.message);loadFiles()});
+    };
+  }).catch(function(){el.textContent='（沒有圖片資料夾或載入失敗）'});
+}
+function deleteRepoFile(path,sha,cb){
+  return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+path,{method:'DELETE',body:JSON.stringify({
+    message:HUB+' admin: 清除未引用圖檔 '+path.split('/').pop(),sha:sha,branch:BRANCH
+  })}).then(function(){if(cb)cb()});
+}
+
 /* ── 版本記錄 ── */
 function loadHistory(){
   gh('/repos/'+OWNER+'/'+REPO+'/commits?per_page=20&sha='+BRANCH+'&path='+DATA_PATH).then(function(commits){
@@ -577,6 +652,12 @@ $('saveBtn').onclick=function(){
   chain.then(function(){
     return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+DATA_PATH+'?ref='+BRANCH+'&t='+Date.now()).then(function(j){return j.sha}).catch(function(){return S.dataSha});
   }).then(function(sha){
+    /* 衝突保護：載入後遠端若已被別處更新，直接覆蓋會吃掉對方的變更 */
+    if(sha!==S.dataSha&&!confirm('⚠️ 這個頁面的內容在你開啟後台後已被別處更新（可能是另一個分頁或另一台裝置）。\n\n繼續發佈會覆蓋掉那些變更。\n建議取消 → 重新整理後台 → 再改一次。\n\n仍要覆蓋？')){
+      throw new Error('__abort__');
+    }
+    return sha;
+  }).then(function(sha){
     return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+DATA_PATH,{method:'PUT',body:JSON.stringify({
       message:HUB+' admin: 更新內容',content:b64encodeUtf8(JSON.stringify(S.data,null,1)),branch:BRANCH,sha:sha
     })});
@@ -586,7 +667,7 @@ $('saveBtn').onclick=function(){
     loadHistory();
     toast('已發佈 ✓ GitHub Pages 約 1 分鐘後更新');
   }).catch(function(e){
-    toast('發佈失敗：'+e.message);
+    if(e.message!=='__abort__')toast('發佈失敗：'+e.message);
   }).finally(function(){btn.disabled=false;btn.textContent='💾 儲存發佈'});
 };
 

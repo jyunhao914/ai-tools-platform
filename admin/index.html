@@ -449,6 +449,22 @@ function thumbUrl(u){
 window.addEventListener('beforeunload',function(e){if(isDirty()){e.preventDefault();e.returnValue=''}});
 
 /* ================= GITHUB API ================= */
+var _tokWarned=false;
+function checkTokenExpiry(r){
+  if(_tokWarned)return;
+  var exp=r.headers.get('github-authentication-token-expiration');
+  if(!exp)return;
+  var d=new Date(exp.replace(' UTC','Z').replace(' ','T'));
+  if(isNaN(d))return;
+  var days=Math.floor((d-Date.now())/86400000);
+  if(days<=14){
+    _tokWarned=true;
+    var bar=document.createElement('div');
+    bar.style.cssText='background:'+(days<=3?'rgba(248,113,113,.15)':'rgba(251,191,36,.12)')+';color:'+(days<=3?'#f87171':'#fbbf24')+';padding:8px 20px;font-size:13px;text-align:center';
+    bar.innerHTML='⚠️ GitHub token 將於 <b>'+days+' 天後</b>（'+d.toLocaleDateString()+'）到期，請儘早到 <a href="https://github.com/settings/personal-access-tokens" target="_blank" style="color:inherit;text-decoration:underline">GitHub 設定</a> 延長或重建，否則後台將無法發佈。';
+    document.body.insertBefore(bar,document.body.firstChild);
+  }
+}
 function gh(path,opts){
   opts=opts||{};
   opts.headers=Object.assign({
@@ -457,6 +473,7 @@ function gh(path,opts){
     'X-GitHub-Api-Version':'2022-11-28'
   },opts.headers||{});
   return fetch(API+path,opts).then(function(r){
+    checkTokenExpiry(r);
     if(r.status===401||r.status===403){throw new Error('TOKEN')}
     if(!r.ok)return r.json().catch(function(){return{}}).then(function(j){throw new Error(j.message||('HTTP '+r.status))});
     return r.status===204?null:r.json();
@@ -1522,23 +1539,87 @@ tryLogin();
 
 /* ================= HUBS 子頁面 ================= */
 var HUBS_PATH='hubs.json',TEMPLATE_PATH='hub-template.html';
+var _hubReg=null,_hubRegSha=null;
+function saveHubReg(msg){
+  var body={message:msg,content:b64encodeUtf8(JSON.stringify(_hubReg,null,1)),branch:BRANCH};
+  if(_hubRegSha)body.sha=_hubRegSha;
+  return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+HUBS_PATH,{method:'PUT',body:JSON.stringify(body)})
+    .then(function(j){_hubRegSha=j.content.sha});
+}
 function loadHubs(){
   var el=$('hubList');el.innerHTML='<p class="hint">載入中…</p>';
   gh('/repos/'+OWNER+'/'+REPO+'/contents/'+HUBS_PATH+'?ref='+BRANCH+'&t='+Date.now()).then(function(j){
+    _hubRegSha=j.sha;
     return JSON.parse(b64decodeUtf8(j.content));
-  }).catch(function(){return {hubs:[]}}).then(function(reg){
+  }).catch(function(){_hubRegSha=null;return {hubs:[]}}).then(function(reg){
+    _hubReg=reg;
     el.innerHTML='';
     if(!reg.hubs.length){el.innerHTML='<p class="hint">還沒有子頁面</p>';return}
-    reg.hubs.forEach(function(h){
+    reg.hubs.forEach(function(h,i){
       var row=document.createElement('div');
-      row.style.cssText='display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--border);font-size:13.5px';
-      row.innerHTML='<strong style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(h.title||h.folder)+'</strong>'
+      row.style.cssText='display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid var(--border);font-size:13.5px'+(h.archived?';opacity:.55':'');
+      row.innerHTML='<strong style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(h.title||h.folder)
+        +(h.archived?' <span class="hint">（已下架）</span>':'')+'</strong>'
         +'<span class="hint">/'+esc(h.folder)+'/</span>'
-        +'<a class="btn small" href="../'+esc(h.folder)+'/" target="_blank">前台 ↗</a>'
-        +'<a class="btn small" href="../hub-admin.html?hub='+esc(h.folder)+'" target="_blank">後台 ↗</a>';
+        +'<button class="btn small" data-a="up">↑</button>'
+        +'<button class="btn small" data-a="down">↓</button>'
+        +'<button class="btn small" data-a="rename">改名</button>'
+        +(h.archived
+          ?'<button class="btn small" data-a="restore">恢復上架</button>'
+          :'<a class="btn small" href="../'+esc(h.folder)+'/" target="_blank">前台 ↗</a>'
+           +'<a class="btn small" href="../hub-admin.html?hub='+esc(h.folder)+'" target="_blank">後台 ↗</a>'
+           +'<button class="btn small danger" data-a="archive">下架</button>');
+      row.querySelector('[data-a=up]').onclick=function(){moveHub(i,-1)};
+      row.querySelector('[data-a=down]').onclick=function(){moveHub(i,1)};
+      row.querySelector('[data-a=rename]').onclick=function(){renameHub(h)};
+      var arch=row.querySelector('[data-a=archive]');
+      if(arch)arch.onclick=function(){archiveHub(h)};
+      var rest=row.querySelector('[data-a=restore]');
+      if(rest)rest.onclick=function(){restoreHub(h)};
       el.appendChild(row);
     });
   });
+}
+function moveHub(i,dir){
+  var a=_hubReg.hubs,j=i+dir;
+  if(j<0||j>=a.length)return;
+  var t=a[i];a[i]=a[j];a[j]=t;
+  saveHubReg('admin: 調整子頁面順序').then(loadHubs).catch(function(e){toast('失敗：'+e.message)});
+}
+function renameHub(h){
+  var name=prompt('新的頁面名稱：',h.title||h.folder);
+  if(!name||name===h.title)return;
+  h.title=name;
+  /* 同步 hub data.json 的 site.title */
+  gh('/repos/'+OWNER+'/'+REPO+'/contents/'+h.folder+'/data.json?ref='+BRANCH+'&t='+Date.now()).then(function(j){
+    var d=JSON.parse(b64decodeUtf8(j.content));
+    d.site=d.site||{};d.site.title=name;
+    return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+h.folder+'/data.json',{method:'PUT',body:JSON.stringify({
+      message:'admin: 子頁面改名 '+h.folder,content:b64encodeUtf8(JSON.stringify(d,null,1)),branch:BRANCH,sha:j.sha})});
+  }).then(function(){return saveHubReg('admin: 子頁面改名 '+h.folder)})
+    .then(function(){toast('已改名 ✓');loadHubs()})
+    .catch(function(e){toast('改名失敗：'+e.message)});
+}
+function archiveHub(h){
+  if(!confirm('下架「'+(h.title||h.folder)+'」？\n\n頁面網址會失效，但內容資料完整保留，之後可一鍵恢復上架。'))return;
+  gh('/repos/'+OWNER+'/'+REPO+'/contents/'+h.folder+'/index.html?ref='+BRANCH+'&t='+Date.now()).then(function(j){
+    return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+h.folder+'/index.html',{method:'DELETE',body:JSON.stringify({
+      message:'admin: 下架子頁面 '+h.folder,sha:j.sha,branch:BRANCH})});
+  }).catch(function(){}).then(function(){
+    h.archived=true;
+    return saveHubReg('admin: 下架子頁面 '+h.folder);
+  }).then(function(){toast('已下架');loadHubs()})
+    .catch(function(e){toast('下架失敗：'+e.message)});
+}
+function restoreHub(h){
+  gh('/repos/'+OWNER+'/'+REPO+'/contents/'+TEMPLATE_PATH+'?ref='+BRANCH).then(function(t){
+    return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+h.folder+'/index.html',{method:'PUT',body:JSON.stringify({
+      message:'admin: 恢復子頁面 '+h.folder,content:t.content.replace(/\n/g,''),branch:BRANCH})});
+  }).then(function(){
+    delete h.archived;
+    return saveHubReg('admin: 恢復子頁面 '+h.folder);
+  }).then(function(){toast('已恢復上架 ✓ 約 1 分鐘後生效');loadHubs()})
+    .catch(function(e){toast('恢復失敗：'+e.message)});
 }
 $('hubSlug').oninput=function(){
   this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'');
