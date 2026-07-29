@@ -174,6 +174,25 @@ function doGet(e) {
           } catch(e) {}
           result = { ok:true, stats:getStats(), views:_sv };
           break;
+        case "getLinkReport": {
+          var _lr = null;
+          try { _lr = JSON.parse(PropertiesService.getScriptProperties().getProperty('LINK_REPORT') || 'null'); } catch(e) {}
+          /* 報告超過 7 天自動重跑（懶排程，不佔一般訪客請求） */
+          if (!_lr || (Date.now() - (_lr.checkedAt || 0)) > 7 * 86400000) {
+            var _fresh = runLinkCheck_();
+            if (_fresh) _lr = _fresh;
+          }
+          result = _lr ? { ok:true, report:_lr } : { ok:false, error:'unauthorized' };
+          break;
+        }
+        case "runLinkCheck": {
+          var _cc = CacheService.getScriptCache();
+          if (_cc.get('lc_cool')) { result = { ok:false, error:'cooldown', msg:'剛巡檢過，請 10 分鐘後再試' }; break; }
+          var _rep = runLinkCheck_();
+          if (_rep) { _cc.put('lc_cool','1',600); result = { ok:true, report:_rep }; }
+          else result = { ok:false, error:'unauthorized' };
+          break;
+        }
         case "getStatsByIds":
           result = { ok:true, stats: getStatsByIds_(p.ids || "") };
           break;
@@ -460,6 +479,81 @@ const BACKUP_INTERVAL_MS = 7 * 24 * 3600 * 1000;
 function getBackupFolder_() {
   var it = DriveApp.getFoldersByName(BACKUP_FOLDER_NAME);
   return it.hasNext() ? it.next() : DriveApp.createFolder(BACKUP_FOLDER_NAME);
+}
+
+/* ── 壞連結巡檢 ──
+   掃 data.json 與各子頁面 data.json 的所有對外連結，回報失效者。
+   需要 UrlFetchApp（外部連線）授權：第一次請在 Apps Script 編輯器手動執行
+   authorizeOnce()，同意權限後即可運作。未授權時回 null（前端顯示指引）。 */
+function authorizeOnce() {
+  var r = UrlFetchApp.fetch('https://www.google.com', { muteHttpExceptions: true });
+  Logger.log('授權完成，狀態碼：' + r.getResponseCode());
+}
+function collectLinks_() {
+  var BASE = 'https://jyunhao914.github.io/ai-tools-platform/';
+  var out = [];   // {url, where}
+  function addFrom(obj, where) {
+    ['linkUrl','link','video','url'].forEach(function(k){
+      var v = obj && obj[k];
+      if (typeof v === 'string' && /^https?:\/\//.test(v)) out.push({ url: v, where: where });
+    });
+    (obj && obj.buttons || []).forEach(function(b){
+      if (b.url && /^https?:\/\//.test(b.url)) out.push({ url: b.url, where: where + '（按鈕）' });
+    });
+    (obj && obj.files || []).forEach(function(f){
+      if (f.url && /^https?:\/\//.test(f.url)) out.push({ url: f.url, where: where + '（檔案）' });
+    });
+  }
+  var d = JSON.parse(UrlFetchApp.fetch(BASE + 'data.json', { muteHttpExceptions: true }).getContentText());
+  (d.cards || []).forEach(function(cd){ if (cd.visible !== false) addFrom(cd, '卡片：' + (cd.title || cd.id)); });
+  try {
+    var hubs = JSON.parse(UrlFetchApp.fetch(BASE + 'hubs.json', { muteHttpExceptions: true }).getContentText()).hubs || [];
+    hubs.forEach(function(h){
+      if (h.archived) return;
+      try {
+        var hd = JSON.parse(UrlFetchApp.fetch(BASE + h.folder + '/data.json', { muteHttpExceptions: true }).getContentText());
+        (hd.modules || []).forEach(function(m){
+          addFrom(m, '子頁面 ' + (h.title || h.folder));
+          (m.items || []).forEach(function(it){ addFrom(it, '子頁面 ' + (h.title || h.folder) + '：' + (it.scene || '')); });
+        });
+      } catch(e) {}
+    });
+  } catch(e) {}
+  try {
+    var site = JSON.parse(UrlFetchApp.fetch(BASE + 'site.json', { muteHttpExceptions: true }).getContentText());
+    (site.modules || []).forEach(function(m){
+      addFrom(m, '網站區塊：' + (m.title || m.type));
+      (m.items || []).forEach(function(it){ addFrom(it, '網站區塊：' + (it.scene || '') ); });
+    });
+  } catch(e) {}
+  /* 去重（同網址只查一次，但保留所有出處） */
+  var map = {};
+  out.forEach(function(l){ (map[l.url] = map[l.url] || []).push(l.where); });
+  return Object.keys(map).map(function(u){ return { url: u, wheres: map[u] }; });
+}
+function runLinkCheck_() {
+  var links;
+  try { links = collectLinks_(); }
+  catch(e) { return null; }   /* UrlFetchApp 未授權 */
+  var broken = [];
+  for (var i = 0; i < links.length; i += 20) {
+    var chunk = links.slice(i, i + 20);
+    try {
+      var resps = UrlFetchApp.fetchAll(chunk.map(function(l){
+        return { url: l.url, muteHttpExceptions: true, followRedirects: true,
+                 headers: { 'User-Agent': 'Mozilla/5.0 (link-check)' } };
+      }));
+      resps.forEach(function(r, k){
+        var code = r.getResponseCode();
+        if (code >= 400) broken.push({ url: chunk[k].url, status: code, where: chunk[k].wheres.join('、') });
+      });
+    } catch(e) {
+      chunk.forEach(function(l){ broken.push({ url: l.url, status: 0, where: l.wheres.join('、') }); });
+    }
+  }
+  var report = { checkedAt: Date.now(), total: links.length, broken: broken };
+  PropertiesService.getScriptProperties().setProperty('LINK_REPORT', JSON.stringify(report));
+  return report;
 }
 
 function runBackup_() {

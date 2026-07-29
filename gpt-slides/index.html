@@ -164,6 +164,11 @@ document.addEventListener('keydown',function(e){
 function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
 var toastT;
 function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){t.classList.remove('show')},1800)}
+function trackCopy(itemId,label){
+  try{
+    fetch(GAS_API+'?action=recordClick&id='+encodeURIComponent('hubcopy:'+HUB+':'+itemId)+'&title='+encodeURIComponent('複製｜'+(label||'')),{mode:'no-cors'}).catch(function(){});
+  }catch(e){}
+}
 function copyText(txt,btn){
   function done(){toast('已複製指令');if(btn){var o=btn.innerHTML;btn.classList.add('ok');btn.innerHTML='✓ 已複製';setTimeout(function(){btn.classList.remove('ok');btn.innerHTML=o},1600)}}
   if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(txt).then(done)}
@@ -233,9 +238,16 @@ function applyDisplay(img,s){
   var st=img.parentElement;
   if(st)st.style.background=(effFit==='contain'&&s.bg)?s.bg:'';
 }
+/* 排程顯示：publishAt 之前、unpublishAt 之後不顯示（留空不限） */
+function scheduledVisible(o){
+  var now=Date.now();
+  if(o.publishAt&&now<new Date(o.publishAt).getTime())return false;
+  if(o.unpublishAt&&now>=new Date(o.unpublishAt).getTime())return false;
+  return true;
+}
 function renderCardsModule(host,items){
   var g=document.createElement('div');g.className='grid';
-  (items||[]).forEach(function(s){
+  (items||[]).filter(scheduledVisible).forEach(function(s){
     var el=document.createElement('div');el.className='card';
     el.innerHTML='<div class="thumb">'+(s.thumb?'<img loading="lazy" src="'+esc(s.thumb)+'" alt="'+esc(s.scene)+'">':'')+'</div>'
       +'<div class="info"><div class="scene">'+esc(s.scene)+'</div>'
@@ -246,7 +258,7 @@ function renderCardsModule(host,items){
     var im=el.querySelector('.thumb img');
     if(im)applyDisplay(im,s);
     var b=el.querySelector('button.btn-copy');
-    if(b)b.addEventListener('click',function(){copyText(s.prompt,this)});
+    if(b)b.addEventListener('click',function(){copyText(s.prompt,this);trackCopy(s.id,s.scene)});
     g.appendChild(el);
   });
   host.appendChild(g);
@@ -355,7 +367,7 @@ loadData().then(function(data){
     mods=[{type:'cards',title:site.secTitle||'選擇風格，複製專案指令',items:data.styles}];
   }
   var host=document.getElementById('modules');
-  (mods||[]).forEach(function(m){
+  (mods||[]).filter(scheduledVisible).forEach(function(m){
     var sec=document.createElement('section');sec.className='module';
     if(m.title&&m.type!=='accordion'){var h=document.createElement('div');h.className='sec-title';h.textContent=m.title;sec.appendChild(h)}
     if(m.type==='accordion')renderAccordionModule(sec,m);

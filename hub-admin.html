@@ -446,6 +446,16 @@ function render(){
     var tfIn=tf.querySelector('input');tfIn.value=m.title||'';
     tfIn.oninput=function(){m.title=this.value;setDirty(true);el.querySelector('.tt').textContent=this.value||'（未命名模組）'};
     body.appendChild(tf);
+    /* 排程上下架 */
+    var sf=document.createElement('div');sf.className='field';
+    sf.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+      +'<div><label>排程上架（留空＝立即）</label><input type="datetime-local" data-sc="publishAt"></div>'
+      +'<div><label>排程下架（留空＝不下架）</label><input type="datetime-local" data-sc="unpublishAt"></div></div>';
+    sf.querySelectorAll('[data-sc]').forEach(function(inp){
+      inp.value=(m[inp.dataset.sc]||'').slice(0,16);
+      inp.oninput=function(){if(inp.value)m[inp.dataset.sc]=inp.value;else delete m[inp.dataset.sc];setDirty(true)};
+    });
+    body.appendChild(sf);
     if(m.type==='accordion')renderAccordionEditor(body,m);
     else if(m.type==='cards')renderCardsEditor(body,m);
     else if(m.type==='article')renderArticleEditor(body,m);
@@ -528,12 +538,19 @@ function renderCardsEditor(body,m){
       +'<div class="field"><label>複製內容（選填｜提供後卡片顯示「複製」按鈕）</label><textarea data-f="prompt" style="min-height:120px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px"></textarea></div>'
       +'<div class="field"><label>連結網址（選填｜提供後卡片顯示開啟按鈕）</label><input type="text" data-f="link"></div>'
       +'<div class="field"><label>連結按鈕文字</label><input type="text" data-f="linkLabel" placeholder="開啟連結"></div>'
+      +'<div class="field"><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+      +'<div><label>排程上架（留空＝立即）</label><input type="datetime-local" data-sc="publishAt"></div>'
+      +'<div><label>排程下架（留空＝不下架）</label><input type="datetime-local" data-sc="unpublishAt"></div></div></div>'
       +'</div>';
     el.querySelector('[data-f=scene]').value=s.scene||'';
     el.querySelector('[data-f=name]').value=s.name||'';
     el.querySelector('[data-f=prompt]').value=s.prompt||'';
     el.querySelector('[data-f=link]').value=s.link||'';
     el.querySelector('[data-f=linkLabel]').value=s.linkLabel||'';
+    el.querySelectorAll('[data-sc]').forEach(function(inp){
+      inp.value=(s[inp.dataset.sc]||'').slice(0,16);
+      inp.oninput=function(){if(inp.value)s[inp.dataset.sc]=inp.value;else delete s[inp.dataset.sc];setDirty(true)};
+    });
     var stageImg=el.querySelector('.thumb-stage img');
     var hdImg=el.querySelector('.item-hd .th img');
     var fitSel=el.querySelector('[data-d=fit]'),posSel=el.querySelector('[data-d=pos]'),

@@ -1189,7 +1189,7 @@ function renderLatest(){
     (n.children||[]).forEach(function(k){valid[k]=1});
   });
   var pool=CARDS.filter(function(c){
-    if(c.visible===false)return false;
+    if(c.visible===false||!schedOk(c))return false;
     if(!valid[c.page||c.category])return false;
     var perm=c.permission||'public';
     if(perm==='student'&&_userRole==='public')return false;
@@ -1490,6 +1490,13 @@ function buildSlider(imgs,card){
   return wrap;
 }
 
+/* 排程顯示：publishAt 前、unpublishAt 後不顯示（後台「排程上下架」欄位） */
+function schedOk(o){
+  var now=Date.now();
+  if(o.publishAt&&now<new Date(o.publishAt).getTime())return false;
+  if(o.unpublishAt&&now>=new Date(o.unpublishAt).getTime())return false;
+  return true;
+}
 function renderCards(){
   if(_searchActive)return;
   var grid=$('toolsGrid');
@@ -1501,7 +1508,7 @@ function renderCards(){
   var kids=childrenOf(_activeTab);
   var accept=_activeSub?[_activeSub]:[_activeTab].concat(kids);
   var filtered=CARDS.filter(function(c){
-    if(accept.indexOf(c.page||c.category)<0||c.visible===false)return false;
+    if(accept.indexOf(c.page||c.category)<0||c.visible===false||!schedOk(c))return false;
     var perm=c.permission||'public';
     if(perm==='student'&&_userRole==='public')return false;
     if(perm==='admin'&&_userRole!=='admin')return false;
@@ -4947,6 +4954,16 @@ function blkApply(img,s){
   img.style.transform=z!==1?'scale('+z+')':'';
   if(effFit==='contain'&&s.bg)img.parentElement.style.background=s.bg;
 }
+var BLK_GAS='https://script.google.com/macros/s/AKfycbx6qfQFbhAwiqA4AdRisH2HuZDw8iLQEEw-pxraTYCCoMInj0O9cpygBSsB6ii32j21/exec';
+function blkTrack(id,label){
+  try{fetch(BLK_GAS+'?action=recordClick&id='+encodeURIComponent('blkcopy:'+id)+'&title='+encodeURIComponent('複製｜'+(label||'')),{mode:'no-cors'}).catch(function(){})}catch(e){}
+}
+function blkSched(o){
+  var now=Date.now();
+  if(o.publishAt&&now<new Date(o.publishAt).getTime())return false;
+  if(o.unpublishAt&&now>=new Date(o.unpublishAt).getTime())return false;
+  return true;
+}
 function blkCopy(txt,btn){
   function done(){bToast('已複製');if(btn){var o=btn.innerHTML;btn.classList.add('ok');btn.innerHTML='✓ 已複製';setTimeout(function(){btn.classList.remove('ok');btn.innerHTML=o},1600)}}
   if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(txt).then(done)}
@@ -4954,7 +4971,7 @@ function blkCopy(txt,btn){
 }
 function rCards(host,items){
   var g=bCe('div','blk-grid');
-  (items||[]).forEach(function(s){
+  (items||[]).filter(blkSched).forEach(function(s){
     var el=bCe('div','blk-card');
     el.innerHTML='<div class="blk-thumb">'+(s.thumb?'<img loading="lazy" src="'+bEsc(s.thumb)+'" alt="'+bEsc(s.scene||'')+'">':'')+'</div>'
       +'<div class="blk-info"><div class="blk-scene">'+bEsc(s.scene||'')+'</div>'
@@ -4965,7 +4982,7 @@ function rCards(host,items){
     var im=el.querySelector('.blk-thumb img');
     if(im)blkApply(im,s);
     var b=el.querySelector('button.blk-copy');
-    if(b)b.onclick=function(){blkCopy(s.prompt,this)};
+    if(b)b.onclick=function(){blkCopy(s.prompt,this);blkTrack(s.id||s.scene,s.scene)};
     g.appendChild(el);
   });
   host.appendChild(g);
@@ -5071,6 +5088,7 @@ function renderZone(where,host){
   if(!host)return;
   host.innerHTML='';
   (MODS||[]).forEach(function(m){
+    if(!blkSched(m))return;
     if((m.where||'top')!==where)return;
     host.appendChild(makeSec(m,false));
   });
@@ -5094,6 +5112,7 @@ function renderCatZone(){
   host.innerHTML='';
   var wants=activeCats();
   (MODS||[]).forEach(function(m){
+    if(!blkSched(m))return;
     if(wants.indexOf(m.where||'')<0)return;
     host.appendChild(makeSec(m,true));
   });
