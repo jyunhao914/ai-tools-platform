@@ -4084,6 +4084,35 @@ if($('themeToggle')){
 
 /* ====== GLOBAL SEARCH ====== */
 var _searchActive=false;
+/* 子頁面搜尋索引：把各子頁面的卡片標題納入全站搜尋 */
+var HUB_INDEX=[];
+function loadHubIndex(){
+  fetch('./hubs.json',{cache:'no-cache'}).then(function(r){return r.ok?r.json():null}).then(function(reg){
+    var hubs=(reg&&reg.hubs||[]).filter(function(h){return !h.archived});
+    hubs.forEach(function(h){
+      fetch('./'+h.folder+'/data.json',{cache:'no-cache'}).then(function(r){return r.ok?r.json():null}).then(function(d){
+        if(!d)return;
+        var mods=d.modules||(d.styles?[{type:'cards',items:d.styles}]:[]);
+        var hubTitle=(d.site&&d.site.title)||h.title||h.folder;
+        mods.forEach(function(m){
+          if(m.type!=='cards')return;
+          (m.items||[]).forEach(function(it){
+            HUB_INDEX.push({
+              id:'hub_'+h.folder+'_'+(it.id||Math.random().toString(36).slice(2)),
+              title:it.scene||it.name||'',
+              desc:(it.name&&it.scene?it.name+'｜':'')+hubTitle,
+              linkUrl:h.folder+'/',
+              imageUrls:it.thumb?[h.folder+'/'+it.thumb]:[],
+              meta1:'open',meta2:'前往 '+hubTitle,
+              type:'link',_hub:true
+            });
+          });
+        });
+      }).catch(function(){});
+    });
+  }).catch(function(){});
+}
+
 function initSearch(){
   var input=$('globalSearch');
   var mobileInput=$('mobileSearch');
@@ -4106,6 +4135,10 @@ function initSearch(){
         var tag=(c.tag||'').toLowerCase();
         return title.indexOf(q)>=0||desc.indexOf(q)>=0||tag.indexOf(q)>=0;
       });
+      /* 併入子頁面內容 */
+      results=results.concat(HUB_INDEX.filter(function(h){
+        return (h.title||'').toLowerCase().indexOf(q)>=0||(h.desc||'').toLowerCase().indexOf(q)>=0;
+      }));
       var grid=$('toolsGrid');
       grid.innerHTML='';
       $('toolsHead').innerHTML='\u641C\u5C0B\u7D50\u679C <span>\uFF08'+results.length+' \u9805\uFF09</span>';
@@ -4288,6 +4321,7 @@ function init(){
   initTheme();
   buildStars();
   initSearch();
+  loadHubIndex();
   gasAPI('recordClick',{title:'_page_view'},null);
 
   /* 1. Try render from localStorage cache (instant, correct data) */

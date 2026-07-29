@@ -185,6 +185,7 @@ h2.sec{font-size:17px;margin-bottom:16px}
     <button data-tab="site">🛠 網站設定</button>
     <button data-tab="files">📦 檔案庫</button>
     <button data-tab="hubs">📄 子頁面</button>
+    <button data-tab="stats">📊 數據總覽</button>
     <button data-tab="blocks">🧱 網站區塊</button>
     <button data-tab="history">🕘 版本記錄</button>
   </div>
@@ -267,6 +268,31 @@ h2.sec{font-size:17px;margin-bottom:16px}
       </div>
       <p class="hint">目前 <span id="blkCnt">0</span> 個區塊</p>
       <div id="blkList"></div>
+    </div>
+
+    <!-- STATS TAB -->
+    <div id="tab-stats" class="hidden">
+      <h2 class="sec">數據總覽</h2>
+      <p class="hint" style="margin-bottom:14px">瀏覽數來自 Google 試算表（每次造訪與卡片點擊即時累計）。</p>
+      <div id="statCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px"></div>
+      <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:20px">
+        <strong style="display:block;margin-bottom:12px;font-size:13.5px">近 7 天瀏覽</strong>
+        <div id="statChart" style="display:flex;align-items:flex-end;gap:10px;height:150px"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+        <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px 18px">
+          <strong style="display:block;margin-bottom:10px;font-size:13.5px">各分類卡片數</strong>
+          <div id="statCats" class="hint">載入中…</div>
+        </div>
+        <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px 18px">
+          <strong style="display:block;margin-bottom:10px;font-size:13.5px">最多人看的卡片 Top 10</strong>
+          <div id="statTop" class="hint">載入中…</div>
+        </div>
+        <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px 18px">
+          <strong style="display:block;margin-bottom:10px;font-size:13.5px">子頁面瀏覽數</strong>
+          <div id="statHubs" class="hint">載入中…</div>
+        </div>
+      </div>
     </div>
 
     <!-- HISTORY TAB -->
@@ -628,11 +654,12 @@ document.querySelectorAll('.side button').forEach(function(b){
   b.onclick=function(){
     document.querySelectorAll('.side button').forEach(function(x){x.classList.remove('on')});
     b.classList.add('on');
-    ['cards','pages','site','files','history','hubs','blocks'].forEach(function(t){$('tab-'+t).classList.toggle('hidden',t!==b.dataset.tab)});
+    ['cards','pages','site','files','history','hubs','blocks','stats'].forEach(function(t){$('tab-'+t).classList.toggle('hidden',t!==b.dataset.tab)});
     if(b.dataset.tab==='history')loadHistory();
     if(b.dataset.tab==='files')loadFileLib();
     if(b.dataset.tab==='hubs')loadHubs();
     if(b.dataset.tab==='blocks'&&window.loadBlocks)window.loadBlocks();
+    if(b.dataset.tab==='stats')loadStats();
   };
 });
 
@@ -2230,6 +2257,80 @@ document.querySelectorAll('[data-blkadd]').forEach(function(b){
 });
 window.loadBlocks=blkRender;
 })();
+
+/* ================= 數據總覽 ================= */
+function statRow(label,value,sub){
+  return '<div style="display:flex;align-items:center;gap:10px;padding:7px 2px;border-bottom:1px solid var(--border);font-size:13px">'
+    +'<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(label)+'</span>'
+    +(sub?'<span class="hint">'+esc(sub)+'</span>':'')
+    +'<strong style="flex-shrink:0">'+esc(String(value))+'</strong></div>';
+}
+function loadStats(){
+  /* 摘要卡：卡片數／分類數／子頁面數 */
+  var cards=(S.data&&S.data.cards)||[];
+  var visible=cards.filter(function(c){return c.visible!==false});
+  var navCount=((S.site&&S.site.nav)||[]).length;
+  var totalViews=visible.reduce(function(n,c){return n+(parseInt(c.views,10)||0)},0);
+  $('statCards').innerHTML=[
+    ['卡片總數',visible.length+' / '+cards.length,'顯示中 / 全部'],
+    ['分類數',navCount,''],
+    ['卡片總點閱',totalViews,''],
+    ['區塊數',((S.site&&S.site.modules)||[]).length,'主站自訂區塊']
+  ].map(function(x){
+    return '<div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:14px 16px">'
+      +'<div class="hint">'+x[0]+(x[2]?' <span style="opacity:.7">('+x[2]+')</span>':'')+'</div>'
+      +'<div style="font-size:22px;font-weight:700;margin-top:4px">'+esc(String(x[1]))+'</div></div>';
+  }).join('');
+
+  /* 分類卡片數 */
+  var byCat={};
+  visible.forEach(function(c){var k=c.page||c.category||'（未分類）';byCat[k]=(byCat[k]||0)+1});
+  var cats=Object.keys(byCat).sort(function(a,b){return byCat[b]-byCat[a]});
+  $('statCats').innerHTML=cats.length?cats.map(function(k){return statRow(k,byCat[k])}).join(''):'（無資料）';
+  $('statCats').classList.remove('hint');
+
+  /* Top 10 卡片 */
+  var top=visible.slice().sort(function(a,b){return (parseInt(b.views,10)||0)-(parseInt(a.views,10)||0)}).slice(0,10);
+  $('statTop').innerHTML=top.length?top.map(function(c){return statRow(c.title||c.id,(parseInt(c.views,10)||0)+' 次',c.page||c.category||'')}).join(''):'（無資料）';
+  $('statTop').classList.remove('hint');
+
+  /* 7 天曲線 */
+  var chart=$('statChart');
+  chart.innerHTML='<span class="hint">載入中…</span>';
+  fetch(GAS_API+'?action=getAnalytics').then(function(r){return r.json()}).then(function(j){
+    var daily=(j&&j.analytics&&j.analytics.daily)||[];
+    if(!daily.length){chart.innerHTML='<span class="hint">（無資料）</span>';return}
+    var max=Math.max.apply(null,daily.map(function(d){return d.count}))||1;
+    chart.innerHTML=daily.map(function(d){
+      var h=Math.max(4,Math.round(d.count/max*110));
+      var label=d.date.slice(5).replace('-','/');
+      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px">'
+        +'<span style="font-size:11.5px;color:var(--muted)">'+d.count+'</span>'
+        +'<div style="width:100%;height:'+h+'px;background:linear-gradient(180deg,var(--accent),rgba(99,102,241,.45));border-radius:6px 6px 3px 3px"></div>'
+        +'<span style="font-size:11px;color:var(--muted)">'+label+'</span></div>';
+    }).join('');
+  }).catch(function(){chart.innerHTML='<span class="hint">載入失敗</span>'});
+
+  /* 子頁面瀏覽數 */
+  var hubsEl=$('statHubs');
+  hubsEl.textContent='載入中…';
+  gh('/repos/'+OWNER+'/'+REPO+'/contents/'+HUBS_PATH+'?ref='+BRANCH+'&t='+Date.now())
+    .then(function(j){return JSON.parse(b64decodeUtf8(j.content))})
+    .catch(function(){return {hubs:[]}})
+    .then(function(reg){
+      var hubs=reg.hubs||[];
+      if(!hubs.length){hubsEl.textContent='（尚無子頁面）';return}
+      var ids=hubs.map(function(h){return 'hub:'+h.folder}).join(',');
+      return fetch(GAS_API+'?action=getStatsByIds&ids='+encodeURIComponent(ids)).then(function(r){return r.json()}).then(function(j){
+        var stats=(j&&j.stats)||{};
+        hubsEl.innerHTML=hubs.map(function(h){
+          return statRow(h.title||h.folder,(stats['hub:'+h.folder]||0)+' 次',h.archived?'已下架':'');
+        }).join('');
+        hubsEl.classList.remove('hint');
+      });
+    }).catch(function(){hubsEl.textContent='載入失敗'});
+}
+
 </script>
 </body>
 </html>
