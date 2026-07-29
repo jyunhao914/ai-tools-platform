@@ -34,7 +34,7 @@ img{display:block;max-width:100%}
 .back:hover{color:var(--accent);border-color:var(--accent)}
 .theme-toggle{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;background:var(--card);border:1px solid var(--border);transition:all .2s;flex-shrink:0}
 .wrap{max-width:1180px;margin:0 auto;padding:0 20px 70px}
-.feature{margin:26px 0 0;background:var(--card);border:1px solid var(--border);border-radius:var(--r2)}
+.feature{margin:0;background:var(--card);border:1px solid var(--border);border-radius:var(--r2)}
 .feature summary{list-style:none;cursor:pointer;padding:15px 20px;font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:8px}
 .feature summary::-webkit-details-marker{display:none}
 .feature summary .arrow{margin-left:auto;color:var(--text3);transition:transform .2s;font-size:12px}
@@ -91,10 +91,6 @@ img{display:block;max-width:100%}
 </nav>
 
 <div class="wrap">
-  <details class="feature" id="featureBox" style="display:none">
-    <summary><span id="featureTitle"></span><span class="arrow">▼</span></summary>
-    <ul id="featureList"></ul>
-  </details>
   <div id="modules"></div>
 </div>
 
@@ -167,6 +163,17 @@ function renderCardsModule(host,items){
   });
   host.appendChild(g);
 }
+function renderAccordionModule(host,m){
+  var d=document.createElement('details');d.className='feature';
+  var sm=document.createElement('summary');
+  sm.innerHTML='<span></span><span class="arrow">▼</span>';
+  sm.querySelector('span').textContent=m.title||'說明';
+  d.appendChild(sm);
+  var ul=document.createElement('ul');
+  (m.items||[]).forEach(function(f){var li=document.createElement('li');li.textContent=f;ul.appendChild(li)});
+  d.appendChild(ul);
+  host.appendChild(d);
+}
 function renderArticleModule(host,m){
   var d=document.createElement('div');d.className='article-box';
   d.innerHTML=m.html||'';
@@ -220,23 +227,21 @@ fetch('data.json?t='+Date.now()).then(function(r){return r.json()}).then(functio
   document.title=site.title||'工具頁';
   if(site.backUrl)document.getElementById('backLink').href=site.backUrl;
   if(site.backLabel)document.getElementById('backLink').textContent='← '+site.backLabel;
-  if(site.featureTitle&&site.features&&site.features.length){
-    var fb=document.getElementById('featureBox');fb.style.display='';
-    document.getElementById('featureTitle').textContent=site.featureTitle;
-    var ul=document.getElementById('featureList');
-    site.features.forEach(function(f){var li=document.createElement('li');li.textContent=f;ul.appendChild(li)});
-  }
   document.getElementById('siteFooter').textContent=site.footer||'';
 
   var mods=data.modules;
+  if(site.featureTitle&&site.features&&site.features.length&&!(mods||[]).some(function(m){return m.type==='accordion'})){
+    mods=[{type:'accordion',title:site.featureTitle,items:site.features}].concat(mods||[]);
+  }
   if((!mods||!mods.length)&&data.styles&&data.styles.length){
     mods=[{type:'cards',title:site.secTitle||'選擇風格，複製專案指令',items:data.styles}];
   }
   var host=document.getElementById('modules');
   (mods||[]).forEach(function(m){
     var sec=document.createElement('section');sec.className='module';
-    if(m.title){var h=document.createElement('div');h.className='sec-title';h.textContent=m.title;sec.appendChild(h)}
-    if(m.type==='cards')renderCardsModule(sec,m.items);
+    if(m.title&&m.type!=='accordion'){var h=document.createElement('div');h.className='sec-title';h.textContent=m.title;sec.appendChild(h)}
+    if(m.type==='accordion')renderAccordionModule(sec,m);
+    else if(m.type==='cards')renderCardsModule(sec,m.items);
     else if(m.type==='article')renderArticleModule(sec,m);
     else if(m.type==='carousel')renderCarouselModule(sec,m);
     else if(m.type==='video')renderVideoModule(sec,m);

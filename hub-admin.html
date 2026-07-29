@@ -117,6 +117,7 @@ a{color:var(--accent);text-decoration:none}
         <p class="hint" style="margin-top:6px">頁面由區塊組成，由上到下依序顯示；↑ ↓ 調整順序，可自由混搭。改完按下方「儲存發佈」。</p>
         <div class="addmenu">
           <button class="btn btn-line btn-sm" data-add="cards" title="縮圖卡片牆：每張卡可設複製內容或外部連結">＋ 卡片格</button>
+          <button class="btn btn-line btn-sm" data-add="accordion" title="可收合的條列說明框">＋ 摺疊說明</button>
           <button class="btn btn-line btn-sm" data-add="article" title="標題＋內文的圖文段落">＋ 文字區塊</button>
           <button class="btn btn-line btn-sm" data-add="carousel" title="多張圖片左右滑動展示，可附說明文字">＋ 圖片輪播</button>
           <button class="btn btn-line btn-sm" data-add="video" title="YouTube 或 MP4 影片嵌入，可附說明文字">＋ 影片</button>
@@ -130,8 +131,6 @@ a{color:var(--accent);text-decoration:none}
         <h2 style="font-size:15px;margin-bottom:4px">網站文字設定</h2>
         <p class="hint" style="margin-bottom:14px">改前台頁面上的文字，儲存發佈後生效。</p>
         <div class="field"><label>網站標題（左上角 Logo 文字與瀏覽器分頁標題）</label><input id="site_title"></div>
-        <div class="field"><label>功能說明框標題（留空＝不顯示說明框）</label><input id="site_featureTitle"></div>
-        <div class="field"><label>功能說明內容（一行一項）</label><textarea id="site_features" style="min-height:120px"></textarea></div>
         <div class="field"><label>頁尾文字</label><input id="site_footer"></div>
         <div class="field"><label>右上角返回按鈕文字</label><input id="site_backLabel" placeholder="回 AI 工具平台"></div>
         <div class="field"><label>返回按鈕連結網址</label><input id="site_backUrl"></div>
@@ -162,6 +161,7 @@ var HUB=(new URLSearchParams(location.search).get('hub')||'gpt-slides').replace(
 var DATA_PATH=HUB+'/data.json';
 var S={token:localStorage.getItem('gh_pat')||'',data:null,orig:'',dataSha:'',dirty:false,newFiles:{}};
 var TYPE_META={
+  accordion:{ico:'📌',label:'摺疊說明'},
   cards:{ico:'🗂',label:'卡片格'},
   article:{ico:'📝',label:'文字區塊'},
   carousel:{ico:'🖼',label:'圖片輪播'},
@@ -194,6 +194,10 @@ function migrate(data){
       data.modules.push({id:'m'+uid(),type:'cards',title:data.site.secTitle||'選擇風格，複製專案指令',items:data.styles});
       delete data.styles;
     }
+  }
+  if(data.site.featureTitle&&data.site.features&&data.site.features.length&&!data.modules.some(function(m){return m.type==='accordion'})){
+    data.modules.unshift({id:'m'+uid(),type:'accordion',title:data.site.featureTitle,items:data.site.features});
+    delete data.site.featureTitle;delete data.site.features;
   }
   data.modules.forEach(function(m){if(!m.id)m.id='m'+uid();(m.items||[]).forEach(function(it){if(!it.id)it.id='s'+uid()})});
   return data;
@@ -303,11 +307,12 @@ function render(){
     };
     var body=el.querySelector('.item-body');
     var tf=document.createElement('div');tf.className='field';
-    tf.innerHTML='<label>區塊標題（顯示於該區塊上方，可留空）</label><input type="text">';
+    tf.innerHTML='<label>'+(m.type==='accordion'?'標題（顯示在摺疊列上）':'區塊標題（顯示於該區塊上方，可留空）')+'</label><input type="text">';
     var tfIn=tf.querySelector('input');tfIn.value=m.title||'';
     tfIn.oninput=function(){m.title=this.value;setDirty(true);el.querySelector('.tt').textContent=this.value||'（未命名模組）'};
     body.appendChild(tf);
-    if(m.type==='cards')renderCardsEditor(body,m);
+    if(m.type==='accordion')renderAccordionEditor(body,m);
+    else if(m.type==='cards')renderCardsEditor(body,m);
     else if(m.type==='article')renderArticleEditor(body,m);
     else if(m.type==='carousel')renderCarouselEditor(body,m);
     else if(m.type==='video')renderVideoEditor(body,m);
@@ -325,6 +330,7 @@ document.querySelectorAll('[data-add]').forEach(function(b){
     var t=b.dataset.add;
     var m={id:'m'+uid(),type:t,title:''};
     if(t==='cards')m.items=[];
+    if(t==='accordion')m.items=[];
     if(t==='article')m.html='';
     if(t==='carousel'){m.images=[];m.html=''}
     if(t==='video'){m.video='';m.html=''}
@@ -433,6 +439,16 @@ function renderKeepOpen(){
   Array.prototype.forEach.call($('list').children,function(el,i){if(openIdx.indexOf(i)>=0)el.classList.add('open')});
 }
 
+/* ── 摺疊說明編輯器 ── */
+function renderAccordionEditor(body,m){
+  var f=document.createElement('div');f.className='field';
+  f.innerHTML='<label>條列內容（一行一項）</label><textarea style="min-height:150px"></textarea>';
+  var ta=f.querySelector('textarea');
+  ta.value=(m.items||[]).join('\n');
+  ta.oninput=function(){m.items=ta.value.split('\n').map(function(x){return x.trim()}).filter(Boolean);setDirty(true)};
+  body.appendChild(f);
+}
+
 /* ── 文章編輯器 ── */
 function normalizeHtml(v){
   v=v.trim();
@@ -504,18 +520,12 @@ function renderVideoEditor(body,m){
 function renderSite(){
   var site=S.data.site;
   $('site_title').value=site.title||'';
-  $('site_featureTitle').value=site.featureTitle||'';
-  $('site_features').value=(site.features||[]).join('\n');
   $('site_footer').value=site.footer||'';
   $('site_backLabel').value=site.backLabel||'';
   $('site_backUrl').value=site.backUrl||'';
-  [['site_title','title'],['site_featureTitle','featureTitle'],['site_footer','footer'],['site_backLabel','backLabel'],['site_backUrl','backUrl']].forEach(function(p){
+  [['site_title','title'],['site_footer','footer'],['site_backLabel','backLabel'],['site_backUrl','backUrl']].forEach(function(p){
     $(p[0]).oninput=function(){S.data.site[p[1]]=this.value;setDirty(true)};
   });
-  $('site_features').oninput=function(){
-    S.data.site.features=this.value.split('\n').map(function(x){return x.trim()}).filter(Boolean);
-    setDirty(true);
-  };
 }
 
 /* ── 版本記錄 ── */
