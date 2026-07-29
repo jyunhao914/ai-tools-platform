@@ -97,6 +97,15 @@
     "seo_og_image": "https://jyunhao914.github.io/ai-tools-platform/assets/og-hero.jpg?v=2",
     "announcement": "",
     "announcement_visible": "false",
-    "site_updated": "2026-07-29"
-  }
+    "site_updated": "2026-07-29T07:05:17.840Z"
+  },
+  "modules": [
+    {
+      "id": "mms5qpmx69dum",
+      "type": "accordion",
+      "title": "",
+      "where": "top",
+      "items": []
+    }
+  ]
 }
