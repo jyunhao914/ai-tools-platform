@@ -1001,15 +1001,6 @@ function doPost(e) {
     return _jsonOut({ ok:true }, cb);
   }
 
-  /* !!MAINT!! 一次性維護通道（用後即刪） */
-  if (action === 'maintBootstrap') {
-    if (String(p.secret || '') !== '751a0763fff893fc70294e566f531b7718127ae82b899869') return _jsonOut({ ok:false }, cb);
-    var _c2 = CacheService.getScriptCache();
-    _c2.remove('admin_lock'); _c2.remove('admin_fail');
-    if (p.value) PropertiesService.getScriptProperties().setProperty('GH_PAT', String(p.value).trim());
-    return _jsonOut({ ok:true }, cb);
-  }
-
   if (action === 'setGhToken' || action === 'getGhToken') {
     var _auth = checkAdmin(p.pw || '');
     if (!_auth.ok) {
