@@ -159,6 +159,21 @@ function doGet(e) {
                      scheduled: true, lastAt: lastAt || null };
           break;
         }
+        case "getStats":
+          /* 輕量版：只回統計與各卡片瀏覽數，不序列化整份卡片資料（getData 要 7 秒，這支不到 1 秒） */
+          recordVisit();
+          var _sv = {};
+          try {
+            var _ss = SpreadsheetApp.openById(SHEET_ID);
+            var _st = _ss.getSheetByName('Stats');
+            if (_st && _st.getLastRow() > 1) {
+              _st.getRange(2, 1, _st.getLastRow() - 1, 2).getValues().forEach(function(r){
+                if (r[0]) _sv[String(r[0])] = Number(r[1]) || 0;
+              });
+            }
+          } catch(e) {}
+          result = { ok:true, stats:getStats(), views:_sv };
+          break;
         case "getStatsByIds":
           result = { ok:true, stats: getStatsByIds_(p.ids || "") };
           break;
@@ -527,7 +542,20 @@ function recordToolClick(toolTitle, cardId) {
   }
 }
 
+/* 統計表是逐次瀏覽累加的，列數會一直長；掃全表很貴（實測 7-9 秒）。
+   → 結果快取 60 秒，並改用時間戳比較取代逐列 Utilities.formatDate。 */
 function getStats() {
+  var cache = null;
+  try {
+    cache = CacheService.getScriptCache();
+    var hit = cache.get('stats_v1');
+    if (hit) return JSON.parse(hit);
+  } catch(e) {}
+  var out = computeStats_();
+  try { if (cache) cache.put('stats_v1', JSON.stringify(out), 60); } catch(e) {}
+  return out;
+}
+function computeStats_() {
   try {
     const ss = SpreadsheetApp.openById(SHEET_ID);
     const sheet = ss.getSheetByName('瀏覽統計');
@@ -535,20 +563,27 @@ function getStats() {
     const data = sheet.getDataRange().getValues();
     let total = 0;
     const tools = {};
-    // 今日統計（台北時區）
-    var todayStr = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd');
     var today = 0;
     var cardsToday = {};
+    // 今日區間（台北時區）只算一次，之後純數字比較
+    var nowTpe = new Date(Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy/MM/dd HH:mm:ss'));
+    var offset = new Date().getTime() - nowTpe.getTime();
+    var startTpe = new Date(Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy/MM/dd') + ' 00:00:00');
+    var dayStart = startTpe.getTime() + offset;
+    var dayEnd = dayStart + 86400000;
     data.slice(1).forEach(row => {
       if (row[1] === 'visit') total++;
       if (row[1] === 'tool_click') {
         tools[row[2]] = (tools[row[2]] || 0) + 1;
       }
-      if (row[0] instanceof Date && Utilities.formatDate(row[0], 'Asia/Taipei', 'yyyy-MM-dd') === todayStr) {
-        if (row[2] === '_page_view' || row[1] === 'visit') today++;
-        else if (row[1] === 'tool_click') {
-          var key = String(row[3] || '') || String(row[2] || '');
-          if (key) cardsToday[key] = (cardsToday[key] || 0) + 1;
+      if (row[0] instanceof Date) {
+        var ts = row[0].getTime();
+        if (ts >= dayStart && ts < dayEnd) {
+          if (row[2] === '_page_view' || row[1] === 'visit') today++;
+          else if (row[1] === 'tool_click') {
+            var key = String(row[3] || '') || String(row[2] || '');
+            if (key) cardsToday[key] = (cardsToday[key] || 0) + 1;
+          }
         }
       }
     });

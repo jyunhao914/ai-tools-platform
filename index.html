@@ -1357,12 +1357,12 @@ document.addEventListener('click',closeNavMenus);
 window.addEventListener('scroll',closeNavMenus);
 window.addEventListener('resize',closeNavMenus);
 
-/* 先顯示舊快取數字、GAS 回來再改一次會造成數字跳動；
-   改成等權威數字（GAS）或 2.5 秒逾時後才顯示，只渲染一次。 */
+/* 快照與 GAS 的加總值會差幾次，先顯示再更新會看到數字跳動。
+   → 等 GAS 新鮮值（現約 2.7 秒）才顯示；GAS 掛掉時 6 秒後退回快照值。 */
 var _visitReady=false;
-setTimeout(function(){if(!_visitReady){_visitReady=true;updateVisit()}},2500);
-function updateVisit(isFinal){
-  if(isFinal)_visitReady=true;
+setTimeout(function(){if(!_visitReady){_visitReady=true;updateVisit()}},6000);
+function updateVisit(isFresh){
+  if(isFresh)_visitReady=true;
   if(!_visitReady)return;
   var n=totalViews();
   var el=$('navVisit');
@@ -4408,11 +4408,11 @@ function init(){
   /* If no cache: skeleton stays, nav/hero/counter all wait for API */
   /* If no cache, skeleton stays visible until API returns */
 
-  /* 2. GAS 只補「即時瀏覽數」：不覆蓋內容，掛了也不影響網站 */
-  gasAPI('getData',null,function(data){
-    if(!data||!data.cards)return;
-    var vmap={};
-    data.cards.forEach(function(c){if(c.id)vmap[c.id]=c.views||0});
+  /* 2. GAS 只補「即時瀏覽數」：不覆蓋內容，掛了也不影響網站。
+     用輕量的 getStats（只回統計與各卡片數字）；整包 getData 要 6-9 秒。 */
+  gasAPI('getStats',null,function(data){
+    if(!data||!data.ok)return;
+    var vmap=data.views||{};
     var changed=false;
     CARDS.forEach(function(c){if(vmap[c.id]!=null&&vmap[c.id]!==c.views){c.views=vmap[c.id];changed=true}});
     if(data.stats){var _s=data.stats;_statsData=_s.tools||_s;_totalVisits=_s.total||0;_todayVisits=_s.today||0;updateVisit(true);}
