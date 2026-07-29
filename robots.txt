@@ -1,4 +1,8 @@
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /hub-admin.html
+Disallow: /*?admin
+Disallow: /*?preview=1
 
 Sitemap: https://jyunhao914.github.io/ai-tools-platform/sitemap.xml

@@ -1579,6 +1579,22 @@ tryLogin();
 /* ================= HUBS 子頁面 ================= */
 var HUBS_PATH='hubs.json',TEMPLATE_PATH='hub-template.html';
 var _hubReg=null,_hubRegSha=null;
+/* 建頁／下架時同步 sitemap.xml，讓搜尋引擎即時收錄／移除子頁面 */
+function syncSitemapHub(slug,add){
+  var loc=BASE_URL+'/'+slug+'/';
+  return gh('/repos/'+OWNER+'/'+REPO+'/contents/sitemap.xml?ref='+BRANCH+'&t='+Date.now()).then(function(j){
+    var xml=b64decodeUtf8(j.content);
+    var re=new RegExp('\\s*<url>(?:(?!</url>)[\\s\\S])*?<loc>'+loc.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'</loc>[\\s\\S]*?</url>','g');
+    xml=xml.replace(re,'');
+    if(add){
+      var today=new Date().toISOString().slice(0,10);
+      var block='\n  <url>\n    <loc>'+loc+'</loc>\n    <lastmod>'+today+'</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>';
+      xml=xml.replace('</urlset>',block+'\n</urlset>');
+    }
+    return gh('/repos/'+OWNER+'/'+REPO+'/contents/sitemap.xml',{method:'PUT',body:JSON.stringify({
+      message:'admin: sitemap '+(add?'新增':'移除')+' '+slug,content:b64encodeUtf8(xml),branch:BRANCH,sha:j.sha})});
+  }).catch(function(){/* sitemap 失敗不阻擋主流程 */});
+}
 function saveHubReg(msg){
   var body={message:msg,content:b64encodeUtf8(JSON.stringify(_hubReg,null,1)),branch:BRANCH};
   if(_hubRegSha)body.sha=_hubRegSha;
@@ -1659,7 +1675,8 @@ function archiveHub(h){
   }).catch(function(){}).then(function(){
     h.archived=true;
     return saveHubReg('admin: 下架子頁面 '+h.folder);
-  }).then(function(){toast('已下架');loadHubs()})
+  }).then(function(){return syncSitemapHub(h.folder,false)})
+    .then(function(){toast('已下架');loadHubs()})
     .catch(function(e){toast('下架失敗：'+e.message)});
 }
 function restoreHub(h){
@@ -1669,7 +1686,8 @@ function restoreHub(h){
   }).then(function(){
     delete h.archived;
     return saveHubReg('admin: 恢復子頁面 '+h.folder);
-  }).then(function(){toast('已恢復上架 ✓ 約 1 分鐘後生效');loadHubs()})
+  }).then(function(){return syncSitemapHub(h.folder,true)})
+    .then(function(){toast('已恢復上架 ✓ 約 1 分鐘後生效');loadHubs()})
     .catch(function(e){toast('恢復失敗：'+e.message)});
 }
 $('hubSlug').oninput=function(){
@@ -1695,11 +1713,12 @@ $('hubCreateBtn').onclick=function(){
       /* 3. 寫 index.html：注入標題與 SEO/分享 meta（靜態，爬蟲讀得到） */
       var html=b64decodeUtf8(t.content);
       var url=BASE_URL+'/'+slug+'/';
-      html=html.replace('<title>載入中…</title>',
-        '<title>'+name+'</title>\n<meta name="description" content="'+name+'">\n'
+      html=html.replace(/<!--SEO-->[\s\S]*?<!--\/SEO-->/,
+        '<!--SEO-->\n<title>'+name+'</title>\n<meta name="description" content="'+name+'">\n'
         +'<meta property="og:title" content="'+name+'">\n'
         +'<meta property="og:type" content="website">\n'
-        +'<meta property="og:url" content="'+url+'">');
+        +'<meta property="og:url" content="'+url+'">\n'
+        +'<meta name="twitter:card" content="summary_large_image">\n<!--/SEO-->');
       return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+slug+'/index.html',{method:'PUT',body:JSON.stringify({
         message:'admin: 建立子頁面 '+slug,content:b64encodeUtf8(html),branch:BRANCH})});
     }).then(function(){
@@ -1713,6 +1732,8 @@ $('hubCreateBtn').onclick=function(){
       var body={message:'admin: 登錄子頁面 '+slug,content:b64encodeUtf8(JSON.stringify(reg.data,null,1)),branch:BRANCH};
       if(reg.sha)body.sha=reg.sha;
       return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+HUBS_PATH,{method:'PUT',body:JSON.stringify(body)});
+    }).then(function(){
+      return syncSitemapHub(slug,true);
     }).then(function(){
       $('hubName').value='';$('hubSlug').value='';
       loadHubs();

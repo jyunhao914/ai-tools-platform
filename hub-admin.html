@@ -138,6 +138,13 @@ a{color:var(--accent);text-decoration:none}
         <p class="hint" style="margin-bottom:14px">改前台頁面上的文字，儲存發佈後生效。</p>
         <div class="field"><label>網站標題（左上角 Logo 文字與瀏覽器分頁標題）</label><input id="site_title"></div>
         <div class="field"><label>頁面描述（搜尋結果與分享時顯示的簡介）</label><textarea id="site_desc" style="min-height:64px"></textarea></div>
+        <div class="field"><label>分享縮圖（貼到 LINE／FB 時顯示的圖；留空自動用第一張卡片縮圖）</label>
+          <div style="display:flex;gap:12px;align-items:center;margin-top:4px">
+            <div class="thumb-stage" style="width:180px"><img id="site_ogPrev" style="display:none"></div>
+            <div><button class="btn btn-line btn-sm" type="button" id="site_ogPick">上傳縮圖</button>
+              <button class="btn btn-line btn-sm" type="button" id="site_ogClear" style="margin-left:6px">清除</button>
+              <input type="file" accept="image/*" class="hidden" id="site_ogFile"></div>
+          </div></div>
         <div class="field"><label>頁尾文字</label><input id="site_footer"></div>
         <div class="field"><label>右上角返回按鈕文字</label><input id="site_backLabel" placeholder="回 AI 工具平台"></div>
         <div class="field"><label>返回按鈕連結網址</label><input id="site_backUrl"></div>
@@ -764,6 +771,21 @@ function renderSite(){
   var site=S.data.site;
   $('site_title').value=site.title||'';
   $('site_desc').value=site.desc||'';
+  (function(){
+    var prev=$('site_ogPrev');
+    function refreshOg(){
+      var v=S.data.site.ogImage||autoOgImage();
+      if(v){prev.src=imgSrc(v);prev.style.display='block'}else{prev.style.display='none'}
+    }
+    refreshOg();
+    $('site_ogPick').onclick=function(){$('site_ogFile').click()};
+    $('site_ogFile').onchange=function(){
+      var f=this.files[0];if(!f)return;
+      stageImage(f,function(rel){S.data.site.ogImage=rel;refreshOg()});
+      this.value='';
+    };
+    $('site_ogClear').onclick=function(){delete S.data.site.ogImage;setDirty(true);refreshOg()};
+  })();
   $('site_footer').value=site.footer||'';
   $('site_backLabel').value=site.backLabel||'';
   $('site_backUrl').value=site.backUrl||'';
@@ -817,6 +839,50 @@ function deleteRepoFile(path,sha,cb){
   return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+path,{method:'DELETE',body:JSON.stringify({
     message:HUB+' admin: 清除未引用圖檔 '+path.split('/').pop(),sha:sha,branch:BRANCH
   })}).then(function(){if(cb)cb()});
+}
+
+/* ── SEO：發佈時把標題／描述／分享圖寫回該頁 index.html ── */
+function autoOgImage(){
+  var found='';
+  (S.data.modules||[]).some(function(m){
+    if(m.type==='cards'){
+      return (m.items||[]).some(function(it){if(it.thumb){found=it.thumb;return true}return false});
+    }
+    if(m.type==='carousel'&&(m.images||[]).length){found=m.images[0];return true}
+    if(m.type==='twocol'&&m.image){found=m.image;return true}
+    return false;
+  });
+  return found;
+}
+function seoBlock(){
+  var site=S.data.site||{};
+  /* 固定正式網域：後台可能跑在 localhost，不能把測試網址寫進發佈的 meta */
+  var pageUrl='https://'+OWNER+'.github.io/'+REPO+'/'+HUB+'/';
+  var title=site.title||HUB;
+  var desc=site.desc||title;
+  var img=site.ogImage||autoOgImage();
+  var imgUrl=img?(/^https?:/.test(img)?img:pageUrl+img):'';
+  var esc2=function(x){return String(x||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')};
+  var out='<!--SEO-->\n<title>'+esc2(title)+'</title>\n'
+    +'<meta name="description" content="'+esc2(desc)+'">\n'
+    +'<meta property="og:title" content="'+esc2(title)+'">\n'
+    +'<meta property="og:description" content="'+esc2(desc)+'">\n'
+    +'<meta property="og:type" content="website">\n'
+    +'<meta property="og:url" content="'+esc2(pageUrl)+'">\n';
+  if(imgUrl)out+='<meta property="og:image" content="'+esc2(imgUrl)+'">\n';
+  out+='<meta name="twitter:card" content="summary_large_image">\n<!--/SEO-->';
+  return out;
+}
+function pushSeo(){
+  var path=HUB+'/index.html';
+  return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+path+'?ref='+BRANCH+'&t='+Date.now()).then(function(j){
+    var html=b64decodeUtf8(j.content);
+    if(html.indexOf('<!--SEO-->')<0)return null;   /* 舊頁沒有標記就跳過 */
+    var next=html.replace(/<!--SEO-->[\s\S]*?<!--\/SEO-->/,seoBlock());
+    if(next===html)return null;                    /* 沒變化不必 commit */
+    return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+path,{method:'PUT',body:JSON.stringify({
+      message:HUB+' admin: 更新分享資訊',content:b64encodeUtf8(next),branch:BRANCH,sha:j.sha})});
+  }).catch(function(){/* SEO 失敗不阻擋發佈 */});
 }
 
 /* ── 版本記錄 ── */
@@ -917,6 +983,8 @@ $('saveBtn').onclick=function(){
     })});
   }).then(function(j){
     S.dataSha=j.content?j.content.sha:S.dataSha;
+    return pushSeo().then(function(){return j});
+  }).then(function(j){
     S.orig=JSON.stringify(S.data);S.newFiles={};setDirty(false);
     loadHistory();
     watchDeploy();

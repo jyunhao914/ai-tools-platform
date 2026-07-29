@@ -146,6 +146,17 @@ def write_sitemap(here, data):
             continue
         urls.append((BASE + '/cards/' + cid + '.html', '0.6', 'monthly'))
 
+    # 子頁面（hubs.json 登錄、未下架者）
+    hubs_path = os.path.join(here, 'hubs.json')
+    if os.path.exists(hubs_path):
+        with open(hubs_path, encoding='utf-8') as f:
+            for h in (json.load(f).get('hubs') or []):
+                if h.get('archived'):
+                    continue
+                folder = h.get('folder')
+                if folder and os.path.isfile(os.path.join(here, folder, 'index.html')):
+                    urls.append((BASE + '/' + folder + '/', '0.8', 'weekly'))
+
     # 獨立工具頁
     tools_dir = os.path.join(here, 'tools')
     if os.path.isdir(tools_dir):
