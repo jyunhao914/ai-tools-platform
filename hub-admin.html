@@ -88,7 +88,7 @@ a{color:var(--accent);text-decoration:none}
 </div>
 
 <div class="tabs hidden" id="tabs">
-  <button data-tab="modules" class="on">📦 頁面模組</button>
+  <button data-tab="modules" class="on">📦 頁面內容</button>
   <button data-tab="site">🛠 網站設定</button>
   <button data-tab="history">🕘 版本記錄</button>
 </div>
@@ -111,15 +111,15 @@ a{color:var(--accent);text-decoration:none}
     <div id="tab-modules">
       <div class="box">
         <div style="display:flex;align-items:center;gap:10px">
-          <strong style="flex:1">頁面模組（<span id="cnt">0</span> 個）</strong>
+          <strong style="flex:1">頁面區塊（<span id="cnt">0</span> 個）</strong>
           <span class="badge" id="stateBadge">已同步</span>
         </div>
-        <p class="hint" style="margin-top:6px">頁面由上到下依序顯示這些模組，可自由混搭；↑ ↓ 調整順序。改完按下方「儲存發佈」。</p>
+        <p class="hint" style="margin-top:6px">頁面由區塊組成，由上到下依序顯示；↑ ↓ 調整順序，可自由混搭。改完按下方「儲存發佈」。</p>
         <div class="addmenu">
-          <button class="btn btn-line btn-sm" data-add="cards">＋ 卡片庫</button>
-          <button class="btn btn-line btn-sm" data-add="article">＋ 文章</button>
-          <button class="btn btn-line btn-sm" data-add="carousel">＋ 相片輪播＋文章</button>
-          <button class="btn btn-line btn-sm" data-add="video">＋ 影片＋文章</button>
+          <button class="btn btn-line btn-sm" data-add="cards" title="縮圖卡片牆：每張卡可設複製內容或外部連結">＋ 卡片格</button>
+          <button class="btn btn-line btn-sm" data-add="article" title="標題＋內文的圖文段落">＋ 文字區塊</button>
+          <button class="btn btn-line btn-sm" data-add="carousel" title="多張圖片左右滑動展示，可附說明文字">＋ 圖片輪播</button>
+          <button class="btn btn-line btn-sm" data-add="video" title="YouTube 或 MP4 影片嵌入，可附說明文字">＋ 影片</button>
         </div>
       </div>
       <div id="list"></div>
@@ -162,10 +162,10 @@ var HUB=(new URLSearchParams(location.search).get('hub')||'gpt-slides').replace(
 var DATA_PATH=HUB+'/data.json';
 var S={token:localStorage.getItem('gh_pat')||'',data:null,orig:'',dataSha:'',dirty:false,newFiles:{}};
 var TYPE_META={
-  cards:{ico:'🗂',label:'卡片庫'},
-  article:{ico:'📄',label:'文章'},
-  carousel:{ico:'🖼',label:'相片輪播＋文章'},
-  video:{ico:'🎬',label:'影片＋文章'}
+  cards:{ico:'🗂',label:'卡片格'},
+  article:{ico:'📝',label:'文字區塊'},
+  carousel:{ico:'🖼',label:'圖片輪播'},
+  video:{ico:'🎬',label:'影片'}
 };
 
 function $(id){return document.getElementById(id)}
@@ -298,12 +298,12 @@ function render(){
     el.querySelector('[data-act=up]').onclick=function(){moveModule(mi,-1)};
     el.querySelector('[data-act=down]').onclick=function(){moveModule(mi,1)};
     el.querySelector('[data-act=del]').onclick=function(){
-      if(!confirm('確定刪除模組「'+(m.title||meta.label)+'」？儲存發佈後才會真正生效。'))return;
+      if(!confirm('確定刪除區塊「'+(m.title||meta.label)+'」？儲存發佈後才會真正生效。'))return;
       S.data.modules.splice(mi,1);setDirty(true);render();
     };
     var body=el.querySelector('.item-body');
     var tf=document.createElement('div');tf.className='field';
-    tf.innerHTML='<label>模組標題（顯示在該區塊上方，可留空）</label><input type="text">';
+    tf.innerHTML='<label>區塊標題（顯示於該區塊上方，可留空）</label><input type="text">';
     var tfIn=tf.querySelector('input');tfIn.value=m.title||'';
     tfIn.oninput=function(){m.title=this.value;setDirty(true);el.querySelector('.tt').textContent=this.value||'（未命名模組）'};
     body.appendChild(tf);
@@ -368,10 +368,10 @@ function renderCardsEditor(body,m){
       +'<div class="field" style="margin:0"><label>縮放 <span data-zl>100</span>%</label><input type="range" min="50" max="200" step="5" data-d="zoom" style="padding:0"></div>'
       +'<div class="field" style="margin:0"><label>留白底色（完整顯示時）</label><div class="color-row"><input type="color" data-d="bg" value="#ffffff"><button class="btn btn-line btn-sm" data-act="bgclear">用預設</button></div></div>'
       +'</div></div>'
-      +'<div class="field"><label>卡片主標</label><input type="text" data-f="scene"></div>'
-      +'<div class="field"><label>卡片小字（可留空）</label><input type="text" data-f="name"></div>'
-      +'<div class="field"><label>複製內容（填了會顯示「複製指令」按鈕）</label><textarea data-f="prompt" style="min-height:120px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px"></textarea></div>'
-      +'<div class="field"><label>連結網址（填了會顯示開啟按鈕，可與複製並存）</label><input type="text" data-f="link"></div>'
+      +'<div class="field"><label>標題</label><input type="text" data-f="scene"></div>'
+      +'<div class="field"><label>副標（選填）</label><input type="text" data-f="name"></div>'
+      +'<div class="field"><label>複製內容（選填｜提供後卡片顯示「複製」按鈕）</label><textarea data-f="prompt" style="min-height:120px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px"></textarea></div>'
+      +'<div class="field"><label>連結網址（選填｜提供後卡片顯示開啟按鈕）</label><input type="text" data-f="link"></div>'
       +'<div class="field"><label>連結按鈕文字</label><input type="text" data-f="linkLabel" placeholder="開啟連結"></div>'
       +'</div>';
     el.querySelector('[data-f=scene]').value=s.scene||'';
@@ -449,7 +449,7 @@ function htmlField(body,m,label){
   ta.oninput=function(){m.html=normalizeHtml(ta.value);setDirty(true)};
   body.appendChild(f);
 }
-function renderArticleEditor(body,m){htmlField(body,m,'文章內容')}
+function renderArticleEditor(body,m){htmlField(body,m,'內文')}
 
 /* ── 輪播編輯器 ── */
 function renderCarouselEditor(body,m){
@@ -487,7 +487,7 @@ function renderCarouselEditor(body,m){
     });
   });
   body.appendChild(box);
-  htmlField(body,m,'文章內容（顯示在輪播下方，可留空）');
+  htmlField(body,m,'說明文字（選填，顯示於輪播下方）');
 }
 
 /* ── 影片編輯器 ── */
@@ -497,7 +497,7 @@ function renderVideoEditor(body,m){
   var inp=f.querySelector('input');inp.value=m.video||'';
   inp.oninput=function(){m.video=this.value.trim();setDirty(true)};
   body.appendChild(f);
-  htmlField(body,m,'文章內容（顯示在影片下方，可留空）');
+  htmlField(body,m,'說明文字（選填，顯示於影片下方）');
 }
 
 /* ── 網站設定 ── */
