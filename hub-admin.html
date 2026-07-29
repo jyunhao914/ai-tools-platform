@@ -125,7 +125,12 @@ a{color:var(--accent);text-decoration:none}
 <div class="wrap">
   <div class="box hidden" id="loginBox">
     <h2 style="font-size:15px;margin-bottom:8px">登入</h2>
-    <p class="hint">本後台與 <a href="admin/" target="_blank">平台後台</a> 共用同一顆 GitHub token；已在平台後台登入過會自動登入。</p>
+    <div class="field"><label>管理密碼</label><input id="pwInput" type="password" placeholder="請輸入管理密碼" autocomplete="current-password"></div>
+    <button class="btn btn-pri" id="pwLoginBtn">登入</button>
+    <p class="hint" id="pwMsg" style="margin-top:10px">任何裝置都能用密碼登入。與 <a href="admin/" target="_blank">平台後台</a> 共用同一組。</p>
+    <details style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
+    <summary style="cursor:pointer;color:var(--muted);font-size:12.5px">改用 GitHub Token 登入</summary>
+    <p class="hint" style="margin-top:8px">本後台與 <a href="admin/" target="_blank">平台後台</a> 共用同一顆 GitHub token；已在平台後台登入過會自動登入。</p>
     <ol>
       <li>開啟 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">GitHub → 建立 Fine-grained token</a></li>
       <li>Repository access 選 Only select repositories → ai-tools-platform</li>
@@ -133,7 +138,8 @@ a{color:var(--accent);text-decoration:none}
       <li>產生後複製貼到下面</li>
     </ol>
     <div class="field"><input type="text" id="tokenInput" placeholder="github_pat_..."></div>
-    <button class="btn btn-pri" id="loginBtn">登入</button>
+    <button class="btn btn-pri" id="loginBtn">用 Token 登入</button>
+    </details>
   </div>
 
   <div class="hidden" id="app">
@@ -302,6 +308,39 @@ $('loginBtn').onclick=function(){
   if(!v){toast('請貼上 token');return}
   S.token=v;localStorage.setItem('gh_pat',v);boot();
 };
+/* 密碼登入：GAS 用管理密碼驗證後發放 token（與平台後台同一組） */
+var GAS_API='https://script.google.com/macros/s/AKfycbx6qfQFbhAwiqA4AdRisH2HuZDw8iLQEEw-pxraTYCCoMInj0O9cpygBSsB6ii32j21/exec';
+function gasPost(action,params){
+  var body=Object.keys(params||{}).map(function(k){
+    return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
+  });
+  body.unshift('action='+encodeURIComponent(action));
+  return fetch(GAS_API,{method:'POST',body:body.join('&'),
+    headers:{'Content-Type':'application/x-www-form-urlencoded'}}).then(function(r){return r.json()});
+}
+(function(){
+  var btn=$('pwLoginBtn'),inp=$('pwInput'),msg=$('pwMsg');
+  if(!btn)return;
+  function doLogin(){
+    var pw=inp.value.trim();
+    if(!pw){msg.textContent='請輸入管理密碼';return}
+    btn.disabled=true;btn.textContent='驗證中…';
+    gasPost('getGhToken',{pw:pw}).then(function(j){
+      if(j&&j.ok&&j.token){
+        S.token=j.token;localStorage.setItem('gh_pat',j.token);
+        msg.textContent='登入成功，載入中…';boot();
+      }else if(j&&j.error==='notset'){
+        msg.innerHTML='尚未啟用密碼登入，請先在已登入的電腦到平台後台「網站設定」按一次「啟用密碼登入」。';
+      }else if(j&&j.error==='locked'){
+        msg.textContent=j.msg||'嘗試次數過多，請 15 分鐘後再試';
+      }else{msg.textContent='管理密碼錯誤'}
+    }).catch(function(){msg.textContent='連線失敗，請稍後再試'})
+      .finally(function(){btn.disabled=false;btn.textContent='登入'});
+  }
+  btn.onclick=doLogin;
+  inp.addEventListener('keydown',function(e){if(e.key==='Enter')doLogin()});
+})();
+
 $('logoutBtn').onclick=function(){
   if(!confirm('登出會清除這台裝置上的 token（GitHub 只在建立時顯示一次，請確認已另外保存）。確定登出？'))return;
   localStorage.removeItem('gh_pat');S.token='';location.reload();

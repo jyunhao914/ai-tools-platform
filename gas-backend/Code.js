@@ -974,10 +974,36 @@ function getArticleById(id, role) {
 // doPost — Login + File Upload + Article Save
 // ============================================
 
+function _jsonOut(obj, cb) {
+  var out = cb ? cb + '(' + JSON.stringify(obj) + ')' : JSON.stringify(obj);
+  return ContentService.createTextOutput(out)
+    .setMimeType(cb ? ContentService.MimeType.JAVASCRIPT : ContentService.MimeType.JSON);
+}
+
 function doPost(e) {
   var p = e.parameter || {};
   var action = p.action || '';
   var cb = p.callback || '';
+
+  /* ── 後台密碼登入：用管理密碼換取 GitHub token ──
+     目的是讓任何裝置（手機／別人的電腦）不必手打 token 就能進後台。
+     token 存在 Script Properties（不在 repo、不在前端），只有通過管理密碼驗證才發放。
+     一律走 doPost，避免密碼與 token 出現在網址或執行紀錄裡。 */
+  if (action === 'setGhToken' || action === 'getGhToken') {
+    var _auth = checkAdmin(p.pw || '');
+    if (!_auth.ok) {
+      return _jsonOut({ ok:false, error: _auth.error || 'auth', msg: _auth.msg || '管理密碼錯誤' }, cb);
+    }
+    var _props = PropertiesService.getScriptProperties();
+    if (action === 'setGhToken') {
+      var v = String(p.value || '').trim();
+      if (!v) return _jsonOut({ ok:false, error:'empty' }, cb);
+      _props.setProperty('GH_PAT', v);
+      return _jsonOut({ ok:true }, cb);
+    }
+    var _tok = _props.getProperty('GH_PAT') || '';
+    return _jsonOut({ ok: !!_tok, token: _tok, error: _tok ? '' : 'notset' }, cb);
+  }
 
   // ── 學員登入 ──
   if (action === 'login') {

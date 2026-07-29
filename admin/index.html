@@ -188,8 +188,13 @@ h2.sec{font-size:17px;margin-bottom:16px}
 
 <!-- LOGIN -->
 <div class="login-box" id="loginBox">
-  <h2>連結 GitHub</h2>
-  <p class="hint">後台直接把變更寫進 GitHub repo（每次發佈都是一個 commit，可完整回滾）。需要一個 Fine-grained Personal Access Token：</p>
+  <h2>登入管理後台</h2>
+  <div class="field"><label>管理密碼</label><input id="pwInput" type="password" placeholder="請輸入管理密碼" autocomplete="current-password"></div>
+  <button class="btn primary" id="pwLoginBtn" style="width:100%;padding:12px">登入</button>
+  <p class="hint" id="pwMsg" style="margin-top:10px">任何裝置（手機、別人的電腦）都能用密碼登入，不必手打 token。</p>
+  <details style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px">
+  <summary style="cursor:pointer;color:var(--muted);font-size:13px">改用 GitHub Token 登入（第一次設定或忘記密碼時）</summary>
+  <p class="hint" style="margin-top:10px">後台直接把變更寫進 GitHub repo（每次發佈都是一個 commit，可完整回滾）。需要一個 Fine-grained Personal Access Token：</p>
   <ol>
     <li>開啟 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">GitHub → 建立 Fine-grained token</a></li>
     <li>Repository access 選 <b>Only select repositories</b> → <code>ai-tools-platform</code></li>
@@ -199,6 +204,7 @@ h2.sec{font-size:17px;margin-bottom:16px}
   <div class="field"><label>Personal Access Token</label><input id="patInput" type="password" placeholder="github_pat_..."></div>
   <button class="btn primary" id="patSaveBtn" style="width:100%;padding:12px">儲存並登入</button>
   <p class="hint" style="margin-top:12px">Token 只存在這台裝置的瀏覽器（localStorage），不會上傳到任何地方。</p>
+  </details>
 </div>
 
 <!-- APP -->
@@ -238,6 +244,13 @@ h2.sec{font-size:17px;margin-bottom:16px}
     <!-- SITE TAB -->
     <div id="tab-site" class="hidden">
       <h2 class="sec">網站設定</h2>
+      <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <strong style="display:block;font-size:13.5px;margin-bottom:2px">跨裝置登入</strong>
+          <span class="hint">啟用後，手機或其他電腦只要輸入管理密碼就能進後台，不必手打 token。</span>
+        </div>
+        <button class="btn" id="enablePwBtn" type="button">🔑 啟用密碼登入</button>
+      </div>
       <div class="row2">
         <div class="field"><label>導覽列標題</label><input data-set="site_nav_title"></div>
         <div class="field"><label>首頁主標題</label><input data-set="site_title"></div>
@@ -1638,6 +1651,57 @@ bindDrop($('driveDrop'),$('driveFile'),uploadToDrive);
 
 /* ================= BOOT ================= */
 tryLogin();
+
+/* ================= 密碼登入（跨裝置） ================= */
+/* GAS 端用管理密碼驗證後發放 GitHub token，讓手機／他人電腦免手打 token。
+   token 存在 GAS Script Properties，不在 repo、不在前端原始碼。 */
+function gasPost(action,params){
+  var body=Object.keys(params||{}).map(function(k){
+    return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
+  });
+  body.unshift('action='+encodeURIComponent(action));
+  return fetch(GAS_API,{method:'POST',body:body.join('&'),
+    headers:{'Content-Type':'application/x-www-form-urlencoded'}})
+    .then(function(r){return r.json()});
+}
+(function(){
+  var btn=$('pwLoginBtn'),inp=$('pwInput'),msg=$('pwMsg');
+  if(!btn)return;
+  function doLogin(){
+    var pw=inp.value.trim();
+    if(!pw){msg.textContent='請輸入管理密碼';return}
+    btn.disabled=true;btn.textContent='驗證中…';
+    gasPost('getGhToken',{pw:pw}).then(function(j){
+      if(j&&j.ok&&j.token){
+        S.token=j.token;localStorage.setItem('gh_pat',j.token);
+        msg.textContent='登入成功，載入中…';
+        boot();
+      }else if(j&&j.error==='notset'){
+        msg.innerHTML='這個站還沒啟用密碼登入。請先在<b>已登入的電腦</b>上，於「網站設定」按一次「啟用密碼登入」。';
+      }else if(j&&j.error==='locked'){
+        msg.textContent=j.msg||'嘗試次數過多，請 15 分鐘後再試';
+      }else{
+        msg.textContent='管理密碼錯誤';
+      }
+    }).catch(function(){msg.textContent='連線失敗，請稍後再試'})
+      .finally(function(){btn.disabled=false;btn.textContent='登入'});
+  }
+  btn.onclick=doLogin;
+  inp.addEventListener('keydown',function(e){if(e.key==='Enter')doLogin()});
+})();
+/* 已用 token 登入的裝置：把 token 交給 GAS 保管，之後任何裝置都能用密碼登入 */
+function enablePwLogin(){
+  if(!S.token){toast('請先登入');return}
+  var pw=prompt('設定／確認管理密碼（存放在你的 Google 試算表「Admins」分頁 B1）：');
+  if(!pw)return;
+  gasPost('setGhToken',{pw:pw.trim(),value:S.token}).then(function(j){
+    if(j&&j.ok)toast('✅ 已啟用：其他裝置現在可用管理密碼登入');
+    else if(j&&j.error==='locked')toast(j.msg||'嘗試次數過多，請稍後再試',6000);
+    else toast('管理密碼錯誤，未啟用',6000);
+  }).catch(function(){toast('連線失敗',6000)});
+}
+
+var _epb=$('enablePwBtn'); if(_epb)_epb.onclick=enablePwLogin;
 
 /* ================= HUBS 子頁面 ================= */
 var HUBS_PATH='hubs.json',TEMPLATE_PATH='hub-template.html';
