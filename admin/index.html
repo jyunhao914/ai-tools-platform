@@ -184,6 +184,7 @@ h2.sec{font-size:17px;margin-bottom:16px}
     <button data-tab="pages">📑 頁面與分類</button>
     <button data-tab="site">🛠 網站設定</button>
     <button data-tab="files">📦 檔案庫</button>
+    <button data-tab="hubs">📄 子頁面</button>
     <button data-tab="history">🕘 版本記錄</button>
   </div>
   <div class="main">
@@ -229,6 +230,22 @@ h2.sec{font-size:17px;margin-bottom:16px}
       <div class="field"><label><input type="checkbox" data-setchk="announcement_visible" style="width:auto;margin-right:8px">顯示公告</label></div>
       <h2 class="sec" style="margin-top:26px">其他</h2>
       <div class="field"><label>首頁 Gem 按鈕連結（gemUrl）</label><input data-set="__gemUrl"></div>
+    </div>
+
+    <!-- HUBS TAB -->
+    <div id="tab-hubs" class="hidden">
+      <h2 class="sec">子頁面</h2>
+      <p class="hint" style="margin-bottom:14px">像「ChatGPT 簡報風格指令庫」這樣的獨立頁面：一頁一個資料夾，各有自己的卡片資料與後台。建立後約 1 分鐘上線。</p>
+      <div id="hubList" style="margin-bottom:20px"></div>
+      <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px 18px">
+        <strong style="display:block;margin-bottom:10px">＋ 建立新頁面</strong>
+        <div class="row2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="field"><label>頁面名稱（顯示在頁面左上角）</label><input id="hubName" placeholder="例如：Gemini 簡報指令庫"></div>
+          <div class="field"><label>資料夾代號（英文小寫/數字/-，決定網址）</label><input id="hubSlug" placeholder="例如：gemini-slides"></div>
+        </div>
+        <button class="btn primary" id="hubCreateBtn">建立頁面</button>
+        <p class="hint" style="margin-top:8px">網址會是 <span id="hubUrlPreview" style="color:var(--text)">…/（代號）/</span>；建立後點「後台」即可新增卡片與改文字。</p>
+      </div>
     </div>
 
     <!-- HISTORY TAB -->
@@ -304,6 +321,16 @@ h2.sec{font-size:17px;margin-bottom:16px}
         <input type="file" id="imgFile" accept="image/*" class="hidden">
       </div>
       <img id="imgPreview" style="margin-top:8px;max-height:90px;border-radius:8px;display:none">
+      <div id="imgDispRow" style="display:none;margin-top:10px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
+          <div class="field" style="margin:0"><label>顯示方式</label><select id="f_imgFit"><option value="cover">裁滿（超出裁切）</option><option value="contain">完整顯示（不裁切）</option></select></div>
+          <div class="field" style="margin:0"><label>對齊位置</label><select id="f_imgPos"><option value="center">置中</option><option value="top">靠上</option><option value="bottom">靠下</option><option value="left">靠左</option><option value="right">靠右</option></select></div>
+          <div class="field" style="margin:0"><label>縮放 <span id="f_imgZoomVal">100</span>%</label><input type="range" id="f_imgZoom" min="50" max="200" step="5" value="100" style="padding:0"></div>
+          <div class="field" style="margin:0"><label>留白底色</label><div style="display:flex;gap:6px;align-items:center"><input type="color" id="f_imgBg" value="#ffffff" style="width:42px;height:34px;padding:2px;flex-shrink:0"><button class="btn small" id="f_imgBgClear" type="button">預設</button></div></div>
+        </div>
+        <div id="imgStage" style="margin-top:10px;width:240px;aspect-ratio:16/9;border-radius:9px;overflow:hidden;background:var(--panel2)"><img id="imgStageImg" style="width:100%;height:100%;object-fit:cover;display:block"></div>
+        <p class="hint" style="margin-top:6px">預覽即前台卡片實際效果</p>
+      </div>
     </div>
 
     <div id="linkFields">
@@ -559,9 +586,10 @@ document.querySelectorAll('.side button').forEach(function(b){
   b.onclick=function(){
     document.querySelectorAll('.side button').forEach(function(x){x.classList.remove('on')});
     b.classList.add('on');
-    ['cards','pages','site','files','history'].forEach(function(t){$('tab-'+t).classList.toggle('hidden',t!==b.dataset.tab)});
+    ['cards','pages','site','files','history','hubs'].forEach(function(t){$('tab-'+t).classList.toggle('hidden',t!==b.dataset.tab)});
     if(b.dataset.tab==='history')loadHistory();
     if(b.dataset.tab==='files')loadFileLib();
+    if(b.dataset.tab==='hubs')loadHubs();
   };
 });
 
@@ -649,7 +677,15 @@ function openEditor(card){
   $('f_desc').value=card?(card.desc||card.description||''):'';
   $('f_tag').value=card?card.tag||'':'';
   $('f_permission').value=card?(card.permission||'public'):'public';
-  $('f_image').value=card&&card.imageUrls&&card.imageUrls.length?card.imageUrls[0]:'';
+  var _spec=(card&&card.imageUrls&&card.imageUrls.length?String(card.imageUrls[0]):'').split('|');
+  $('f_image').value=_spec[0]||'';
+  $('f_imgFit').value=_spec[1]||'cover';
+  $('f_imgPos').value=_spec[2]||'center';
+  $('f_imgBg').value=(_spec[3]&&/^#/.test(_spec[3]))?_spec[3]:'#ffffff';
+  $('f_imgBg').dataset.set=_spec[3]?'1':'';
+  $('f_imgZoom').value=parseInt(_spec[4],10)||100;
+  $('f_imgZoomVal').textContent=$('f_imgZoom').value;
+  updateImgDisp();
   $('f_linkBehavior').value=(card&&(ex.linkBehavior==='copy'||card.meta1==='copy'))?'copy':'open';
   $('f_btnLabel').value=ex.linkBtnLabel||'';
   $('f_linkUrl').value=card?card.linkUrl||'':'';
@@ -673,10 +709,37 @@ $('f_linkBehavior').onchange=syncTypeUI;
 function updateImgPreview(){
   var v=$('f_image').value.trim();
   var p=$('imgPreview');
-  if(v){p.src=thumbUrl(v);p.style.display='block';p.onerror=function(){p.style.display='none'}}
-  else p.style.display='none';
+  if(v){p.src=thumbUrl(v);p.style.display='none';p.onerror=function(){}}
+  updateImgDisp();
 }
 $('f_image').oninput=updateImgPreview;
+/* 圖片顯示設定：即時預覽 */
+function updateImgDisp(){
+  var v=$('f_image').value.trim();
+  var row=$('imgDispRow');
+  if(!v){row.style.display='none';return}
+  row.style.display='block';
+  var img=$('imgStageImg');
+  img.src=thumbUrl(v);
+  img.style.objectFit=$('f_imgFit').value;
+  img.style.objectPosition=$('f_imgPos').value;
+  img.style.transform='scale('+(parseInt($('f_imgZoom').value,10)/100)+')';
+  $('imgStage').style.background=($('f_imgFit').value==='contain'&&$('f_imgBg').dataset.set)?$('f_imgBg').value:'';
+}
+$('f_imgFit').onchange=updateImgDisp;
+$('f_imgPos').onchange=updateImgDisp;
+$('f_imgZoom').oninput=function(){$('f_imgZoomVal').textContent=this.value;updateImgDisp()};
+$('f_imgBg').oninput=function(){this.dataset.set='1';updateImgDisp()};
+$('f_imgBgClear').onclick=function(){$('f_imgBg').dataset.set='';$('f_imgBg').value='#ffffff';updateImgDisp()};
+function composeImgSpec(){
+  var url=$('f_image').value.trim();
+  if(!url)return '';
+  var fit=$('f_imgFit').value,pos=$('f_imgPos').value,
+      bg=$('f_imgBg').dataset.set?$('f_imgBg').value:'',
+      zoom=parseInt($('f_imgZoom').value,10)||100;
+  if(fit==='cover'&&pos==='center'&&!bg&&zoom===100)return url;
+  return url+'|'+fit+'|'+pos+'|'+bg+'|'+zoom;
+}
 $('cancelEditBtn').onclick=function(){hideImgToolbar();$('editOverlay').classList.remove('show')};
 $('delCardBtn').onclick=function(){
   if(!S.editing)return;
@@ -697,7 +760,7 @@ $('saveCardBtn').onclick=function(){
   c.desc=$('f_desc').value.trim();
   c.tag=$('f_tag').value.trim();
   c.permission=$('f_permission').value;
-  var img=$('f_image').value.trim();
+  var img=composeImgSpec();
   c.imageUrls=img?[img]:[];
   c.visible=$('f_visible').checked;
   c.pinned=$('f_pinned').checked;
@@ -1456,6 +1519,69 @@ bindDrop($('driveDrop'),$('driveFile'),uploadToDrive);
 
 /* ================= BOOT ================= */
 tryLogin();
+
+/* ================= HUBS 子頁面 ================= */
+var HUBS_PATH='hubs.json',TEMPLATE_PATH='hub-template.html';
+function loadHubs(){
+  var el=$('hubList');el.innerHTML='<p class="hint">載入中…</p>';
+  gh('/repos/'+OWNER+'/'+REPO+'/contents/'+HUBS_PATH+'?ref='+BRANCH+'&t='+Date.now()).then(function(j){
+    return JSON.parse(b64decodeUtf8(j.content));
+  }).catch(function(){return {hubs:[]}}).then(function(reg){
+    el.innerHTML='';
+    if(!reg.hubs.length){el.innerHTML='<p class="hint">還沒有子頁面</p>';return}
+    reg.hubs.forEach(function(h){
+      var row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--border);font-size:13.5px';
+      row.innerHTML='<strong style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(h.title||h.folder)+'</strong>'
+        +'<span class="hint">/'+esc(h.folder)+'/</span>'
+        +'<a class="btn small" href="../'+esc(h.folder)+'/" target="_blank">前台 ↗</a>'
+        +'<a class="btn small" href="../hub-admin.html?hub='+esc(h.folder)+'" target="_blank">後台 ↗</a>';
+      el.appendChild(row);
+    });
+  });
+}
+$('hubSlug').oninput=function(){
+  this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'');
+  $('hubUrlPreview').textContent=BASE_URL+'/'+(this.value||'（代號）')+'/';
+};
+$('hubCreateBtn').onclick=function(){
+  var name=$('hubName').value.trim(),slug=$('hubSlug').value.trim();
+  if(!name||!slug){toast('請填頁面名稱與資料夾代號');return}
+  if(!/^[a-z0-9][a-z0-9-]*$/.test(slug)){toast('代號只能用英文小寫、數字、-');return}
+  var btn=$('hubCreateBtn');btn.disabled=true;btn.textContent='建立中…';
+  var reg;
+  /* 1. 讀 registry、確認代號未用過 */
+  gh('/repos/'+OWNER+'/'+REPO+'/contents/'+HUBS_PATH+'?ref='+BRANCH+'&t='+Date.now())
+    .then(function(j){return {sha:j.sha,data:JSON.parse(b64decodeUtf8(j.content))}})
+    .catch(function(){return {sha:null,data:{hubs:[]}}})
+    .then(function(r){
+      reg=r;
+      if(reg.data.hubs.some(function(h){return h.folder===slug}))throw new Error('代號「'+slug+'」已存在');
+      /* 2. 讀模板 */
+      return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+TEMPLATE_PATH+'?ref='+BRANCH);
+    }).then(function(t){
+      /* 3. 寫 index.html */
+      return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+slug+'/index.html',{method:'PUT',body:JSON.stringify({
+        message:'admin: 建立子頁面 '+slug,content:t.content.replace(/\n/g,''),branch:BRANCH})});
+    }).then(function(){
+      /* 4. 寫 data.json（空卡片 + 網站文字） */
+      var data={styles:[],site:{title:name,featureTitle:'',features:[],secTitle:'',footer:'',backUrl:BASE_URL+'/'}};
+      return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+slug+'/data.json',{method:'PUT',body:JSON.stringify({
+        message:'admin: 建立子頁面資料 '+slug,content:b64encodeUtf8(JSON.stringify(data,null,1)),branch:BRANCH})});
+    }).then(function(){
+      /* 5. 更新 registry */
+      reg.data.hubs.push({folder:slug,title:name});
+      var body={message:'admin: 登錄子頁面 '+slug,content:b64encodeUtf8(JSON.stringify(reg.data,null,1)),branch:BRANCH};
+      if(reg.sha)body.sha=reg.sha;
+      return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+HUBS_PATH,{method:'PUT',body:JSON.stringify(body)});
+    }).then(function(){
+      $('hubName').value='';$('hubSlug').value='';
+      loadHubs();
+      toast('已建立 ✓ 約 1 分鐘後上線，點「後台」開始加卡片');
+    }).catch(function(e){toast('建立失敗：'+e.message)})
+    .finally(function(){btn.disabled=false;btn.textContent='建立頁面'});
+};
+
 </script>
 </body>
 </html>
