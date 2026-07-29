@@ -1849,7 +1849,11 @@ var BLK_TYPES={
   embed:{ico:'🧩',label:'嵌入頁面'}
 };
 var _blkPrev={};   /* path → dataUrl 預覽 */
+/* 唯讀取用，不建立空陣列——否則光是開啟分頁就會被判定成「有未發佈的變更」 */
 function mods(){
+  return (S.site&&S.site.modules)||[];
+}
+function modsRW(){
   if(!S.site)return [];
   if(!S.site.modules)S.site.modules=[];
   return S.site.modules;
@@ -2220,12 +2224,35 @@ function edEmbed(body,m){
 }
 var ED={cards:edCards,article:edArticle,accordion:edAccordion,carousel:edCarousel,video:edVideo,faq:edFaq,files:edFiles,buttons:edButtons,twocol:edTwocol,embed:edEmbed};
 
+function builtinRows(){
+  return [
+    ['🏷','標題區','網站名稱與標語','網站設定'],
+    ['🗂','分類卡片區','各分類底下的工具卡片','卡片管理'],
+    ['📄','子頁面入口','獨立頁面（如指令庫）','子頁面'],
+    ['🔻','頁尾','版權與聯絡資訊','網站設定']
+  ].map(function(r){
+    return '<div style="display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--border);font-size:13px">'
+      +'<span style="width:22px;text-align:center">'+r[0]+'</span>'
+      +'<span style="flex:1;min-width:0"><b>'+r[1]+'</b> <span class="hint">'+r[2]+'</span></span>'
+      +'<span class="hint">在「'+r[3]+'」編輯</span></div>';
+  }).join('');
+}
 function blkRender(){
   var list=document.getElementById('blkList');
   if(!list)return;
   list.innerHTML='';
   var arr=mods();
   document.getElementById('blkCnt').textContent=arr.length;
+  if(!arr.length){
+    list.innerHTML='<div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-top:12px">'
+      +'<strong style="display:block;margin-bottom:4px;font-size:13.5px">還沒有自訂區塊</strong>'
+      +'<p class="hint" style="margin-bottom:12px">主站原本就有的結構（標題區、卡片區、頁尾）不在這裡管理，位置固定、各自有專屬分頁可編輯。'
+      +'這一頁是用來「額外插入」內容——例如在首頁頂部放公告文字、在某個分類頁上方放教學影片或 FAQ。按上方按鈕新增即可。</p>'
+      +'<div class="hint" style="margin-bottom:6px">主站現有結構：</div>'
+      +builtinRows()
+      +'</div>';
+    return;
+  }
   arr.forEach(function(m,mi){
     var meta=BLK_TYPES[m.type]||{ico:'❓',label:m.type};
     var el=document.createElement('div');el.className='bk-item';
@@ -2242,11 +2269,11 @@ function blkRender(){
       if(ev.target.closest('button'))return;
       el.classList.toggle('open');
     });
-    el.querySelector('[data-act=up]').onclick=function(){if(mi<1)return;var a=mods();var t=a[mi];a[mi]=a[mi-1];a[mi-1]=t;markDirty();blkRender()};
-    el.querySelector('[data-act=down]').onclick=function(){var a=mods();if(mi>=a.length-1)return;var t=a[mi];a[mi]=a[mi+1];a[mi+1]=t;markDirty();blkRender()};
+    el.querySelector('[data-act=up]').onclick=function(){if(mi<1)return;var a=modsRW();var t=a[mi];a[mi]=a[mi-1];a[mi-1]=t;markDirty();blkRender()};
+    el.querySelector('[data-act=down]').onclick=function(){var a=modsRW();if(mi>=a.length-1)return;var t=a[mi];a[mi]=a[mi+1];a[mi+1]=t;markDirty();blkRender()};
     el.querySelector('[data-act=del]').onclick=function(){
       if(!confirm('確定刪除區塊「'+(m.title||meta.label)+'」？發佈後生效。'))return;
-      mods().splice(mi,1);markDirty();blkRender();
+      modsRW().splice(mi,1);markDirty();blkRender();
     };
     var body=el.querySelector('.bk-body');
     /* 顯示位置 + 區塊標題 */
@@ -2290,7 +2317,7 @@ document.querySelectorAll('[data-blkadd]').forEach(function(b){
     if(t==='video'){m.video='';m.html=''}
     if(t==='twocol'){m.image='';m.side='left';m.html=''}
     if(t==='embed'){m.url='';m.height=480}
-    mods().push(m);markDirty();blkRender();
+    modsRW().push(m);markDirty();blkRender();
     var items=document.querySelectorAll('#blkList .bk-item');
     if(items.length){items[items.length-1].classList.add('open');items[items.length-1].scrollIntoView({behavior:'smooth',block:'center'})}
   };

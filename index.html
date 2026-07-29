@@ -1357,7 +1357,13 @@ document.addEventListener('click',closeNavMenus);
 window.addEventListener('scroll',closeNavMenus);
 window.addEventListener('resize',closeNavMenus);
 
-function updateVisit(){
+/* 先顯示舊快取數字、GAS 回來再改一次會造成數字跳動；
+   改成等權威數字（GAS）或 2.5 秒逾時後才顯示，只渲染一次。 */
+var _visitReady=false;
+setTimeout(function(){if(!_visitReady){_visitReady=true;updateVisit()}},2500);
+function updateVisit(isFinal){
+  if(isFinal)_visitReady=true;
+  if(!_visitReady)return;
   var n=totalViews();
   var el=$('navVisit');
   if(n>0){
@@ -4409,7 +4415,7 @@ function init(){
     data.cards.forEach(function(c){if(c.id)vmap[c.id]=c.views||0});
     var changed=false;
     CARDS.forEach(function(c){if(vmap[c.id]!=null&&vmap[c.id]!==c.views){c.views=vmap[c.id];changed=true}});
-    if(data.stats){var _s=data.stats;_statsData=_s.tools||_s;_totalVisits=_s.total||0;_todayVisits=_s.today||0;updateVisit();}
+    if(data.stats){var _s=data.stats;_statsData=_s.tools||_s;_totalVisits=_s.total||0;_todayVisits=_s.today||0;updateVisit(true);}
     if(changed&&!_searchActive){renderCards();renderLatest();}
   });
 
