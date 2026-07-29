@@ -310,13 +310,24 @@ $('loginBtn').onclick=function(){
 };
 /* 密碼登入：GAS 用管理密碼驗證後發放 token（與平台後台同一組） */
 var GAS_API='https://script.google.com/macros/s/AKfycbx6qfQFbhAwiqA4AdRisH2HuZDw8iLQEEw-pxraTYCCoMInj0O9cpygBSsB6ii32j21/exec';
-function gasPost(action,params){
+function gasPost(action,params,_retry){
   var body=Object.keys(params||{}).map(function(k){
     return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
   });
   body.unshift('action='+encodeURIComponent(action));
   return fetch(GAS_API,{method:'POST',body:body.join('&'),
-    headers:{'Content-Type':'application/x-www-form-urlencoded'}}).then(function(r){return r.json()});
+    headers:{'Content-Type':'application/x-www-form-urlencoded'}})
+    .then(function(r){
+      return r.text().then(function(t){
+        try{return JSON.parse(t)}
+        catch(e){throw new Error('伺服器回應異常（HTTP '+r.status+'）')}
+      });
+    })
+    .catch(function(e){
+      /* 暫時性網路／Google 端故障：自動重試一次再放棄 */
+      if(!_retry)return new Promise(function(res){setTimeout(res,1200)}).then(function(){return gasPost(action,params,true)});
+      throw e;
+    });
 }
 (function(){
   var btn=$('pwLoginBtn'),inp=$('pwInput'),msg=$('pwMsg');
@@ -334,7 +345,7 @@ function gasPost(action,params){
       }else if(j&&j.error==='locked'){
         msg.textContent=j.msg||'嘗試次數過多，請 15 分鐘後再試';
       }else{msg.textContent='管理密碼錯誤'}
-    }).catch(function(){msg.textContent='連線失敗，請稍後再試'})
+    }).catch(function(e){msg.textContent='連線失敗（'+((e&&e.message)||'網路異常')+'），請再按一次登入'})
       .finally(function(){btn.disabled=false;btn.textContent='登入'});
   }
   btn.onclick=doLogin;

@@ -1655,14 +1655,24 @@ tryLogin();
 /* ================= 密碼登入（跨裝置） ================= */
 /* GAS 端用管理密碼驗證後發放 GitHub token，讓手機／他人電腦免手打 token。
    token 存在 GAS Script Properties，不在 repo、不在前端原始碼。 */
-function gasPost(action,params){
+function gasPost(action,params,_retry){
   var body=Object.keys(params||{}).map(function(k){
     return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
   });
   body.unshift('action='+encodeURIComponent(action));
   return fetch(GAS_API,{method:'POST',body:body.join('&'),
     headers:{'Content-Type':'application/x-www-form-urlencoded'}})
-    .then(function(r){return r.json()});
+    .then(function(r){
+      return r.text().then(function(t){
+        try{return JSON.parse(t)}
+        catch(e){throw new Error('伺服器回應異常（HTTP '+r.status+'）')}
+      });
+    })
+    .catch(function(e){
+      /* 暫時性網路／Google 端故障：自動重試一次再放棄 */
+      if(!_retry)return new Promise(function(res){setTimeout(res,1200)}).then(function(){return gasPost(action,params,true)});
+      throw e;
+    });
 }
 (function(){
   var btn=$('pwLoginBtn'),inp=$('pwInput'),msg=$('pwMsg');
@@ -1694,7 +1704,7 @@ function gasPost(action,params){
       }else{
         msg.textContent='管理密碼錯誤';
       }
-    }).catch(function(){msg.textContent='連線失敗，請稍後再試'})
+    }).catch(function(e){msg.textContent='連線失敗（'+((e&&e.message)||'網路異常')+'），請再按一次登入'})
       .finally(function(){btn.disabled=false;btn.textContent='登入'});
   }
   btn.onclick=doLogin;
