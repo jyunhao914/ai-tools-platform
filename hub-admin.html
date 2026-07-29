@@ -312,11 +312,15 @@ function imgSrc(rel){
 }
 function applyDisplay(img,s){
   if(!img)return;
-  img.style.objectFit=s.fit||'cover';
+  var fit=s.fit||'cover';
+  var z=(parseInt(s.zoom,10)||100)/100;
+  /* 縮小（<100%）時裁滿模式改為完整顯示再縮，才能露出整張圖 */
+  var effFit=(fit==='cover'&&z<1)?'contain':fit;
+  img.style.objectFit=effFit;
   img.style.objectPosition=s.pos||'center';
-  img.style.transform='scale('+((parseInt(s.zoom,10)||100)/100)+')';
+  img.style.transform=z!==1?'scale('+z+')':'';
   var st=img.parentElement;
-  if(st)st.style.background=((s.fit||'cover')==='contain'&&s.bg)?s.bg:'';
+  if(st)st.style.background=(effFit==='contain'&&s.bg)?s.bg:'';
 }
 
 /* ── 模組列表 ── */
@@ -422,7 +426,11 @@ function renderCardsEditor(body,m){
       +'<div class="field" style="margin:0"><label>顯示方式</label><select data-d="fit"><option value="cover">裁滿（超出裁切）</option><option value="contain">完整顯示（不裁切）</option></select></div>'
       +'<div class="field" style="margin:0"><label>對齊位置</label><select data-d="pos"><option value="center">置中</option><option value="top">靠上</option><option value="bottom">靠下</option><option value="left">靠左</option><option value="right">靠右</option></select></div>'
       +'<div class="field" style="margin:0"><label>縮放 <span data-zl>100</span>%</label><input type="range" min="50" max="200" step="5" data-d="zoom" style="padding:0"></div>'
-      +'<div class="field" style="margin:0"><label>留白底色（完整顯示時）</label><div class="color-row"><input type="color" data-d="bg" value="#ffffff"><button class="btn btn-line btn-sm" data-act="bgclear">用預設</button></div></div>'
+      +'<div class="field" style="margin:0"><label>留白底色</label><div class="color-row">'
+      +'<button class="btn btn-line btn-sm" data-bg="" type="button">透明</button>'
+      +'<button class="btn btn-line btn-sm" data-bg="#ffffff" type="button">白色</button>'
+      +'<button class="btn btn-line btn-sm" data-bg="#000000" type="button">黑色</button>'
+      +'</div></div>'
       +'</div></div>'
       +'<div class="field"><label>標題</label><input type="text" data-f="scene"></div>'
       +'<div class="field"><label>副標（選填）</label><input type="text" data-f="name"></div>'
@@ -438,17 +446,27 @@ function renderCardsEditor(body,m){
     var stageImg=el.querySelector('.thumb-stage img');
     var hdImg=el.querySelector('.item-hd .th img');
     var fitSel=el.querySelector('[data-d=fit]'),posSel=el.querySelector('[data-d=pos]'),
-        zoomInp=el.querySelector('[data-d=zoom]'),bgInp=el.querySelector('[data-d=bg]'),zl=el.querySelector('[data-zl]');
+        zoomInp=el.querySelector('[data-d=zoom]'),zl=el.querySelector('[data-zl]');
     fitSel.value=s.fit||'cover';posSel.value=s.pos||'center';
     zoomInp.value=parseInt(s.zoom,10)||100;zl.textContent=zoomInp.value;
-    if(s.bg)bgInp.value=s.bg;
     function refresh(){applyDisplay(stageImg,s);applyDisplay(hdImg,s)}
-    refresh();
+    function markBg(){
+      el.querySelectorAll('[data-bg]').forEach(function(b){
+        var on=(s.bg||'')===b.dataset.bg;
+        b.style.borderColor=on?'var(--accent)':'';
+        b.style.color=on?'var(--accent)':'';
+      });
+    }
+    refresh();markBg();
     fitSel.onchange=function(){s.fit=fitSel.value;setDirty(true);refresh()};
     posSel.onchange=function(){s.pos=posSel.value;setDirty(true);refresh()};
     zoomInp.oninput=function(){s.zoom=parseInt(zoomInp.value,10);zl.textContent=zoomInp.value;setDirty(true);refresh()};
-    bgInp.oninput=function(){s.bg=bgInp.value;setDirty(true);refresh()};
-    el.querySelector('[data-act=bgclear]').onclick=function(){delete s.bg;bgInp.value='#ffffff';setDirty(true);refresh()};
+    el.querySelectorAll('[data-bg]').forEach(function(b){
+      b.onclick=function(){
+        if(b.dataset.bg)s.bg=b.dataset.bg;else delete s.bg;
+        setDirty(true);refresh();markBg();
+      };
+    });
     el.querySelector('.item-hd').addEventListener('click',function(ev){
       if(ev.target.closest('button'))return;
       el.classList.toggle('open');

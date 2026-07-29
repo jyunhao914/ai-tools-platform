@@ -326,7 +326,11 @@ h2.sec{font-size:17px;margin-bottom:16px}
           <div class="field" style="margin:0"><label>顯示方式</label><select id="f_imgFit"><option value="cover">裁滿（超出裁切）</option><option value="contain">完整顯示（不裁切）</option></select></div>
           <div class="field" style="margin:0"><label>對齊位置</label><select id="f_imgPos"><option value="center">置中</option><option value="top">靠上</option><option value="bottom">靠下</option><option value="left">靠左</option><option value="right">靠右</option></select></div>
           <div class="field" style="margin:0"><label>縮放 <span id="f_imgZoomVal">100</span>%</label><input type="range" id="f_imgZoom" min="50" max="200" step="5" value="100" style="padding:0"></div>
-          <div class="field" style="margin:0"><label>留白底色</label><div style="display:flex;gap:6px;align-items:center"><input type="color" id="f_imgBg" value="#ffffff" style="width:42px;height:34px;padding:2px;flex-shrink:0"><button class="btn small" id="f_imgBgClear" type="button">預設</button></div></div>
+          <div class="field" style="margin:0"><label>留白底色</label><div style="display:flex;gap:6px;align-items:center">
+            <button class="btn small" data-imgbg="" type="button">透明</button>
+            <button class="btn small" data-imgbg="#ffffff" type="button">白色</button>
+            <button class="btn small" data-imgbg="#000000" type="button">黑色</button>
+          </div></div>
         </div>
         <div id="imgStage" style="margin-top:10px;width:240px;aspect-ratio:16/9;border-radius:9px;overflow:hidden;background:var(--panel2)"><img id="imgStageImg" style="width:100%;height:100%;object-fit:cover;display:block"></div>
         <p class="hint" style="margin-top:6px">預覽即前台卡片實際效果</p>
@@ -698,8 +702,8 @@ function openEditor(card){
   $('f_image').value=_spec[0]||'';
   $('f_imgFit').value=_spec[1]||'cover';
   $('f_imgPos').value=_spec[2]||'center';
-  $('f_imgBg').value=(_spec[3]&&/^#/.test(_spec[3]))?_spec[3]:'#ffffff';
-  $('f_imgBg').dataset.set=_spec[3]?'1':'';
+  window._imgBg=(_spec[3]&&/^#/.test(_spec[3]))?_spec[3]:'';
+  markImgBg();
   $('f_imgZoom').value=parseInt(_spec[4],10)||100;
   $('f_imgZoomVal').textContent=$('f_imgZoom').value;
   updateImgDisp();
@@ -731,6 +735,15 @@ function updateImgPreview(){
 }
 $('f_image').oninput=updateImgPreview;
 /* 圖片顯示設定：即時預覽 */
+window._imgBg='';
+function markImgBg(){
+  document.querySelectorAll('[data-imgbg]').forEach(function(b){
+    var on=(window._imgBg||'')===b.dataset.imgbg;
+    b.style.borderColor=on?'var(--accent)':'';
+    b.style.color=on?'#c7d2fe':'';
+    b.style.background=on?'rgba(99,102,241,0.14)':'';
+  });
+}
 function updateImgDisp(){
   var v=$('f_image').value.trim();
   var row=$('imgDispRow');
@@ -738,21 +751,25 @@ function updateImgDisp(){
   row.style.display='block';
   var img=$('imgStageImg');
   img.src=thumbUrl(v);
-  img.style.objectFit=$('f_imgFit').value;
+  var z=(parseInt($('f_imgZoom').value,10)||100)/100;
+  var fit=$('f_imgFit').value;
+  var effFit=(fit==='cover'&&z<1)?'contain':fit;
+  img.style.objectFit=effFit;
   img.style.objectPosition=$('f_imgPos').value;
-  img.style.transform='scale('+(parseInt($('f_imgZoom').value,10)/100)+')';
-  $('imgStage').style.background=($('f_imgFit').value==='contain'&&$('f_imgBg').dataset.set)?$('f_imgBg').value:'';
+  img.style.transform=z!==1?'scale('+z+')':'';
+  $('imgStage').style.background=(effFit==='contain'&&window._imgBg)?window._imgBg:'';
 }
 $('f_imgFit').onchange=updateImgDisp;
 $('f_imgPos').onchange=updateImgDisp;
 $('f_imgZoom').oninput=function(){$('f_imgZoomVal').textContent=this.value;updateImgDisp()};
-$('f_imgBg').oninput=function(){this.dataset.set='1';updateImgDisp()};
-$('f_imgBgClear').onclick=function(){$('f_imgBg').dataset.set='';$('f_imgBg').value='#ffffff';updateImgDisp()};
+document.querySelectorAll('[data-imgbg]').forEach(function(b){
+  b.onclick=function(){window._imgBg=b.dataset.imgbg;markImgBg();updateImgDisp()};
+});
 function composeImgSpec(){
   var url=$('f_image').value.trim();
   if(!url)return '';
   var fit=$('f_imgFit').value,pos=$('f_imgPos').value,
-      bg=$('f_imgBg').dataset.set?$('f_imgBg').value:'',
+      bg=window._imgBg||'',
       zoom=parseInt($('f_imgZoom').value,10)||100;
   if(fit==='cover'&&pos==='center'&&!bg&&zoom===100)return url;
   return url+'|'+fit+'|'+pos+'|'+bg+'|'+zoom;

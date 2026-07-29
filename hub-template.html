@@ -213,10 +213,16 @@ function renderEmbedModule(host,m){
   host.appendChild(w);
 }
 function applyDisplay(img,s){
-  img.style.objectFit=s.fit||'cover';
+  if(!img)return;
+  var fit=s.fit||'cover';
+  var z=(parseInt(s.zoom,10)||100)/100;
+  /* 縮小（<100%）時裁滿模式改為完整顯示再縮，才能露出整張圖 */
+  var effFit=(fit==='cover'&&z<1)?'contain':fit;
+  img.style.objectFit=effFit;
   img.style.objectPosition=s.pos||'center';
-  if(s.zoom&&parseInt(s.zoom,10)!==100)img.style.transform='scale('+(parseInt(s.zoom,10)/100)+')';
-  if((s.fit||'cover')==='contain'&&s.bg)img.parentElement.style.background=s.bg;
+  img.style.transform=z!==1?'scale('+z+')':'';
+  var st=img.parentElement;
+  if(st)st.style.background=(effFit==='contain'&&s.bg)?s.bg:'';
 }
 function renderCardsModule(host,items){
   var g=document.createElement('div');g.className='grid';

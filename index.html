@@ -1434,10 +1434,12 @@ function buildSlider(imgs,card){
       var base=spec.url.split('?')[0];
       setTimeout(function(){img.src=base+'?r='+Date.now()},20000);
     };
-    img.style.objectFit=spec.fit;
+    var _z=(spec.zoom||100)/100;
+    var _fit=(spec.fit==='cover'&&_z<1)?'contain':spec.fit;
+    img.style.objectFit=_fit;
     img.style.objectPosition=spec.pos;
-    if(spec.zoom&&spec.zoom!==100)img.style.transform='scale('+(spec.zoom/100)+')';
-    if(spec.fit==='contain'&&spec.bg)img.style.background=spec.bg;
+    if(_z!==1)img.style.transform='scale('+_z+')';
+    if(_fit==='contain'&&spec.bg)img.style.background=spec.bg;
     if(i===0)img.classList.add('active');
     wrap.appendChild(img);
   });
