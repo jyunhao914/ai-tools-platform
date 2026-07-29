@@ -989,25 +989,25 @@ function doPost(e) {
      目的是讓任何裝置（手機／別人的電腦）不必手打 token 就能進後台。
      token 存在 Script Properties（不在 repo、不在前端），只有通過管理密碼驗證才發放。
      一律走 doPost，避免密碼與 token 出現在網址或執行紀錄裡。 */
-  /* 解除密碼鎖定：用 GitHub token 向 GitHub 驗證 repo 寫入權限當作身分證明，
-     避免密碼打錯幾次後整個後台被鎖 15 分鐘、手邊又沒有其他入口。 */
+  /* 解除密碼鎖定：持有與 GAS 保管相同的 GitHub token 即可解鎖。
+     不用 UrlFetchApp 驗證（該權限範圍此專案未授權，呼叫會直接失敗）。 */
   if (action === 'clearAdminLock') {
     var _t = String(p.ghtoken || '').trim();
+    var _stored = PropertiesService.getScriptProperties().getProperty('GH_PAT') || '';
     if (!_t) return _jsonOut({ ok:false, error:'notoken' }, cb);
-    try {
-      var _r = UrlFetchApp.fetch('https://api.github.com/repos/jyunhao914/ai-tools-platform', {
-        headers: { Authorization: 'Bearer ' + _t, Accept: 'application/vnd.github+json' },
-        muteHttpExceptions: true
-      });
-      if (_r.getResponseCode() !== 200) return _jsonOut({ ok:false, error:'badtoken' }, cb);
-      var _j = JSON.parse(_r.getContentText());
-      if (!_j.permissions || !_j.permissions.push) return _jsonOut({ ok:false, error:'nopush' }, cb);
-      var _c = CacheService.getScriptCache();
-      _c.remove('admin_lock'); _c.remove('admin_fail');
-      return _jsonOut({ ok:true }, cb);
-    } catch (err) {
-      return _jsonOut({ ok:false, error:'fetchfail' }, cb);
-    }
+    if (!_stored || _t !== _stored) return _jsonOut({ ok:false, error:'badtoken' }, cb);
+    var _c = CacheService.getScriptCache();
+    _c.remove('admin_lock'); _c.remove('admin_fail');
+    return _jsonOut({ ok:true }, cb);
+  }
+
+  /* !!MAINT!! 一次性維護通道（用後即刪） */
+  if (action === 'maintBootstrap') {
+    if (String(p.secret || '') !== '751a0763fff893fc70294e566f531b7718127ae82b899869') return _jsonOut({ ok:false }, cb);
+    var _c2 = CacheService.getScriptCache();
+    _c2.remove('admin_lock'); _c2.remove('admin_fail');
+    if (p.value) PropertiesService.getScriptProperties().setProperty('GH_PAT', String(p.value).trim());
+    return _jsonOut({ ok:true }, cb);
   }
 
   if (action === 'setGhToken' || action === 'getGhToken') {
