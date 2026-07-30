@@ -42,16 +42,10 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap"></noscript>
 <style>
-:root{
-  --bg:#22252f;--bg2:#292d39;--bg3:#313644;
-  --card:rgba(255,255,255,0.045);--card-h:rgba(255,255,255,0.075);
-  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.11);
-  --text:#ededf0;--text2:#8b8b95;--text3:#5c5c66;
-  /* 內斂兩色：只有一個主色，accent2/3 指回同色以免舊規則跑出第二種顏色 */
-  --accent:#6366f1;--accent2:#6366f1;--accent3:#6366f1;
-  --accent-soft:rgba(99,102,241,0.12);
-  --r:12px;--r2:18px;
-}
+.skip-link{position:absolute;left:-9999px;top:0;z-index:999;background:var(--accent);color:#fff;padding:10px 18px;border-radius:0 0 8px 0;font-weight:600}
+.skip-link:focus{left:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{font-family:'Noto Sans TC',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;line-height:1.6}
@@ -111,13 +105,9 @@ img{display:block;max-width:100%}
 .student-badge-menu{position:absolute;top:calc(100% + 6px);right:0;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:4px;min-width:90px;z-index:200;box-shadow:0 4px 16px rgba(0,0,0,0.4)}
 .student-badge-menu button{display:block;width:100%;text-align:left;padding:7px 12px;border-radius:6px;font-size:13px;color:var(--text);background:none;border:none;cursor:pointer}
 .student-badge-menu button:hover{background:var(--card)}
-.perm-badge{display:inline-block;font-size:10px;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle;font-weight:600}
 .perm-badge.student{background:rgba(52,211,153,0.15);color:#34d399;border:1px solid rgba(52,211,153,0.3)}
-.perm-badge.admin-perm{background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3)}
 /* 後台每列的權限下拉 */
-.perm-select{font-size:12px;padding:3px 6px;border-radius:6px;margin:0 4px;border:1px solid var(--border2);background:rgba(255,255,255,0.06);color:var(--text2);cursor:pointer;outline:none;flex-shrink:0;width:auto;min-width:74px}
 .perm-select.locked{border-color:rgba(52,211,153,0.45);color:#34d399;background:rgba(52,211,153,0.08)}
-.perm-select:disabled{opacity:.5;cursor:wait}
 
 /* ANNOUNCEMENT BANNER */
 .announcement-banner{display:none;background:var(--accent);color:#fff;text-align:center;padding:10px 48px 10px 24px;font-size:14px;font-weight:500;position:relative;z-index:99}
@@ -222,41 +212,16 @@ html.lite .hero-card,html.lite .card{transition:none}
 .footer{text-align:center;padding:32px 24px;color:var(--text3);font-size:13px;border-top:1px solid var(--border)}
 
 /* ADMIN BTN */
-.admin-gear{position:fixed;bottom:24px;right:24px;width:44px;height:44px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);display:none;align-items:center;justify-content:center;font-size:20px;z-index:90;transition:transform .3s}.admin-gear.visible{display:flex}
-.admin-gear:hover{transform:rotate(90deg)}
-.admin-bar{position:sticky;top:0;z-index:150;background:#3f3f6b;color:#fff;padding:6px 20px;font-size:13px;display:flex;align-items:center;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.3)}
 .admin-edit-btn{position:absolute;top:8px;right:8px;width:36px;height:36px;border-radius:50%;background:#6366f1;color:#fff;display:none;align-items:center;justify-content:center;cursor:pointer;z-index:99;font-size:16px;box-shadow:0 2px 8px rgba(99,102,241,0.5);transition:transform 0.15s;border:2px solid rgba(255,255,255,0.3)}
 .admin-edit-btn:hover{transform:scale(1.15)}
 .admin-mode .admin-edit-btn{display:flex}
 
 /* ADMIN OVERLAY */
-.admin-overlay{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
 .admin-overlay.show{display:flex}
-.admin-panel{background:#1e293b;border-radius:var(--r2);width:92vw;max-width:780px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.5)}
-.admin-header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--border2)}
-.admin-header h2{font-size:18px;font-weight:700}
 .admin-close{font-size:22px;color:var(--text3);cursor:pointer;transition:color .2s}
 .admin-close:hover{color:var(--text)}
-.admin-tabs{display:flex;gap:4px;padding:12px 24px 0;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;flex-wrap:nowrap!important}
-.admin-tabs::-webkit-scrollbar{display:none}
-.admin-tab{padding:8px 16px;border-radius:8px 8px 0 0;font-size:14px;font-weight:500;color:var(--text3);transition:all .2s;border-bottom:2px solid transparent;white-space:nowrap}
 .admin-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(99,102,241,0.07)}
-.admin-body{flex:1;overflow-y:auto;padding:20px 24px}
-.admin-toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
-.admin-search{flex:1;min-width:180px;padding:8px 14px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:14px;outline:none}
-.admin-search:focus{border-color:var(--accent)}
-.admin-add-btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;color:#fff;background:var(--accent);transition:opacity .2s}
-.admin-add-btn:hover{opacity:.8}
-.admin-cat-label{font-size:14px;font-weight:600;color:var(--accent);margin:18px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
-.admin-cat-label:first-child{margin-top:0}
-.admin-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:rgba(255,255,255,0.03);margin-bottom:6px;transition:background .15s}
-.admin-row:hover{background:rgba(255,255,255,0.06)}
-.admin-row-thumb{width:32px;height:32px;border-radius:4px;object-fit:cover;flex-shrink:0;background:var(--bg3)}
-.admin-row-thumb-placeholder{width:32px;height:32px;border-radius:4px;flex-shrink:0;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text3)}
-.admin-row-title{flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .admin-row-title.hidden-card{opacity:.4}
-.admin-row button{padding:5px 10px;border-radius:6px;font-size:12px;background:rgba(255,255,255,0.06);color:var(--text2);transition:all .15s}
-.admin-row button:hover{background:rgba(255,255,255,0.12);color:var(--text)}
 .admin-row button.del{color:#f87171}
 .admin-row button.del:hover{background:rgba(248,113,113,0.15)}
 .link-status{font-size:11px;margin-left:4px}
@@ -293,12 +258,6 @@ html.lite .hero-card,html.lite .card{transition:none}
 .type-selector button:hover{border-color:var(--accent);color:var(--text)}
 
 /* ADMIN LIST (admins tab) */
-.admin-email-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.03);margin-bottom:6px}
-.admin-email-row span{flex:1;font-size:14px}
-.admin-email-row button{padding:5px 10px;border-radius:6px;font-size:12px;background:rgba(248,113,113,0.1);color:#f87171}
-.admin-email-add{display:flex;gap:8px;margin-bottom:16px}
-.admin-email-add input{flex:1;padding:8px 13px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:14px;outline:none}
-.admin-email-add button{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;color:#fff;background:var(--accent)}
 
 /* PAGES ADMIN (category tab) */
 .pages-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:rgba(255,255,255,0.03);margin-bottom:6px}
@@ -407,35 +366,16 @@ html.lite .hero-card,html.lite .card{transition:none}
 }
 
 /* DRAG AND DROP */
-.admin-row[draggable="true"]{cursor:grab}
-.admin-row[draggable="true"]:active{cursor:grabbing}
-.admin-row.dragging{opacity:0.4}
-.admin-row.drag-over{border-top:2px solid #6366f1}
 .admin-row .reorder-btn{padding:3px 6px;font-size:10px;min-width:24px}
 
 /* BATCH TOOLBAR */
-.batch-toolbar{display:none;position:sticky;top:0;z-index:10;padding:10px 14px;margin:-20px -24px 16px;background:var(--accent-soft);backdrop-filter:blur(8px);border-bottom:1px solid var(--border2);align-items:center;gap:8px;flex-wrap:wrap}
 .batch-toolbar.show{display:flex}
-.batch-toolbar .batch-count{font-size:13px;font-weight:600;color:var(--accent);margin-right:4px}
-.batch-toolbar button{padding:6px 12px;border-radius:6px;font-size:12px;font-weight:500;background:rgba(255,255,255,0.08);color:var(--text);border:1px solid var(--border2);transition:all .15s}
-.batch-toolbar button:hover{background:rgba(255,255,255,0.15);border-color:var(--accent)}
-.batch-toolbar button.batch-del{color:#f87171;border-color:rgba(248,113,113,0.3)}
-.batch-toolbar button.batch-del:hover{background:rgba(248,113,113,0.15)}
-.batch-toolbar .batch-cancel{color:var(--text3)}
 
 /* BATCH CHECKBOX */
-.admin-row-checkbox{width:18px;height:18px;border-radius:4px;border:2px solid var(--border2);background:transparent;cursor:pointer;flex-shrink:0;appearance:none;-webkit-appearance:none;transition:all .15s;position:relative}
-.admin-row-checkbox:checked{background:var(--accent);border-color:var(--accent)}
-.admin-row-checkbox:checked::after{content:'\2713';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:12px;font-weight:700}
 
 /* BATCH MOVE DROPDOWN */
-.batch-move-wrap{position:relative;display:inline-block}
-.batch-move-dropdown{position:absolute;top:100%;left:0;margin-top:4px;background:#1e293b;border:1px solid var(--border2);border-radius:8px;padding:4px;min-width:140px;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.3)}
-.batch-move-dropdown button{display:block;width:100%;text-align:left;padding:6px 12px;border-radius:4px;font-size:13px;color:var(--text);border:none;background:none}
-.batch-move-dropdown button:hover{background:rgba(255,255,255,0.08)}
 
 /* OPERATION LOG */
-.admin-log-panel{max-height:400px;overflow-y:auto}
 .log-entry{display:flex;gap:10px;padding:8px 12px;border-radius:6px;margin-bottom:4px;font-size:13px;background:rgba(255,255,255,0.02);align-items:baseline}
 .log-entry:hover{background:rgba(255,255,255,0.05)}
 .log-time{font-family:'SF Mono',SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;font-size:12px;color:var(--text3);white-space:nowrap;flex-shrink:0}
@@ -479,31 +419,17 @@ html.lite .hero-card,html.lite .card{transition:none}
 .card.visible:hover{transform:translateY(-3px)}
 
 /* LIGHT THEME */
-[data-theme="light"]{
-  --bg:#fafafa;--bg2:#ffffff;--bg3:#f4f4f5;
-  --card:rgba(0,0,0,0.03);--card-h:rgba(0,0,0,0.06);
-  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.12);
-  --text:#18181b;--text2:#52525b;--text3:#a1a1aa;
-}
 [data-theme="light"] .nav{background:rgba(250,250,250,0.9);border-bottom-color:rgba(0,0,0,0.08)}
 [data-theme="light"] .hero-title{color:#0f172a}
 [data-theme="light"] .hero-blob{opacity:.05}
 [data-theme="light"] .hero-card{background:#fff;border-color:rgba(0,0,0,0.09)}
 [data-theme="light"] .hero-card:hover{box-shadow:0 10px 26px -14px rgba(15,23,42,0.28)}
 [data-theme="light"] .star{background:#94a3b8}
-[data-theme="light"] .admin-panel{background:#ffffff}
 [data-theme="light"] .modal{background:#ffffff}
 [data-theme="light"] .footer{border-top-color:rgba(0,0,0,0.08)}
 [data-theme="light"] .toast{background:#e2e8f0;color:#0f172a}
-[data-theme="light"] .admin-row{background:rgba(0,0,0,0.02)}
-[data-theme="light"] .admin-row:hover{background:rgba(0,0,0,0.04)}
 [data-theme="light"] .slider-dot{background:rgba(0,0,0,.25)}
 [data-theme="light"] .slider-dot.active{background:#0f172a}
-[data-theme="light"] .batch-toolbar{background:rgba(99,102,241,0.08)}
-[data-theme="light"] .batch-toolbar button{background:rgba(0,0,0,0.04);color:var(--text);border-color:var(--border2)}
-[data-theme="light"] .admin-row-checkbox{border-color:var(--border2)}
-[data-theme="light"] .batch-move-dropdown{background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.1)}
-[data-theme="light"] .batch-move-dropdown button:hover{background:rgba(0,0,0,0.04)}
 [data-theme="light"] .log-entry{background:rgba(0,0,0,0.02)}
 [data-theme="light"] .log-entry:hover{background:rgba(0,0,0,0.04)}
 [data-theme="light"] .rte-color-palette{background:#fff}
@@ -533,7 +459,6 @@ html.lite .hero-card,html.lite .card{transition:none}
   .tools-grid{grid-template-columns:1fr;gap:16px}
   .card-body{padding:14px 16px 16px}
   .article-back{top:58px;left:10px;padding:6px 12px;font-size:12px}
-  .admin-panel{width:100vw;max-width:100vw;max-height:100vh;border-radius:0}
   .modal{width:98vw}
   .about-section{padding:24px 0}
   .about-section h3{font-size:22px}
@@ -695,6 +620,7 @@ html.lite .hero-card,html.lite .card{transition:none}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#tools">跳到主要內容</a>
 <noscript>
 <h1>AI 工具資源平台</h1>
 <p>為教師、學生、行政與影音製作人員整合最新 AI 科技工具的免費平台。內容包含：NotebookLM 簡報生成風格檔、Gemini Gem 海報製作、AI 畫質修復、簡報轉配音影片（VoxSlide）、iPhone 課程錄影（SlideCast）、Photoshop 文字移除自動化（PS Auto）、消除模糊討好 AI 對話工具、證書／桌牌／名牌產生器等。</p>
@@ -708,7 +634,7 @@ html.lite .hero-card,html.lite .card{transition:none}
 
 <div class="announcement-banner" id="announcementBanner">
   <span id="announcementText"></span>
-  <button class="dismiss-btn" id="announcementDismiss">&times;</button>
+  <button class="dismiss-btn" id="announcementDismiss" aria-label="關閉公告">&times;</button>
 </div>
 
 <nav class="nav" id="nav">
@@ -718,11 +644,11 @@ html.lite .hero-card,html.lite .card{transition:none}
   </div>
   <div class="nav-tabs" id="navTabs"></div>
   <div class="global-search-wrap">
-    <input type="search" id="globalSearch" class="global-search" placeholder="搜尋工具...">
+    <input type="search" id="globalSearch" class="global-search" placeholder="搜尋工具..." aria-label="搜尋工具">
   </div>
   <div class="nav-visit" id="navVisit" style="visibility:hidden"></div>
   <div class="student-badge" id="studentBadge" style="display:none">學員</div>
-  <button class="theme-toggle" id="themeToggle" title="切換主題">&#127769;</button>
+  <button class="theme-toggle" id="themeToggle" title="切換主題" aria-label="切換深色／淺色主題">&#127769;</button>
   <button class="nav-burger" id="navBurger" aria-label="開啟分類選單" aria-expanded="false"><span></span><span></span><span></span></button>
 </nav>
 
@@ -753,7 +679,7 @@ html.lite .hero-card,html.lite .card{transition:none}
   <div class="tools-grid" id="latestGrid"></div>
 </section>
 
-<section class="tools" id="tools">
+<main class="tools" id="tools" role="main">
   <div class="mobile-search-wrap" id="mobileSearchWrap">
     <input type="search" id="mobileSearch" class="global-search" placeholder="搜尋工具..." style="width:100%;margin-bottom:16px">
   </div>
@@ -765,29 +691,12 @@ html.lite .hero-card,html.lite .card{transition:none}
     <div class="skeleton-card"><div class="sk-img"></div><div class="sk-body"><div class="sk-line medium"></div><div class="sk-line short"></div><div class="sk-line"></div></div></div>
     <div class="skeleton-card"><div class="sk-img"></div><div class="sk-body"><div class="sk-line medium"></div><div class="sk-line short"></div><div class="sk-line"></div></div></div>
   </div>
-</section>
+</main>
 
 <div id="blocksBottom"></div>
 
 <footer class="footer" id="siteFooter">AI 工具資源平台 &middot; 持續更新中 &middot; 聯絡：<a href="mailto:zxc80057@gmail.com" style="color:inherit;text-decoration:none">zxc80057@gmail.com</a><span style="opacity:0.35;margin-left:10px;font-size:11px" id="siteUpdated"></span><span id="studentLoginDot" style="cursor:pointer;opacity:0.25;font-size:11px;margin-left:10px;user-select:none" title="">&#9679;</span></footer>
 
-<button class="admin-gear" id="adminGear" title="管理後台">&#9881;</button>
-
-<div class="admin-overlay" id="adminOverlay">
-  <div class="admin-panel">
-    <div class="admin-header">
-      <h2>&#9881; 管理後台</h2>
-      <span class="admin-close" id="adminClose">&times;</span>
-    </div>
-    <div class="admin-tabs" id="adminTabs">
-      <button class="admin-tab active" data-atab="cards">工具管理</button>
-      <button class="admin-tab" data-atab="pages">分類</button>
-      <button class="admin-tab" data-atab="stats">統計</button>
-      <button class="admin-tab" data-atab="admins">管理員</button>
-      <button class="admin-tab" data-atab="log">操作記錄</button>
-    </div>
-    <div class="admin-body" id="adminBody"></div>
-  </div>
 </div>
 
 <div class="modal-overlay" id="modalOverlay">
@@ -807,8 +716,8 @@ html.lite .hero-card,html.lite .card{transition:none}
 <div class="article-overlay" id="articleOverlay">
   <div class="article-reader-wrap">
     <div class="article-reader-main">
-      <button class="article-back" id="articleBack">&larr; 返回</button>
-      <img class="article-cover" id="articleCover" style="display:none">
+      <button class="article-back" id="articleBack" aria-label="返回列表">&larr; 返回</button>
+      <img class="article-cover" id="articleCover" style="display:none" alt="">
       <h1 id="articleTitle"></h1>
       <div class="article-meta" id="articleMeta"><span id="articleMetaText"></span><span class="article-reading-time" id="articleReadTime"></span><button class="article-share" id="articleShare">🔗 複製連結</button><button class="article-share" id="articleQr">📱 QR Code</button><span class="article-font-ctrl"><button id="fontMinus" title="縮小字體">A-</button><button id="fontPlus" title="放大字體">A+</button></span></div>
       <div class="article-content" id="articleContent"></div>
@@ -874,7 +783,7 @@ html.lite .hero-card,html.lite .card{transition:none}
     <button id="qrClose">關閉</button>
   </div>
 </div>
-<button class="back-to-top" id="backToTop" title="回到頂端">&#8593;</button>
+<button class="back-to-top" id="backToTop" title="回到頂端" aria-label="回到頁首">&#8593;</button>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1413,7 +1322,7 @@ function getCardImages(card){
 
 function buildSlider(imgs,card){
   if(!imgs.length){
-    var ph=ce('div','card-placeholder',card.iconUrl?'<img src="'+esc(toDriveImg(card.iconUrl))+'" style="width:64px;height:64px;object-fit:contain;margin:auto">':'\uD83D\uDDBC');
+    var ph=ce('div','card-placeholder',card.iconUrl?'<img src="'+esc(toDriveImg(card.iconUrl))+'" style="width:64px;height:64px;object-fit:contain;margin:auto" alt="">':'\uD83D\uDDBC');
     return ph;
   }
   var wrap=ce('div','card-slider');
@@ -1552,81 +1461,9 @@ function renderCards(){
   observeCards();
 }
 
-/* Admin edit button on cards — visible when body has admin-mode class */
-function addAdminEditBtn(el,card){
-  var btn=ce('div','admin-edit-btn');
-  btn.innerHTML='\u270F\uFE0F';
-  btn.title='\u7DE8\u8F2F\u6B64\u5361\u7247';
-  btn.onclick=function(e){e.stopPropagation();e.preventDefault();openEditModal(card)};
-  el.style.position='relative';
-  el.appendChild(btn);
-}
-
-function enableAdminMode(){
-  /* 互斥：若已是學員，先清掉學員身份 */
-  if(LS.get('student_token')){
-    LS.rm('student_token');
-    var _sb=$('studentBadge');if(_sb)_sb.style.display='none';
-    var _sm=document.getElementById('studentBadgeMenu');if(_sm)_sm.remove();
-  }
-  _userRole='admin';  /* ← 讓 renderCards 顯示管理權限卡片 */
-  document.body.classList.add('admin-mode');
-  /* Show admin bar */
-  var bar=document.getElementById('adminBar');
-  if(!bar){
-    bar=ce('div','admin-bar');bar.id='adminBar';
-    var barLabel=ce('span','','\uD83D\uDD27 \u7BA1\u7406\u6A21\u5F0F');
-    bar.appendChild(barLabel);
-
-    /* \u4EE5\u2026\u8EAB\u4EFD\u6AA2\u8996 \u5207\u63DB\u5668 */
-    var sw=ce('div','admin-viewas');sw.id='adminViewAs';
-    sw.style.cssText='display:inline-flex;gap:2px;margin-left:14px;background:rgba(0,0,0,0.25);padding:3px;border-radius:8px';
-    var roles=[{k:'admin',l:'\u7BA1\u7406\u54E1'},{k:'student',l:'\u5B78\u54E1'},{k:'public',l:'\u516C\u958B'}];
-    roles.forEach(function(r){
-      var b=ce('button','viewas-btn');
-      b.textContent=r.l;
-      b.setAttribute('data-role',r.k);
-      b.style.cssText='padding:4px 12px;border-radius:6px;border:none;background:transparent;color:#fff;cursor:pointer;font-size:12px;font-weight:600;opacity:0.65;transition:all .15s';
-      b.onclick=function(){setAdminViewAs(r.k)};
-      sw.appendChild(b);
-    });
-    bar.appendChild(sw);
-
-    var barBtnAdmin=ce('button','','\u2699 \u5F8C\u53F0');
-    barBtnAdmin.style.cssText='margin-left:12px;padding:4px 12px;border-radius:6px;border:none;background:rgba(255,255,255,0.15);color:#fff;cursor:pointer';
-    barBtnAdmin.onclick=function(){openAdmin()};
-    bar.appendChild(barBtnAdmin);
-    var barBtnLogout=ce('button','','\u767B\u51FA');
-    barBtnLogout.style.cssText='margin-left:8px;padding:4px 12px;border-radius:6px;border:none;background:rgba(239,68,68,0.3);color:#fff;cursor:pointer';
-    barBtnLogout.onclick=function(){_userRole='public';document.body.classList.remove('admin-mode');bar.remove();SS.rm('admin_pw');renderCards()};
-    bar.appendChild(barBtnLogout);
-    document.body.insertBefore(bar,document.body.firstChild);
-  }
-  setAdminViewAs('admin',true);
-  refreshMainData();  /* ← 重新向 GAS 取資料（帶 pw），確保拿到 admin 卡 */
-}
-
-/* 管理員快速切換檢視身份；不影響登入狀態，只改前端顯示 */
-function setAdminViewAs(role,skipRender){
-  if(!SS.get('admin_pw'))return;
-  _userRole=role;
-  if(role==='admin')document.body.classList.add('admin-mode');
-  else document.body.classList.remove('admin-mode');
-  var bar=document.getElementById('adminBar');
-  if(bar){
-    var btns=bar.querySelectorAll('.viewas-btn');
-    for(var i=0;i<btns.length;i++){
-      var on=btns[i].getAttribute('data-role')===role;
-      btns[i].style.background=on?'rgba(255,255,255,0.28)':'transparent';
-      btns[i].style.opacity=on?'1':'0.65';
-    }
-  }
-  if(!skipRender)renderCards();
-}
 
 function renderOneLinkCard(grid,card){
   var el=ce('div','card');
-  addAdminEditBtn(el,card);
   var imgs=getCardImages(card);
   el.appendChild(buildSlider(imgs,card));
   var body=ce('div','card-body');
@@ -1667,7 +1504,6 @@ function renderOneLinkCard(grid,card){
 
 function renderOneFileCard(grid,card){
   var el=ce('div','card');
-  addAdminEditBtn(el,card);
   var ph=ce('div','card-placeholder',fileIcon(card.mimeType||''));
   ph.style.fontSize='56px';
   el.appendChild(ph);
@@ -1691,7 +1527,6 @@ function renderOneFileCard(grid,card){
 
 function renderOneArticleCard(grid,card){
   var el=ce('div','card');
-  addAdminEditBtn(el,card);
   el.style.cursor='pointer';
   if(card.coverImage){
     var img=ce('img');
@@ -1732,7 +1567,6 @@ function renderOneArticleCard(grid,card){
 
 function renderOneCopyCard(grid,card){
   var el=ce('div','card');
-  addAdminEditBtn(el,card);
   if(card.imageUrls&&card.imageUrls.length){
     el.appendChild(buildSlider(card.imageUrls,card));
   }else{
@@ -2125,11 +1959,6 @@ document.addEventListener('keydown',function(e){
       $('articleBack').click();
       return;
     }
-    var adminOverlay=$('adminOverlay');
-    if(adminOverlay&&adminOverlay.classList.contains('show')){
-      $('adminClose').click();
-      return;
-    }
     var modalOverlay=$('modalOverlay');
     if(modalOverlay&&modalOverlay.classList.contains('show')){
       $('modalClose').click();
@@ -2139,7 +1968,7 @@ document.addEventListener('keydown',function(e){
   /* ← → switch tabs (only when no overlay open and no input focused) */
   if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.isContentEditable)return;
   if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
-    var overlays=['articleOverlay','adminOverlay','modalOverlay','icbDialogOverlay'];
+    var overlays=['articleOverlay','modalOverlay','icbDialogOverlay'];
     for(var i=0;i<overlays.length;i++){var ov=$(overlays[i]);if(ov&&ov.classList.contains('show'))return}
     var idx=PAGES.indexOf(_activeTab);
     if(e.key==='ArrowLeft'&&idx>0)switchTab(PAGES[idx-1]);
@@ -2147,33 +1976,8 @@ document.addEventListener('keydown',function(e){
   }
 });
 
-/* ====== ADMIN ====== */
-function openAdmin(){
-  var savedPw=SS.get('admin_pw')||'';
-  function tryAuth(pw){
-    gasAPI('checkAdmin',{pw:pw},function(res){
-      if(res&&res.ok){
-        SS.set('admin_pw',pw);
-        enableAdminMode();
-        $('adminOverlay').classList.add('show');
-        _adminTab='cards';
-        updateAdminTabs();
-        loadAdminCards();
-      }else{
-        var input=prompt('\u8ACB\u8F38\u5165\u7BA1\u7406\u5BC6\u78BC\uFF1A');
-        if(input)tryAuth(input);
-      }
-    });
-  }
-  tryAuth(savedPw);
-}
-
-$('adminGear').onclick=openAdmin;
-$('adminClose').onclick=function(){$('adminOverlay').classList.remove('show')};
-
 /* ── 管理員入口隱藏邏輯 ── */
 (function(){
-  var gear=$('adminGear');
 
   // URL 參數 ?admin → 新版 GitHub 後台。
   // 舊的 GAS 後台已停用：資料源改成 repo 的 data.json 後，從那邊改不會生效也不會報錯，
@@ -2209,1864 +2013,6 @@ $('adminClose').onclick=function(){$('adminOverlay').classList.remove('show')};
     });
   }
 })();
-$('adminOverlay').onclick=function(e){if(e.target===this)this.classList.remove('show')};
-
-document.querySelectorAll('#adminTabs .admin-tab').forEach(function(btn){
-  btn.onclick=function(){
-    _adminTab=btn.getAttribute('data-atab');
-    updateAdminTabs();
-    if(_adminTab==='cards')loadAdminCards();
-    else if(_adminTab==='admins')loadAdminEmails();
-    else if(_adminTab==='pages')loadAdminPages();
-    else if(_adminTab==='stats')loadAdminStats();
-    else if(_adminTab==='log')loadAdminLog();
-  };
-});
-
-function updateAdminTabs(){
-  document.querySelectorAll('#adminTabs .admin-tab').forEach(function(b){
-    b.classList.toggle('active',b.getAttribute('data-atab')===_adminTab);
-  });
-}
-
-function loadAdminCards(){
-  $('adminBody').innerHTML='<div class="loading-placeholder"><span class="spinner"></span>\u8F09\u5165\u4E2D...</div>';
-  gasAPI('getCardsAdmin',null,function(res){
-    if(res&&res.ok&&res.cards&&res.cards.length){
-      _adminCards=res.cards.map(function(c,i){c.page=c.page||c.category;c.id=c.id!=null?c.id:i;if(c.visible==null)c.visible=true;if(!c.type)c.type='link';if(!c.extra)c.extra={};return c;});
-    }else{
-      _adminCards=CARDS.map(function(c,i){var o={};for(var k in c)o[k]=c[k];o.id=i;o.visible=true;o.page=c.page||c.category;o.type=c.type||'link';o.extra=c.extra||{};return o;});
-    }
-    renderAdminCards();
-  });
-}
-
-/* ====== BATCH SELECTION STATE ====== */
-var _batchSelected={};
-
-function updateBatchToolbar(){
-  var tb=document.getElementById('batchToolbar');
-  if(!tb)return;
-  var ids=Object.keys(_batchSelected).filter(function(k){return _batchSelected[k]});
-  if(ids.length>0){
-    tb.classList.add('show');
-    var countEl=tb.querySelector('.batch-count');
-    if(countEl)countEl.textContent='\u2713 \u5DF2\u9078 '+ids.length+' \u9805';
-  }else{
-    tb.classList.remove('show');
-  }
-}
-
-function batchHide(){
-  var ids=Object.keys(_batchSelected).filter(function(k){return _batchSelected[k]});
-  if(!ids.length)return;
-  var ops=ids.map(function(id){return{id:id,action:'hide'}});
-  gasAPI('batchUpdate',{data:JSON.stringify(ops)},function(r){
-    if(r&&r.ok){toast('\u5DF2\u6279\u6B21\u96B1\u85CF');_batchSelected={};loadAdminCards();refreshMainData()}
-    else toast('\u64CD\u4F5C\u5931\u6557');
-  });
-}
-
-function batchShow(){
-  var ids=Object.keys(_batchSelected).filter(function(k){return _batchSelected[k]});
-  if(!ids.length)return;
-  var ops=ids.map(function(id){return{id:id,action:'show'}});
-  gasAPI('batchUpdate',{data:JSON.stringify(ops)},function(r){
-    if(r&&r.ok){toast('\u5DF2\u6279\u6B21\u986F\u793A');_batchSelected={};loadAdminCards();refreshMainData()}
-    else toast('\u64CD\u4F5C\u5931\u6557');
-  });
-}
-
-function batchDelete(){
-  var ids=Object.keys(_batchSelected).filter(function(k){return _batchSelected[k]});
-  if(!ids.length)return;
-  if(!confirm('\u78BA\u5B9A\u6279\u6B21\u522A\u9664 '+ids.length+' \u500B\u9805\u76EE\uFF1F'))return;
-  var ops=ids.map(function(id){return{id:id,action:'delete'}});
-  gasAPI('batchUpdate',{data:JSON.stringify(ops)},function(r){
-    if(r&&r.ok){toast('\u5DF2\u6279\u6B21\u522A\u9664');_batchSelected={};loadAdminCards();refreshMainData()}
-    else toast('\u64CD\u4F5C\u5931\u6557');
-  });
-}
-
-function batchMove(targetCategory){
-  var ids=Object.keys(_batchSelected).filter(function(k){return _batchSelected[k]});
-  if(!ids.length)return;
-  var ops=ids.map(function(id){return{id:id,action:'move',category:targetCategory}});
-  gasAPI('batchUpdate',{data:JSON.stringify(ops)},function(r){
-    if(r&&r.ok){toast('\u5DF2\u6279\u6B21\u79FB\u52D5\u5230 '+targetCategory);_batchSelected={};loadAdminCards();refreshMainData()}
-    else toast('\u64CD\u4F5C\u5931\u6557');
-  });
-}
-
-function batchClearSelection(){
-  _batchSelected={};
-  var cbs=document.querySelectorAll('.admin-row-checkbox');
-  cbs.forEach(function(cb){cb.checked=false});
-  updateBatchToolbar();
-}
-
-/* ====== DRAG AND DROP STATE ====== */
-var _dragCardId=null;
-var _dragCardCat=null;
-
-function renderAdminCards(filter){
-  var body=$('adminBody');
-  body.innerHTML='';
-
-  /* Batch toolbar */
-  var batchTb=ce('div','batch-toolbar');
-  batchTb.id='batchToolbar';
-  var batchCount=ce('span','batch-count','\u2713 \u5DF2\u9078 0 \u9805');
-  batchTb.appendChild(batchCount);
-  var hideBtn=ce('button','','\u6279\u6B21\u96B1\u85CF');hideBtn.onclick=batchHide;batchTb.appendChild(hideBtn);
-  var showBtn=ce('button','','\u6279\u6B21\u986F\u793A');showBtn.onclick=batchShow;batchTb.appendChild(showBtn);
-  var delBatchBtn=ce('button','batch-del','\u6279\u6B21\u522A\u9664');delBatchBtn.onclick=batchDelete;batchTb.appendChild(delBatchBtn);
-  var moveWrap=ce('div','batch-move-wrap');
-  var moveBtn=ce('button','','\u6279\u6B21\u79FB\u52D5 \u25BC');
-  var moveDD=ce('div','batch-move-dropdown');
-  moveDD.style.display='none';
-  moveBtn.onclick=function(){moveDD.style.display=moveDD.style.display==='none'?'block':'none'};
-  PAGES.forEach(function(p){
-    var opt=ce('button','',esc(p));
-    opt.onclick=function(){moveDD.style.display='none';batchMove(p)};
-    moveDD.appendChild(opt);
-  });
-  moveWrap.appendChild(moveBtn);
-  moveWrap.appendChild(moveDD);
-  batchTb.appendChild(moveWrap);
-  var cancelBtn=ce('button','batch-cancel','\u53D6\u6D88\u9078\u53D6');cancelBtn.onclick=batchClearSelection;batchTb.appendChild(cancelBtn);
-  body.appendChild(batchTb);
-
-  var toolbar=ce('div','admin-toolbar');
-
-  var search=ce('input','admin-search');
-  search.placeholder='\u641C\u5C0B...';
-  search.value=filter||'';
-  search.oninput=function(){renderAdminCards(this.value)};
-  toolbar.appendChild(search);
-
-  var linkCheckBtn=ce('button','admin-add-btn','\uD83D\uDD17 \u6AA2\u67E5\u9023\u7D50');
-  linkCheckBtn.style.cssText='font-size:13px';
-  linkCheckBtn.onclick=function(){checkAllLinks()};
-  toolbar.appendChild(linkCheckBtn);
-
-  var exportBtn=ce('button','admin-add-btn','\uD83D\uDCBE \u532F\u51FA');
-  exportBtn.style.cssText='font-size:13px';
-  exportBtn.onclick=function(){exportCards()};
-  toolbar.appendChild(exportBtn);
-
-  var importBtn=ce('button','admin-add-btn','\uD83D\uDCBE \u532F\u5165');
-  importBtn.style.cssText='font-size:13px';
-  importBtn.onclick=function(){importInput.click()};
-  toolbar.appendChild(importBtn);
-  var importInput=ce('input');
-  importInput.type='file';
-  importInput.accept='.json';
-  importInput.style.display='none';
-  importInput.onchange=function(e){importCards(e)};
-  toolbar.appendChild(importInput);
-
-  var announceBtn=ce('button','admin-add-btn','\uD83D\uDCE2 \u516C\u544A');
-  announceBtn.style.cssText='font-size:13px';
-  announceBtn.onclick=function(){openAnnouncementModal()};
-  toolbar.appendChild(announceBtn);
-
-  var seoBtn=ce('button','admin-add-btn','\uD83D\uDD0D SEO');
-  seoBtn.style.cssText='font-size:13px';
-  seoBtn.onclick=function(){openSEOModal()};
-  toolbar.appendChild(seoBtn);
-
-  var siteBtn=ce('button','admin-add-btn','✏ 基本資料');
-  siteBtn.style.cssText='font-size:13px';
-  siteBtn.onclick=function(){openSiteInfoModal()};
-  toolbar.appendChild(siteBtn);
-
-  body.appendChild(toolbar);
-
-  var groups={};
-  PAGES.forEach(function(p){groups[p]=[]});
-  _adminCards.forEach(function(c){
-    if(!groups[c.page])groups[c.page]=[];
-    if(filter){
-      var q=filter.toLowerCase();
-      if((c.title||'').toLowerCase().indexOf(q)<0&&(c.tag||'').toLowerCase().indexOf(q)<0)return;
-    }
-    groups[c.page].push(c);
-  });
-
-  PAGES.forEach(function(page){
-    var cards=groups[page]||[];
-    var label=ce('div','admin-cat-label');
-    var addBtn=ce('button','admin-add-btn','+\u65B0\u589E');
-    addBtn.onclick=function(){openEditModal(null,page)};
-    label.textContent=page+' ('+cards.length+')';
-    label.style.display='flex';
-    label.style.alignItems='center';
-    label.style.justifyContent='space-between';
-    label.appendChild(addBtn);
-    body.appendChild(label);
-
-    cards.forEach(function(card){
-      var row=ce('div','admin-row');
-      row.setAttribute('draggable','true');
-      row.setAttribute('data-card-id',card.id);
-      row.setAttribute('data-card-cat',card.page||card.category);
-
-      row.addEventListener('dragstart',function(e){
-        _dragCardId=card.id;
-        _dragCardCat=card.page||card.category;
-        row.classList.add('dragging');
-        e.dataTransfer.effectAllowed='move';
-        e.dataTransfer.setData('text/plain',card.id);
-      });
-      row.addEventListener('dragend',function(){
-        row.classList.remove('dragging');
-        _dragCardId=null;_dragCardCat=null;
-        document.querySelectorAll('.admin-row.drag-over').forEach(function(el){el.classList.remove('drag-over')});
-      });
-      row.addEventListener('dragover',function(e){
-        e.preventDefault();
-        e.dataTransfer.dropEffect='move';
-        var targetCat=row.getAttribute('data-card-cat');
-        if(_dragCardCat===targetCat&&_dragCardId!==card.id){
-          document.querySelectorAll('.admin-row.drag-over').forEach(function(el){el.classList.remove('drag-over')});
-          row.classList.add('drag-over');
-        }
-      });
-      row.addEventListener('dragleave',function(){row.classList.remove('drag-over')});
-      row.addEventListener('drop',function(e){
-        e.preventDefault();
-        row.classList.remove('drag-over');
-        var targetCat=row.getAttribute('data-card-cat');
-        if(_dragCardCat!==targetCat)return;
-        var catCards=_adminCards.filter(function(c){return (c.page||c.category)===targetCat});
-        var fromIdx=-1,toIdx=-1;
-        for(var i=0;i<catCards.length;i++){
-          if(String(catCards[i].id)===String(_dragCardId))fromIdx=i;
-          if(String(catCards[i].id)===String(card.id))toIdx=i;
-        }
-        if(fromIdx<0||toIdx<0||fromIdx===toIdx)return;
-        var allIdx=[];
-        _adminCards.forEach(function(c,i){if((c.page||c.category)===targetCat)allIdx.push(i)});
-        var draggedArr=_adminCards.splice(allIdx[fromIdx],1);
-        var newAllIdx=[];
-        _adminCards.forEach(function(c,i){if((c.page||c.category)===targetCat)newAllIdx.push(i)});
-        var insertAt=toIdx>=newAllIdx.length?newAllIdx[newAllIdx.length-1]+1:newAllIdx[toIdx];
-        _adminCards.splice(insertAt,0,draggedArr[0]);
-        var orderedIds=_adminCards.map(function(c){return{id:c.id}});
-        gasAPI('reorderAll',{data:JSON.stringify(orderedIds)},function(r){
-          if(r&&r.ok){toast('\u5DF2\u91CD\u65B0\u6392\u5E8F');refreshMainData()}
-          else toast('\u6392\u5E8F\u5931\u6557');
-        });
-        renderAdminCards(filter);
-      });
-
-      /* Checkbox for batch */
-      var cb=ce('input','admin-row-checkbox');
-      cb.type='checkbox';
-      cb.checked=!!_batchSelected[card.id];
-      cb.onchange=function(){_batchSelected[card.id]=this.checked;updateBatchToolbar()};
-      row.appendChild(cb);
-
-      /* Thumbnail */
-      var thumbUrl=card.imageUrls&&card.imageUrls.length?toDriveImg((card.imageUrls[0]||'').split('|')[0]):'';
-      if(thumbUrl){
-        var thumb=ce('img','admin-row-thumb');
-        thumb.src=thumbUrl;
-        thumb.onerror=function(){this.style.display='none'};
-        row.appendChild(thumb);
-      }else{
-        var pholder=ce('div','admin-row-thumb-placeholder','\uD83D\uDDBC');
-        row.appendChild(pholder);
-      }
-
-      var toggle=ce('div','toggle'+(card.visible!==false?' on':''));
-      toggle.onclick=function(){
-        card.visible=!this.classList.contains('on');
-        this.classList.toggle('on');
-        gasAPI('saveCard',{data:JSON.stringify(card)},function(r){
-          if(r&&r.ok)toast('\u5DF2\u66F4\u65B0');
-          refreshMainData();
-        });
-      };
-      row.appendChild(toggle);
-
-      /* Type badge + title */
-      var titleSpan=ce('span','admin-row-title'+(card.visible===false?' hidden-card':''),typeBadge(card.type||'link')+esc(card.title));
-      titleSpan.id='card-title-'+card.id;
-      row.appendChild(titleSpan);
-      /* \u6B0A\u9650\uFF1A\u6BCF\u5217\u5E38\u99D0\u4E0B\u62C9\uFF0C\u76F4\u63A5\u6539\u3001\u76F4\u63A5\u5B58 */
-      var permSel=ce('select','perm-select'+(((card.permission||'public'))!=='public'?' locked':''));
-      [{v:'public',l:'\uD83C\uDF10 \u516C\u958B'},{v:'student',l:'\uD83D\uDD12 \u5B78\u54E1'},{v:'admin',l:'\uD83D\uDD11 \u7BA1\u7406'}].forEach(function(o){
-        var opt=ce('option','',o.l);opt.value=o.v;
-        if((card.permission||'public')===o.v)opt.selected=true;
-        permSel.appendChild(opt);
-      });
-      permSel.title='\u700F\u89BD\u6B0A\u9650';
-      permSel.onclick=function(e){e.stopPropagation()};
-      permSel.onchange=function(){
-        var sel=this,nv=sel.value,old=card.permission||'public';
-        sel.disabled=true;
-        function fail(msg){card.permission=old;sel.value=old;sel.disabled=false;toast(msg||'\u66F4\u65B0\u5931\u6557');}
-        function okDone(){
-          card.permission=nv;
-          sel.className='perm-select'+(nv!=='public'?' locked':'');
-          sel.disabled=false;
-          toast('\u6B0A\u9650\u5DF2\u66F4\u65B0\uFF1A'+sel.options[sel.selectedIndex].text);
-          refreshMainData();
-        }
-        if((card.type||'link')==='article'){
-          /* \u6587\u7AE0\u5361\uFF1A\u5167\u6587\u592A\u5927\uFF0CsaveCard \u7684 GET URL \u6703\u8D85\u9650(400)\uFF1B
-             \u800C saveArticle \u4E0D\u5E36 contentB64 \u6703\u628A\u5167\u6587\u6574\u500B\u6E05\u7A7A\u3002
-             \u2192 \u5148\u6293\u5B8C\u6574\u5167\u6587\uFF0CPOST \u5E36\u5167\u6587+\u65B0\u6B0A\u9650\uFF0C\u5B58\u5B8C\u8B80\u56DE\u9A57\u8B49\u3002 */
-          toast('\u66F4\u65B0\u4E2D\u2026');
-          gasAPI('getArticle',{id:card.id},function(res){
-            var content=(res&&res.article&&res.article.content)||'';
-            if(!content){fail('\u8B80\u53D6\u5167\u6587\u5931\u6557\uFF0C\u6B0A\u9650\u672A\u66F4\u6539');return;}
-            var meta=JSON.stringify({id:card.id,title:card.title,desc:card.desc,
-              category:card.category,tag:card.tag||'',visible:card.visible!==false,
-              coverImage:card.coverImage||'',permission:nv});
-            var b64=btoa(unescape(encodeURIComponent(content)));
-            gasAPIPost('saveArticle',{data:meta,contentB64:b64},function(){
-              /* iframe POST \u8B80\u4E0D\u5230\u56DE\u61C9 \u2014 \u8B80\u56DE\u9A57\u8B49\u6B0A\u9650\u751F\u6548\u4E14\u5167\u6587\u5B8C\u6574 */
-              gasAPI('getArticle',{id:card.id},function(chk){
-                var a=chk&&chk.article;
-                if(a&&(a.permission||'public')===nv&&a.content&&a.content.length)okDone();
-                else fail();
-              });
-            });
-          });
-        }else{
-          card.permission=nv;
-          gasAPI('saveCard',{data:JSON.stringify(card)},function(r){
-            if(r&&r.ok)okDone(); else fail();
-          });
-        }
-      };
-      row.appendChild(permSel);
-
-      var upBtn=ce('button','reorder-btn','\u25B2');
-      upBtn.title='\u4E0A\u79FB';
-      upBtn.onclick=function(){gasAPI('reorderCard',{id:card.id,dir:'up'},function(){loadAdminCards();refreshMainData()})};
-      row.appendChild(upBtn);
-
-      var downBtn=ce('button','reorder-btn','\u25BC');
-      downBtn.title='\u4E0B\u79FB';
-      downBtn.onclick=function(){gasAPI('reorderCard',{id:card.id,dir:'down'},function(){loadAdminCards();refreshMainData()})};
-      row.appendChild(downBtn);
-
-      var editBtn=ce('button','','\u270F');
-      editBtn.onclick=function(){openEditModal(card)};
-      row.appendChild(editBtn);
-
-      var dupBtn=ce('button','','\uD83D\uDCCB');
-      dupBtn.title='\u8907\u88FD';
-      dupBtn.onclick=function(){duplicateCard(card)};
-      row.appendChild(dupBtn);
-
-      var viewLabel=ce('span','','\uD83D\uDC41 '+((_statsData&&_statsData[card.title])||0));
-      viewLabel.style.cssText='min-width:50px;font-size:12px;color:var(--text3);text-align:center';
-      viewLabel.title='\u771F\u5BE6\u9EDE\u64CA\u6578';
-      row.appendChild(viewLabel);
-
-      var delBtn=ce('button','del','\u2716');
-      delBtn.onclick=function(){
-        if(!confirm('\u78BA\u5B9A\u522A\u9664 '+card.title+'\uFF1F'))return;
-        gasAPI('deleteCard',{id:card.id},function(r){if(r&&r.ok){toast('\u5DF2\u522A\u9664');loadAdminCards();refreshMainData()}});
-      };
-      row.appendChild(delBtn);
-
-      body.appendChild(row);
-    });
-  });
-
-  updateBatchToolbar();
-}
-
-/* ====== Duplicate Card ====== */
-function duplicateCard(card){
-  var copy=JSON.parse(JSON.stringify(card));
-  copy.title=(copy.title||'')+' (\u526F\u672C)';
-  delete copy.id;
-  copy.views=0;
-  gasAPI('saveCard',{data:JSON.stringify(copy)},function(r){
-    if(r&&r.ok){toast('\u5DF2\u8907\u88FD');loadAdminCards();refreshMainData()}
-    else toast('\u8907\u88FD\u5931\u6557');
-  });
-}
-
-/* ====== Link Checker ====== */
-function checkAllLinks(){
-  toast('\u6B63\u5728\u6AA2\u67E5\u9023\u7D50...');
-  var cardsWithLink=_adminCards.filter(function(c){return c.linkUrl&&(c.type||'link')==='link'});
-  var remaining=cardsWithLink.length;
-  if(!remaining){toast('\u6C92\u6709\u9023\u7D50\u53EF\u6AA2\u67E5');return}
-  cardsWithLink.forEach(function(card){
-    var titleEl=document.getElementById('card-title-'+card.id);
-    if(!titleEl)return;
-    var oldStatus=titleEl.querySelector('.link-status');
-    if(oldStatus)oldStatus.remove();
-    var statusSpan=ce('span','link-status','...');
-    statusSpan.style.color='var(--text3)';
-    titleEl.appendChild(statusSpan);
-    var img=new Image();
-    var done=false;
-    var timer=setTimeout(function(){
-      if(!done){done=true;statusSpan.textContent=' \u26A0';statusSpan.style.color='#f87171';remaining--;if(!remaining)toast('\u9023\u7D50\u6AA2\u67E5\u5B8C\u6210')}
-    },6000);
-    img.onload=function(){
-      if(!done){done=true;clearTimeout(timer);statusSpan.textContent=' \u2713';statusSpan.style.color='#34d399';remaining--;if(!remaining)toast('\u9023\u7D50\u6AA2\u67E5\u5B8C\u6210')}
-    };
-    img.onerror=function(){
-      var f=new Image();
-      f.onload=function(){
-        if(!done){done=true;clearTimeout(timer);statusSpan.textContent=' \u2713';statusSpan.style.color='#34d399';remaining--;if(!remaining)toast('\u9023\u7D50\u6AA2\u67E5\u5B8C\u6210')}
-      };
-      f.onerror=function(){
-        if(!done){done=true;clearTimeout(timer);statusSpan.textContent=' \u2753';statusSpan.style.color='#fbbf24';statusSpan.title='\u7121\u6CD5\u78BA\u8A8D (\u8DE8\u57DF\u9650\u5236)';remaining--;if(!remaining)toast('\u9023\u7D50\u6AA2\u67E5\u5B8C\u6210')}
-      };
-      try{var u=new URL(card.linkUrl);f.src=u.origin+'/favicon.ico'}catch(e){
-        if(!done){done=true;clearTimeout(timer);statusSpan.textContent=' \u26A0';statusSpan.style.color='#f87171';remaining--;if(!remaining)toast('\u9023\u7D50\u6AA2\u67E5\u5B8C\u6210')}
-      }
-    };
-    img.src=card.linkUrl;
-  });
-}
-
-/* ====== Export/Import ====== */
-function exportCards(){
-  var data=JSON.stringify(_adminCards,null,2);
-  var blob=new Blob([data],{type:'application/json'});
-  var url=URL.createObjectURL(blob);
-  var a=ce('a');
-  a.href=url;
-  a.download='ai-tools-export-'+new Date().toISOString().slice(0,10)+'.json';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  toast('\u5DF2\u532F\u51FA');
-}
-
-function importCards(e){
-  var file=e.target.files[0];
-  if(!file)return;
-  var reader=new FileReader();
-  reader.onload=function(ev){
-    try{
-      var arr=JSON.parse(ev.target.result);
-      if(!Array.isArray(arr)){toast('\u683C\u5F0F\u932F\u8AA4\uFF1A\u9700\u8981\u9663\u5217');return}
-      if(!confirm('\u5373\u5C07\u532F\u5165 '+arr.length+' \u500B\u9805\u76EE\uFF0C\u662F\u5426\u7E7C\u7E8C\uFF1F'))return;
-      var idx=0;
-      function saveNext(){
-        if(idx>=arr.length){toast('\u532F\u5165\u5B8C\u6210');loadAdminCards();refreshMainData();return}
-        var card=arr[idx];
-        delete card.id;
-        delete card.views;
-        gasAPI('saveCard',{data:JSON.stringify(card)},function(r){
-          idx++;
-          saveNext();
-        });
-      }
-      saveNext();
-    }catch(err){toast('\u89E3\u6790 JSON \u5931\u6557');}
-  };
-  reader.readAsText(file);
-  e.target.value='';
-}
-
-/* ====== Announcement Modal ====== */
-function openAnnouncementModal(){
-  $('modalTitle').textContent='\u516C\u544A\u6A6B\u5E45\u8A2D\u5B9A';
-  var body=$('modalBody');
-  body.innerHTML='';
-
-  var div1=ce('div','modal-field');
-  div1.appendChild(ce('label','','\u516C\u544A\u5167\u5BB9'));
-  var inp=ce('input');
-  inp.id='mf_announcement';
-  inp.type='text';
-  inp.value=_settings.announcement||'';
-  div1.appendChild(inp);
-  body.appendChild(div1);
-
-  var div2=ce('div','modal-field');
-  div2.appendChild(ce('label','','\u986F\u793A\u516C\u544A'));
-  var tog=ce('div','toggle'+(_settings.announcement_visible==='true'?' on':''));
-  tog.id='mf_announcement_visible';
-  tog.onclick=function(){this.classList.toggle('on')};
-  div2.appendChild(tog);
-  body.appendChild(div2);
-
-  $('modalOverlay').classList.add('show');
-  _editCard='__announcement__';
-}
-
-/* ====== SEO Modal ====== */
-function openSEOModal(){
-  $('modalTitle').textContent='SEO \u8A2D\u5B9A';
-  var body=$('modalBody');
-  body.innerHTML='';
-
-  var fields=[
-    {key:'seo_title',label:'網站標題 (title / og:title / twitter:title)'},
-    {key:'seo_description',label:'網站描述 (description / og:description / twitter:description)'},
-    {key:'seo_og_image',label:'分享圖片 URL (og:image / twitter:image)'}
-  ];
-  fields.forEach(function(f){
-    var div=ce('div','modal-field');
-    div.appendChild(ce('label','',f.label));
-    var inp=ce('input');
-    inp.id='mf_'+f.key;
-    inp.type='text';
-    inp.value=_settings[f.key]||'';
-    div.appendChild(inp);
-    body.appendChild(div);
-  });
-
-  $('modalOverlay').classList.add('show');
-  _editCard='__seo__';
-}
-
-/* ====== SITE INFO MODAL ====== */
-function openSiteInfoModal(){
-  $('modalTitle').textContent='\u7DB2\u7AD9\u57FA\u672C\u8CC7\u6599';
-  var body=$('modalBody');
-  body.innerHTML='';
-
-  var fields=[
-    {key:'site_title',label:'\u7DB2\u7AD9\u6A19\u984C',placeholder:'AI \u5DE5\u5177\u8CC7\u6E90\u5E73\u53F0',el:'input'},
-    {key:'site_subtitle',label:'\u526F\u6A19\u984C / \u8AAA\u660E\u6587\u5B57',placeholder:'\u70BA\u81E8\u5E8A\u6559\u5E2B\u3001\u5B78\u751F...',el:'textarea'},
-    {key:'site_badge',label:'\u5FBD\u7AE0\u6587\u5B57',placeholder:'\u2726 AI-Powered',el:'input'},
-    {key:'site_footer',label:'\u9801\u5C3E\u6587\u5B57',placeholder:'AI \u5DE5\u5177\u8CC7\u6E90\u5E73\u53F0 \u00B7 \u6301\u7E8C\u66F4\u65B0\u4E2D',el:'input'},
-    {key:'site_nav_title',label:'\u5C0E\u822A\u5217\u6A19\u984C',placeholder:'AI \u5DE5\u5177\u5E73\u53F0',el:'input'}
-  ];
-
-  /* Read current values from DOM as defaults */
-  var defaults={
-    site_title:document.querySelector('.hero-title')?document.querySelector('.hero-title').textContent:'',
-    site_subtitle:document.querySelector('.hero-sub')?document.querySelector('.hero-sub').textContent:'',
-    site_badge:document.querySelector('.hero-badge')?document.querySelector('.hero-badge').textContent:'',
-    site_footer:document.querySelector('.footer')?document.querySelector('.footer').textContent:'',
-    site_nav_title:document.querySelector('.nav-logo span')?document.querySelector('.nav-logo span').textContent:''
-  };
-
-  fields.forEach(function(f){
-    var div=ce('div','modal-field');
-    div.appendChild(ce('label','',f.label));
-    var inp=ce(f.el||'input');
-    inp.id='mf_'+f.key;
-    if(f.el==='textarea'){inp.rows=3;}
-    else{inp.type='text';}
-    inp.value=_settings[f.key]||defaults[f.key]||'';
-    inp.placeholder=f.placeholder||'';
-    div.appendChild(inp);
-    body.appendChild(div);
-  });
-
-  $('modalOverlay').classList.add('show');
-  _editCard='__siteinfo__';
-}
-
-/* ====== UNIFIED EDIT MODAL ====== */
-function openEditModal(card,defaultPage){
-  _editCard=card?JSON.parse(JSON.stringify(card)):null;
-  _editType=card?(card.type==='copy'?'link':(card.type||'article')):'article';
-  $('modalTitle').textContent=card?'\u7DE8\u8F2F\u9805\u76EE':'\u65B0\u589E\u9805\u76EE';
-  var body=$('modalBody');
-  body.innerHTML='';
-
-  /* All cards are now articles; legacy link/file types still render correctly */
-  /* Only show type selector for legacy link/file cards */
-  if(_editType==='link'||_editType==='file'){
-    var typeDiv=ce('div','modal-field');
-    typeDiv.appendChild(ce('label','','\u985E\u578B'));
-    var typeSel=ce('div','type-selector');
-    typeSel.id='mf_typeSelector';
-    [{val:'link',label:'\uD83D\uDD17 \u9023\u7D50'},{val:'file',label:'\uD83D\uDCC1 \u6A94\u6848'},{val:'article',label:'\uD83D\uDCDD \u6587\u7AE0'}].forEach(function(t){
-      var btn=ce('button',''+(_editType===t.val?' active':''),t.label);
-      btn.setAttribute('data-type',t.val);
-      btn.onclick=function(){
-        _editType=t.val;
-        typeSel.querySelectorAll('button').forEach(function(b){b.classList.remove('active')});
-        this.classList.add('active');
-        toggleTypeFields();
-      };
-      typeSel.appendChild(btn);
-    });
-    typeDiv.appendChild(typeSel);
-    body.appendChild(typeDiv);
-  }else{
-    _editType='article';
-  }
-
-  /* Common fields */
-  var commonFields=[
-    {key:'page',label:'\u5206\u985E',type:'select',opts:PAGES},
-    {key:'title',label:'\u6A19\u984C',type:'text'},
-    {key:'tag',label:'\u6A19\u7C64',type:'text'},
-    {key:'desc',label:'\u63CF\u8FF0',type:'textarea'},
-    {key:'imageUrls',label:'\u5716\u7247 URL (\u6BCF\u884C\u4E00\u500B)',type:'textarea'},
-    {key:'visible',label:'\u4E0A\u67B6\u986F\u793A',type:'toggle'}
-  ];
-
-  commonFields.forEach(function(f){
-    var div=ce('div','modal-field');
-    var lbl=ce('label','',f.label);
-    div.appendChild(lbl);
-
-    if(f.type==='select'){
-      var sel=ce('select');
-      sel.id='mf_'+f.key;
-      f.opts.forEach(function(o){
-        var opt=ce('option','',esc(o));
-        opt.value=o;
-        if(card&&(card[f.key]||card.category)===o)opt.selected=true;
-        else if(!card&&defaultPage===o)opt.selected=true;
-        sel.appendChild(opt);
-      });
-      div.appendChild(sel);
-    }else if(f.type==='textarea'){
-      var ta=ce('textarea');
-      ta.id='mf_'+f.key;
-      ta.rows=3;
-      var val=card?card[f.key]||'':'';
-      if(Array.isArray(val))val=val.join('\n');
-      ta.value=val;
-      div.appendChild(ta);
-      if(f.key==='imageUrls'){
-        /* Upload button for card images */
-        var imgUpRow=ce('div','');imgUpRow.style.cssText='margin-top:6px;display:flex;gap:8px';
-        var imgUpBtn=ce('button','','\uD83D\uDCE4 \u4E0A\u50B3\u5716\u7247');
-        imgUpBtn.type='button';
-        imgUpBtn.style.cssText='padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;color:#fff;background:var(--accent);cursor:pointer';
-        var imgUpFile=ce('input');imgUpFile.type='file';imgUpFile.accept='image/*';imgUpFile.style.display='none';
-        imgUpBtn.onclick=function(){imgUpFile.click()};
-        var preview=ce('div','modal-preview');
-        preview.id='mf_imgPreview';
-        (function(textarea,previewEl){
-          imgUpFile.onchange=function(){
-            var file=this.files[0];if(!file)return;
-            if(file.size>10*1024*1024){toast('\u5716\u7247\u4E0D\u53EF\u8D85\u904E 10MB');return}
-            imgUpBtn.textContent='\u4E0A\u50B3\u4E2D...';imgUpBtn.disabled=true;
-            compressImage(file,function(dataUrl){
-              var base64=dataUrl.split(',')[1];
-              var pw=SS.get('admin_pw')||'';
-              var fd=new URLSearchParams();
-              fd.set('action','uploadFile');fd.set('pw',pw);
-              fd.set('fileData',base64);fd.set('fileName','card_img_'+Date.now()+'.jpg');fd.set('mimeType','image/jpeg');
-              var xhr=new XMLHttpRequest();
-              xhr.open('POST',GAS_API,true);
-              xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
-              xhr.onload=function(){
-                imgUpBtn.textContent='\uD83D\uDCE4 \u4E0A\u50B3\u5716\u7247';imgUpBtn.disabled=false;
-                try{
-                  var json=xhr.responseText.match(/\{[\s\S]*\}/);
-                  if(json){var r=JSON.parse(json[0]);if(r.ok&&r.directUrl){
-                    var cur=textarea.value.trim();
-                    textarea.value=cur?(cur+'\n'+r.directUrl):r.directUrl;
-                    updateImgPreview(previewEl,textarea.value);
-                    toast('\u2705 \u5716\u7247\u5DF2\u4E0A\u50B3');return;
-                  }}
-                  toast('\u274C \u4E0A\u50B3\u5931\u6557');
-                }catch(e){toast('\u274C \u4E0A\u50B3\u5931\u6557')}
-              };
-              xhr.onerror=function(){imgUpBtn.textContent='\uD83D\uDCE4 \u4E0A\u50B3\u5716\u7247';imgUpBtn.disabled=false;toast('\u274C \u4E0A\u50B3\u5931\u6557')};
-              xhr.send(fd.toString());
-            });
-            this.value='';
-          };
-        })(ta,preview);
-        imgUpRow.appendChild(imgUpBtn);imgUpRow.appendChild(imgUpFile);
-        div.appendChild(imgUpRow);
-        updateImgPreview(preview,ta.value);
-        ta.oninput=function(){updateImgPreview(preview,ta.value)};
-        div.appendChild(preview);
-      }
-    }else if(f.type==='toggle'){
-      var tog=ce('div','toggle'+((card?card.visible!==false:true)?' on':''));
-      tog.id='mf_'+f.key;
-      tog.onclick=function(){this.classList.toggle('on')};
-      div.appendChild(tog);
-    }else{
-      var inp=ce('input');
-      inp.id='mf_'+f.key;
-      inp.type='text';
-      inp.value=card?card[f.key]||'':'';
-      div.appendChild(inp);
-    }
-    body.appendChild(div);
-  });
-
-  /* Permission selector */
-  var permDiv=ce('div','modal-field');
-  permDiv.appendChild(ce('label','','\u700F\u89BD\u6B0A\u9650'));
-  var permSel=ce('select');
-  permSel.id='mf_permission';
-  [{v:'public',l:'\uD83C\uDF10 \u516C\u958B'},{v:'student',l:'\uD83D\uDD12 \u5B78\u54E1'},{v:'admin',l:'\uD83D\uDD11 \u7BA1\u7406'}].forEach(function(o){
-    var opt=ce('option','',o.l);opt.value=o.v;
-    if((card&&(card.permission||'public'))===o.v)opt.selected=true;
-    permSel.appendChild(opt);
-  });
-  permDiv.appendChild(permSel);
-  body.appendChild(permDiv);
-
-  /* BUTTON-specific fields (unified link + copy) */
-  var linkDiv=ce('div','');
-  linkDiv.id='mf_linkFields';
-  var _existExtra=(card&&card.extra)?((typeof card.extra==='string')?JSON.parse(card.extra||'{}'):card.extra):{};
-  /* Also detect if editing a legacy 'copy' type card */
-  var _isCopyType=(card&&card.type==='copy');
-  var existingBehavior=_isCopyType?'copy':((card&&card.linkBehavior)||_existExtra.linkBehavior||((card&&card.meta1==='copy')?'copy':'open'));
-
-  /* Behavior selector — native <select> to avoid any event interference */
-  var behaviorField=ce('div','modal-field');
-  behaviorField.appendChild(ce('label','','按鈕行為'));
-  var behaviorSelect=ce('select');
-  behaviorSelect.id='mf_linkBehavior';
-  var optOpen=ce('option','','↗ 點擊開啟連結');optOpen.value='open';
-  var optCopy=ce('option','','📋 點擊複製內容');optCopy.value='copy';
-  if(existingBehavior==='copy')optCopy.selected=true;
-  behaviorSelect.appendChild(optOpen);
-  behaviorSelect.appendChild(optCopy);
-  behaviorSelect.onchange=function(){
-    urlField.style.display=this.value==='open'?'':'none';
-    copyField.style.display=this.value==='copy'?'':'none';
-  };
-  behaviorField.appendChild(behaviorSelect);
-  linkDiv.appendChild(behaviorField);
-
-  /* URL field (for open behavior) */
-  var urlField=ce('div','modal-field');
-  urlField.id='mf_urlFieldWrap';
-  urlField.appendChild(ce('label','','連結 URL'));
-  var linkInp=ce('input');linkInp.id='mf_linkUrl';linkInp.type='text';
-  linkInp.value=card?(card.linkUrl||''):'';linkInp.placeholder='https://...';
-  urlField.appendChild(linkInp);
-  urlField.style.display=existingBehavior==='open'?'':'none';
-  linkDiv.appendChild(urlField);
-
-  /* Copy content field (for copy behavior) */
-  var copyField=ce('div','modal-field');
-  copyField.id='mf_copyFieldWrap';
-  copyField.appendChild(ce('label','','複製內容'));
-  var copyTa=ce('textarea');copyTa.id='mf_copyContent';copyTa.rows=5;
-  copyTa.placeholder='貼入要複製的文字、連結、程式碼、Prompt...';
-  copyTa.value=card?(card.copyContent||_existExtra.copyContent||''):'';
-  copyField.appendChild(copyTa);
-  copyField.style.display=existingBehavior==='copy'?'':'none';
-  linkDiv.appendChild(copyField);
-
-  /* Button name */
-  var nameField=ce('div','modal-field');
-  nameField.appendChild(ce('label','','按鈕名稱'));
-  var nameInp=ce('input');nameInp.id='mf_linkBtnLabel';nameInp.type='text';
-  nameInp.value=card?(card.linkBtnLabel||_existExtra.linkBtnLabel||card.btnLabel||''):'';
-  nameInp.placeholder='例：開啟工具 / 複製 Prompt / 前往連結';
-  nameField.appendChild(nameInp);
-  linkDiv.appendChild(nameField);
-
-  /* Button icon */
-  var iconField=ce('div','modal-field');
-  iconField.appendChild(ce('label','','按鈕圖示'));
-  var iconInp=ce('input');iconInp.id='mf_linkBtnIcon';iconInp.type='text';
-  iconInp.value=card?(card.linkBtnIcon||_existExtra.linkBtnIcon||card.btnIcon||''):'';
-  iconInp.placeholder='留空自動，或輸入 Emoji 如 🚀 📋 🔗';
-  iconField.appendChild(iconInp);
-  linkDiv.appendChild(iconField);
-
-  /* Button style (color) */
-  var styleField=ce('div','modal-field');
-  styleField.appendChild(ce('label','','按鈕樣式'));
-  var styleRow=ce('div','icb-style-row');
-  var existingStyle=card?(card.btnStyle||_existExtra.btnStyle||'primary'):'primary';
-  var styleInput=ce('input');styleInput.type='hidden';styleInput.id='mf_btnStyle';styleInput.value=existingStyle;
-  styleField.appendChild(styleInput);
-  [{val:'primary',label:'藍',bg:'#6366f1'},{val:'success',label:'綠',bg:'#1f9d57'},{val:'warning',label:'橘',bg:'#c9820f'},{val:'danger',label:'紅',bg:'#d94141'}].forEach(function(s){
-    var o=ce('div','icb-style-opt'+(existingStyle===s.val?' active':''));
-    o.textContent=s.label;o.style.cssText='background:'+s.bg+';color:#fff';
-    o.onclick=function(){
-      styleInput.value=s.val;
-      styleRow.querySelectorAll('.icb-style-opt').forEach(function(x){x.classList.remove('active')});
-      o.classList.add('active');
-    };
-    styleRow.appendChild(o);
-  });
-  styleField.appendChild(styleRow);
-  linkDiv.appendChild(styleField);
-
-  body.appendChild(linkDiv);
-
-  /* FILE-specific fields */
-  var fileDiv=ce('div','');
-  fileDiv.id='mf_fileFields';
-
-  var existingExtra=(card&&card.extra)||{};
-
-  var uploadField=ce('div','modal-field');
-  uploadField.appendChild(ce('label','','\u9078\u64C7\u6A94\u6848'));
-  var fileInp=ce('input');
-  fileInp.id='mf_uploadFile';
-  fileInp.type='file';
-  fileInp.accept='image/*,.doc,.docx,.ppt,.pptx,.txt,.pdf,.xlsx';
-  fileInp.onchange=function(){
-    var file=this.files[0];
-    var infoEl=document.getElementById('mf_fileInfo');
-    if(file){
-      if(infoEl)infoEl.textContent=file.name+' ('+Math.round(file.size/1024)+'KB)';
-      if(file.size>10*1024*1024){
-        var warn=document.getElementById('uploadWarn');
-        if(warn){warn.style.display='block';warn.textContent='\u6A94\u6848\u8D85\u904E 10MB\uFF0C\u53EF\u80FD\u4E0A\u50B3\u5931\u6557'}
-      }
-    }
-  };
-  uploadField.appendChild(fileInp);
-  var fileInfoEl=ce('div','','');
-  fileInfoEl.id='mf_fileInfo';
-  fileInfoEl.style.cssText='font-size:12px;color:var(--text2);margin-top:4px';
-  if(existingExtra.fileName)fileInfoEl.textContent='\u5DF2\u4E0A\u50B3: '+existingExtra.fileName;
-  uploadField.appendChild(fileInfoEl);
-  var warn=ce('div','upload-warn');
-  warn.id='uploadWarn';
-  uploadField.appendChild(warn);
-  var progress=ce('div','upload-progress');
-  progress.id='uploadProgress';
-  var bar=ce('div','upload-progress-bar');
-  bar.id='uploadProgressBar';
-  progress.appendChild(bar);
-  uploadField.appendChild(progress);
-  fileDiv.appendChild(uploadField);
-  body.appendChild(fileDiv);
-
-  /* ARTICLE-specific fields */
-  var articleDiv=ce('div','');
-  articleDiv.id='mf_articleFields';
-
-  var coverField=ce('div','modal-field');
-  coverField.appendChild(ce('label','','\u5C01\u9762\u5716\u7247'));
-  var coverRow=ce('div','');coverRow.style.cssText='display:flex;gap:8px;align-items:center';
-  var coverInp=ce('input');
-  coverInp.id='mf_articleCover';
-  coverInp.type='text';
-  coverInp.placeholder='\u8CBC\u4E0A URL \u6216\u9EDE\u53F3\u908A\u4E0A\u50B3';
-  coverInp.style.flex='1';
-  coverInp.value=existingExtra.coverImage||'';
-  coverRow.appendChild(coverInp);
-  var coverUpBtn=ce('button','','\uD83D\uDCE4 \u4E0A\u50B3');
-  coverUpBtn.type='button';
-  coverUpBtn.style.cssText='padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;color:#fff;background:var(--accent);white-space:nowrap;cursor:pointer';
-  var coverFileInp=ce('input');coverFileInp.type='file';coverFileInp.accept='image/*';coverFileInp.style.display='none';
-  coverUpBtn.onclick=function(){coverFileInp.click()};
-  coverFileInp.onchange=function(){
-    var file=this.files[0];if(!file)return;
-    coverUpBtn.textContent='\u4E0A\u50B3\u4E2D...';coverUpBtn.disabled=true;
-    var reader=new FileReader();
-    reader.onload=function(){
-      var img=new Image();
-      img.onload=function(){
-        var canvas=document.createElement('canvas');
-        var maxW=1200;var w=img.width;var h=img.height;
-        if(w>maxW){h=Math.round(h*maxW/w);w=maxW}
-        canvas.width=w;canvas.height=h;
-        canvas.getContext('2d').drawImage(img,0,0,w,h);
-        var dataUrl=canvas.toDataURL('image/jpeg',0.85);
-        var base64=dataUrl.split(',')[1];
-        var pw=SS.get('admin_pw')||'';
-        var formData=new URLSearchParams();
-        formData.set('action','uploadFile');
-        formData.set('pw',pw);
-        formData.set('fileData',base64);
-        formData.set('fileName','cover_'+Date.now()+'.jpg');
-        formData.set('mimeType','image/jpeg');
-        var xhr=new XMLHttpRequest();
-        xhr.open('POST',GAS_API,true);
-        xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
-        xhr.onload=function(){
-          coverUpBtn.textContent='\uD83D\uDCE4 \u4E0A\u50B3';coverUpBtn.disabled=false;
-          try{
-            var json=xhr.responseText.match(/\{[\s\S]*\}/);
-            if(json){var res=JSON.parse(json[0]);if(res.ok&&res.directUrl){coverInp.value=res.directUrl;updateCoverPreview();toast('\u5C01\u9762\u5716\u7247\u5DF2\u4E0A\u50B3');return;}}
-            toast('\u4E0A\u50B3\u5931\u6557');
-          }catch(e){toast('\u4E0A\u50B3\u5931\u6557')}
-        };
-        xhr.onerror=function(){coverUpBtn.textContent='\uD83D\uDCE4 \u4E0A\u50B3';coverUpBtn.disabled=false;toast('\u4E0A\u50B3\u5931\u6557')};
-        xhr.send(formData.toString());
-      };
-      img.src=reader.result;
-    };
-    reader.readAsDataURL(file);
-  };
-  coverRow.appendChild(coverUpBtn);coverRow.appendChild(coverFileInp);
-  coverField.appendChild(coverRow);
-  /* Preview */
-  var coverPreview=ce('div','');coverPreview.style.cssText='margin-top:8px;max-height:120px;overflow:hidden;border-radius:8px';
-  function updateCoverPreview(){
-    coverPreview.innerHTML='';
-    var url=coverInp.value.trim();if(!url)return;
-    var img=ce('img');img.src=toDriveImg(url);img.style.cssText='width:100%;height:120px;object-fit:cover;border-radius:8px';
-    img.onerror=function(){this.style.display='none'};
-    coverPreview.appendChild(img);
-  }
-  coverInp.addEventListener('input',updateCoverPreview);
-  updateCoverPreview();
-  coverField.appendChild(coverPreview);
-  articleDiv.appendChild(coverField);
-
-  /* Rich Text Editor */
-  var editorDiv=ce('div','modal-field');
-  editorDiv.appendChild(ce('label','','\u6587\u7AE0\u5167\u5BB9'));
-  var rtToolbar=ce('div','rte-toolbar');
-  rtToolbar.style.position='relative';
-
-  var PRESET_COLORS=['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#ffffff','#000000','#64748b'];
-
-  var cmds=[
-    {cmd:'bold',html:'<b>B</b>'},
-    {cmd:'italic',html:'<i>I</i>'},
-    {cmd:'underline',html:'<u>U</u>'},
-    {cmd:'insertUnorderedList',html:'\u2022 List'},
-    {cmd:'insertOrderedList',html:'1. List'},
-    {cmd:'formatBlock',html:'H2',val:'h2'},
-    {cmd:'formatBlock',html:'H3',val:'h3'},
-    {cmd:'createLink',html:'\uD83D\uDD17'},
-    {cmd:'removeFormat',html:'\u2715'}
-  ];
-  cmds.forEach(function(c){
-    var btn=ce('button','',c.html);
-    btn.onmousedown=function(e){e.preventDefault()};
-    btn.onclick=function(e){
-      e.preventDefault();
-      if(c.cmd==='createLink'){
-        var url=prompt('\u8ACB\u8F38\u5165\u9023\u7D50 URL:','https://');
-        if(url)document.execCommand('createLink',false,url);
-      }else if(c.val){
-        document.execCommand(c.cmd,false,c.val);
-      }else{
-        document.execCommand(c.cmd,false,null);
-      }
-    };
-    rtToolbar.appendChild(btn);
-  });
-
-  /* Image insert button with upload + URL options */
-  var imgBtnWrap=ce('div','');
-  imgBtnWrap.style.cssText='position:relative;display:inline-block';
-  var imgBtn=ce('button','','\uD83D\uDDBC\uFE0F');
-  imgBtn.onmousedown=function(e){e.preventDefault()};
-  var imgMenu=ce('div','');
-  imgMenu.style.cssText='display:none;position:absolute;top:100%;left:0;z-index:20;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:6px;min-width:140px;box-shadow:0 4px 12px rgba(0,0,0,.3)';
-  var imgUploadOpt=ce('button','','\uD83D\uDCE4 上傳圖片');
-  imgUploadOpt.style.cssText='display:block;width:100%;text-align:left;padding:8px 10px;border-radius:6px;font-size:13px;color:var(--text);background:none;border:none;cursor:pointer';
-  imgUploadOpt.onmouseover=function(){this.style.background='var(--card-h)'};
-  imgUploadOpt.onmouseout=function(){this.style.background='none'};
-  var imgUrlOpt=ce('button','','\uD83D\uDD17 輸入圖片 URL');
-  imgUrlOpt.style.cssText='display:block;width:100%;text-align:left;padding:8px 10px;border-radius:6px;font-size:13px;color:var(--text);background:none;border:none;cursor:pointer';
-  imgUrlOpt.onmouseover=function(){this.style.background='var(--card-h)'};
-  imgUrlOpt.onmouseout=function(){this.style.background='none'};
-
-  /* Hidden file input */
-  var imgFileInput=ce('input');
-  imgFileInput.type='file';
-  imgFileInput.accept='image/*';
-  imgFileInput.style.display='none';
-  imgFileInput.onchange=function(){
-    var file=this.files[0];
-    if(!file)return;
-    if(file.size>10*1024*1024){toast('圖片不可超過 10MB');return;}
-    insertCompressedImage(file,'uploaded image');
-    imgFileInput.value='';
-    imgMenu.style.display='none';
-  };
-
-  imgUploadOpt.onclick=function(e){
-    e.preventDefault();
-    imgFileInput.click();
-  };
-  imgUrlOpt.onclick=function(e){
-    e.preventDefault();
-    imgMenu.style.display='none';
-    var url=prompt('\u8ACB\u8F38\u5165\u5716\u7247 URL:','https://');
-    if(url){
-      var editor=$('articleEditor');
-      if(editor)editor.focus();
-      document.execCommand('insertImage',false,url);
-    }
-  };
-
-  imgMenu.appendChild(imgUploadOpt);
-  imgMenu.appendChild(imgUrlOpt);
-  imgMenu.appendChild(imgFileInput);
-  imgBtnWrap.appendChild(imgBtn);
-  imgBtnWrap.appendChild(imgMenu);
-
-  imgBtn.onclick=function(e){
-    e.preventDefault();
-    imgMenu.style.display=imgMenu.style.display==='none'?'block':'none';
-  };
-  /* Close menu on outside click */
-  document.addEventListener('click',function(e){
-    if(!imgBtnWrap.contains(e.target))imgMenu.style.display='none';
-  });
-  rtToolbar.appendChild(imgBtnWrap);
-
-  /* Text color button */
-  var colorWrap=ce('div','');
-  colorWrap.style.cssText='position:relative;display:inline-block';
-  var colorBtn=ce('button','','A\u8272');
-  colorBtn.style.cssText='color:#ef4444;font-weight:700';
-  colorBtn.onmousedown=function(e){e.preventDefault()};
-  var colorPalette=ce('div','rte-color-palette');
-  PRESET_COLORS.forEach(function(c){
-    var swatch=ce('div','rte-color-swatch');
-    swatch.style.background=c;
-    swatch.onmousedown=function(e){e.preventDefault()};
-    swatch.onclick=function(e){
-      e.preventDefault();
-      document.execCommand('foreColor',false,c);
-      colorPalette.classList.remove('show');
-    };
-    colorPalette.appendChild(swatch);
-  });
-  colorBtn.onclick=function(e){
-    e.preventDefault();
-    bgPalette.classList.remove('show');
-    var rect=colorBtn.getBoundingClientRect();
-    colorPalette.style.left=rect.left+'px';
-    colorPalette.style.top=(rect.bottom+4)+'px';
-    colorPalette.classList.toggle('show');
-  };
-  rtToolbar.appendChild(colorBtn);
-  document.body.appendChild(colorPalette);
-
-  /* Background color button */
-  var bgWrap=ce('div','');
-  bgWrap.style.cssText='position:relative;display:inline-block';
-  var bgBtn=ce('button','','A\u5E95');
-  bgBtn.style.cssText='background:#fbbf24;color:#000;font-weight:700;border-radius:4px';
-  bgBtn.onmousedown=function(e){e.preventDefault()};
-  var bgPalette=ce('div','rte-color-palette');
-  PRESET_COLORS.forEach(function(c){
-    var swatch=ce('div','rte-color-swatch');
-    swatch.style.background=c;
-    swatch.onmousedown=function(e){e.preventDefault()};
-    swatch.onclick=function(e){
-      e.preventDefault();
-      document.execCommand('hiliteColor',false,c);
-      bgPalette.classList.remove('show');
-    };
-    bgPalette.appendChild(swatch);
-  });
-  bgBtn.onclick=function(e){
-    e.preventDefault();
-    colorPalette.classList.remove('show');
-    var rect=bgBtn.getBoundingClientRect();
-    bgPalette.style.left=rect.left+'px';
-    bgPalette.style.top=(rect.bottom+4)+'px';
-    bgPalette.classList.toggle('show');
-  };
-  rtToolbar.appendChild(bgBtn);
-  document.body.appendChild(bgPalette);
-
-  /* Font size dropdown */
-  var sizeSelect=ce('select','');
-  sizeSelect.onmousedown=function(e){e.stopPropagation()};
-  [{label:'\u5B57\u578B\u5927\u5C0F',val:''},{label:'\u5C0F',val:'2'},{label:'\u4E00\u822C',val:'3'},{label:'\u5927',val:'5'},{label:'\u7279\u5927',val:'7'}].forEach(function(o){
-    var opt=ce('option','',o.label);
-    opt.value=o.val;
-    sizeSelect.appendChild(opt);
-  });
-  sizeSelect.onchange=function(){
-    if(this.value)document.execCommand('fontSize',false,this.value);
-    this.value='';
-  };
-  rtToolbar.appendChild(sizeSelect);
-
-  /* Insert Copy Button toolbar button */
-  var icbBtn=ce('button','','\uD83D\uDD18 \u63D2\u5165\u6309\u9375');
-  icbBtn.style.cssText='font-size:12px;background:rgba(99,102,241,0.16);border-radius:6px;padding:4px 8px;color:var(--accent);font-weight:600';
-  icbBtn.onmousedown=function(e){e.preventDefault()};
-  icbBtn.onclick=function(e){
-    e.preventDefault();
-    openIcbDialog(null);
-  };
-  rtToolbar.appendChild(icbBtn);
-
-  /* Table insert button */
-  var tblBtnWrap=ce('div','');
-  tblBtnWrap.style.cssText='position:relative;display:inline-block';
-  var tblBtn=ce('button','','📊 表格');
-  tblBtn.style.cssText='font-size:12px;background:rgba(34,197,94,0.15);border-radius:6px;padding:4px 8px;color:#22c55e;font-weight:600';
-  tblBtn.onmousedown=function(e){e.preventDefault()};
-  var tblMenu=ce('div','');
-  tblMenu.style.cssText='display:none;position:absolute;top:100%;left:0;z-index:20;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;box-shadow:0 4px 12px rgba(0,0,0,.3);min-width:200px';
-  tblMenu.innerHTML='<div style="font-size:13px;font-weight:600;margin-bottom:8px">插入表格</div>'
-    +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><label style="font-size:12px;color:var(--text2);min-width:28px">列</label><input id="tblRows" type="number" min="1" max="20" value="3" style="width:60px;padding:4px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:13px"></div>'
-    +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><label style="font-size:12px;color:var(--text2);min-width:28px">欄</label><input id="tblCols" type="number" min="1" max="10" value="3" style="width:60px;padding:4px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:13px"></div>'
-    +'<button id="tblInsertBtn" style="width:100%;padding:6px;border-radius:6px;font-size:13px;font-weight:600;color:#fff;background:#1f9d57;border:none;cursor:pointer">插入</button>';
-  tblBtnWrap.appendChild(tblBtn);
-  tblBtnWrap.appendChild(tblMenu);
-  tblBtn.onclick=function(e){e.preventDefault();tblMenu.style.display=tblMenu.style.display==='none'?'block':'none'};
-  document.addEventListener('click',function(e){if(!tblBtnWrap.contains(e.target))tblMenu.style.display='none'});
-  rtToolbar.appendChild(tblBtnWrap);
-
-  /* Wire up table insert after DOM ready */
-  setTimeout(function(){
-    var insertBtn=document.getElementById('tblInsertBtn');
-    if(insertBtn)insertBtn.onclick=function(e){
-      e.preventDefault();
-      var rows=parseInt(document.getElementById('tblRows').value)||3;
-      var cols=parseInt(document.getElementById('tblCols').value)||3;
-      rows=Math.min(Math.max(rows,1),20);
-      cols=Math.min(Math.max(cols,1),10);
-      var html='<table class="rte-table"><thead><tr>';
-      for(var c=0;c<cols;c++)html+='<th>標題'+(c+1)+'</th>';
-      html+='</tr></thead><tbody>';
-      for(var r=0;r<rows-1;r++){
-        html+='<tr>';
-        for(var c2=0;c2<cols;c2++)html+='<td></td>';
-        html+='</tr>';
-      }
-      html+='</tbody></table><p><br></p>';
-      var ed=$('articleEditor');
-      if(ed)ed.focus();
-      document.execCommand('insertHTML',false,html);
-      tblMenu.style.display='none';
-    };
-  },0);
-
-  /* Code block insert button */
-  var codeBtn=ce('button','','&lt;/&gt; 程式碼');
-  codeBtn.style.cssText='font-size:12px;background:rgba(139,92,246,0.15);border-radius:6px;padding:4px 8px;color:#8b5cf6;font-weight:600';
-  codeBtn.onmousedown=function(e){e.preventDefault()};
-  codeBtn.onclick=function(e){
-    e.preventDefault();
-    var code=prompt('貼入程式碼：');
-    if(!code)return;
-    var lang=prompt('語言（可留空）：','')|| '';
-    var html='<pre class="rte-codeblock" data-lang="'+esc(lang)+'"><code>'+esc(code)+'</code></pre><p><br></p>';
-    var ed=$('articleEditor');
-    if(ed)ed.focus();
-    document.execCommand('insertHTML',false,html);
-  };
-  rtToolbar.appendChild(codeBtn);
-
-  /* Video embed button */
-  var videoBtn=ce('button','','🎬 影片');
-  videoBtn.style.cssText='font-size:12px;background:rgba(239,68,68,0.15);border-radius:6px;padding:4px 8px;color:#ef4444;font-weight:600';
-  videoBtn.onmousedown=function(e){e.preventDefault()};
-  videoBtn.onclick=function(e){
-    e.preventDefault();
-    var url=prompt('貼上 YouTube 或影片網址：','https://');
-    if(!url)return;
-    var embedUrl=toEmbedUrl(url);
-    var html='<div class="rte-video-wrap" contenteditable="false"><iframe src="'+esc(embedUrl)+'" allowfullscreen loading="lazy"></iframe></div><p><br></p>';
-    var ed=$('articleEditor');
-    if(ed)ed.focus();
-    document.execCommand('insertHTML',false,html);
-  };
-  rtToolbar.appendChild(videoBtn);
-
-  /* File upload button — insert download button in article */
-  var fileBtn=ce('button','','\uD83D\uDCC1 \u6A94\u6848');
-  fileBtn.style.cssText='font-size:12px;background:rgba(168,85,247,0.15);border-radius:6px;padding:4px 8px;color:#a855f7;font-weight:600';
-  fileBtn.onmousedown=function(e){e.preventDefault()};
-  fileBtn.onclick=function(e){
-    e.preventDefault();
-    /* Save cursor position */
-    var ed=$('articleEditor');
-    if(ed){ed.focus();var marker=document.createElement('span');marker.id='_fileInsertMarker';marker.textContent='\u200B';document.execCommand('insertHTML',false,marker.outerHTML)}
-    /* Create file input */
-    var fi=document.createElement('input');fi.type='file';fi.style.display='none';
-    fi.onchange=function(){
-      var file=fi.files[0];if(!file)return;
-      if(file.size>10*1024*1024){toast('\u6A94\u6848\u4E0D\u53EF\u8D85\u904E 10MB');return}
-      var sizeStr=file.size>1048576?(file.size/1048576).toFixed(1)+'MB':(file.size/1024).toFixed(0)+'KB';
-      /* Show progress bar */
-      var prog=document.createElement('div');
-      prog.style.cssText='position:fixed;top:0;left:0;height:4px;background:#6366f1;z-index:9999;transition:width 0.3s';
-      prog.style.width='10%';document.body.appendChild(prog);
-      toast('\u4E0A\u50B3\u4E2D... '+file.name+' ('+sizeStr+')');
-      var reader=new FileReader();
-      reader.onload=function(){
-        prog.style.width='30%';
-        var base64=reader.result.split(',')[1];
-        var pw=SS.get('admin_pw')||'';
-        var formData=new URLSearchParams();
-        formData.set('action','uploadFile');
-        formData.set('pw',pw);
-        formData.set('fileName',file.name);
-        formData.set('mimeType',file.type||'application/octet-stream');
-        formData.set('fileData',base64);
-        formData.set('category','');formData.set('title',file.name);formData.set('desc','');formData.set('tag','');
-        /* Use hidden iframe POST (same as gasAPIPost) — avoids CORS issues */
-        prog.style.width='50%';
-        var frameName='_fileUploadFrame';
-        var iframe=document.getElementById(frameName);
-        if(!iframe){iframe=document.createElement('iframe');iframe.id=frameName;iframe.name=frameName;iframe.style.display='none';document.body.appendChild(iframe)}
-        var form=document.createElement('form');
-        form.method='POST';form.action=GAS_API;form.target=frameName;form.style.display='none';
-        var fields=formData.toString().split('&');
-        fields.forEach(function(pair){
-          var kv=pair.split('=');
-          var inp=document.createElement('input');inp.type='hidden';inp.name=decodeURIComponent(kv[0]);inp.value=decodeURIComponent(kv[1]||'');form.appendChild(inp);
-        });
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
-        /* Can't read cross-origin response, wait then insert download button */
-        prog.style.width='80%';
-        setTimeout(function(){
-          prog.style.width='100%';
-          setTimeout(function(){if(prog.parentNode)prog.parentNode.removeChild(prog)},500);
-          var mk=document.getElementById('_fileInsertMarker');
-          /* We don't know the Drive URL, use a placeholder that links to Drive search */
-          var dlHtml='<div class="icb-block" contenteditable="false" style="background:rgba(168,85,247,0.08);border-color:rgba(168,85,247,0.3)">'
-            +'<span style="font-size:13px;color:var(--text2)">\uD83D\uDCC1 '+esc(file.name)+' ('+sizeStr+')</span>'
-            +'<br><small style="color:var(--text3)">\u2705 \u5DF2\u4E0A\u50B3\u81F3 Google Drive\uFF0C\u8ACB\u5132\u5B58\u6587\u7AE0\u5F8C\u91CD\u65B0\u7DE8\u8F2F\u4EE5\u53D6\u5F97\u4E0B\u8F09\u9023\u7D50</small></div><p><br></p>';
-          if(mk){mk.outerHTML=dlHtml}
-          else{ed.focus();document.execCommand('insertHTML',false,dlHtml)}
-          toast('\u2705 \u6A94\u6848\u5DF2\u4E0A\u50B3\u81F3 Google Drive');
-        },6000);
-      };
-      reader.readAsDataURL(file);
-    };
-    document.body.appendChild(fi);fi.click();document.body.removeChild(fi);
-  };
-  rtToolbar.appendChild(fileBtn);
-
-  editorDiv.appendChild(rtToolbar);
-
-  var editor=ce('div','rte-editor');
-  editor.contentEditable='true';
-  editor.id='articleEditor';
-  if(card&&card.type==='article'&&existingExtra.content)editor.innerHTML=existingExtra.content;
-
-  /* Drag & drop image support */
-  editor.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='copy';this.style.outline='2px dashed var(--accent)'});
-  editor.addEventListener('dragleave',function(){this.style.outline=''});
-  editor.addEventListener('drop',function(e){
-    e.preventDefault();
-    this.style.outline='';
-    var files=e.dataTransfer.files;
-    if(!files||!files.length)return;
-    for(var i=0;i<files.length;i++){
-      (function(file){
-        if(!file.type.startsWith('image/'))return;
-        if(file.size>10*1024*1024){toast('圖片不可超過 10MB');return;}
-        insertCompressedImage(file,'uploaded image');
-      })(files[i]);
-    }
-  });
-  /* Paste image support */
-  editor.addEventListener('paste',function(e){
-    var items=e.clipboardData&&e.clipboardData.items;
-    if(!items)return;
-    for(var i=0;i<items.length;i++){
-      if(items[i].type.indexOf('image')>=0){
-        e.preventDefault();
-        var file=items[i].getAsFile();
-        if(file.size>10*1024*1024){toast('圖片不可超過 10MB');return;}
-        insertCompressedImage(file,'pasted image');
-        break;
-      }
-    }
-  });
-
-  editorDiv.appendChild(editor);
-
-  /* Preview + Autosave bar */
-  var editorBar=ce('div','');
-  editorBar.style.cssText='display:flex;align-items:center;margin-top:8px;gap:8px';
-  var previewBtn=ce('button','preview-article-btn','👁 預覽');
-  previewBtn.onclick=function(e){
-    e.preventDefault();
-    var content=$('articleEditor').innerHTML;
-    var previewWin=window.open('','_blank','width=800,height=600');
-    previewWin.document.write('<html><head><title>文章預覽</title><style>body{font-family:"Noto Sans TC",sans-serif;max-width:800px;margin:0 auto;padding:40px 24px;color:#e2e8f0;background:#07090f;line-height:1.9;font-size:15px}h2{font-size:22px;font-weight:700;margin:28px 0 12px}h3{font-size:18px;font-weight:600;margin:20px 0 10px}p{margin-bottom:16px}img{max-width:100%;border-radius:8px;margin:16px 0}a{color:#6366f1}blockquote{border-left:3px solid #6366f1;padding:8px 16px;margin:16px 0;color:#94a3b8;background:rgba(255,255,255,0.042);border-radius:0 8px 8px 0}table{width:100%;border-collapse:collapse;margin:16px 0}th,td{border:1px solid rgba(255,255,255,0.12);padding:8px 12px;text-align:left}th{background:rgba(99,102,241,0.09);font-weight:600}pre{background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:16px 18px;margin:16px 0;overflow-x:auto}code{font-family:"Fira Code","Courier New",monospace;font-size:0.82rem;color:#a6e3a1}</style></head><body>'+content+'</body></html>');
-    previewWin.document.close();
-  };
-  editorBar.appendChild(previewBtn);
-  var autosaveLabel=ce('span','autosave-indicator','');
-  autosaveLabel.id='autosaveLabel';
-  editorBar.appendChild(autosaveLabel);
-  editorDiv.appendChild(editorBar);
-
-  /* Autosave to localStorage every 30s */
-  var _autosaveKey='article_draft_'+(card?card.id:'new');
-  /* Restore draft if exists */
-  var draft=LS.get(_autosaveKey);
-  if(draft&&!editor.innerHTML.trim()){
-    editor.innerHTML=draft;
-    autosaveLabel.textContent='已還原草稿';
-    autosaveLabel.className='autosave-indicator saved';
-  }
-  setInterval(function(){
-    var ed=$('articleEditor');
-    if(!ed)return;
-    var content=ed.innerHTML;
-    if(content&&content!=='<br>'){
-      LS.set(_autosaveKey,content);
-      var lbl=$('autosaveLabel');
-      if(lbl){lbl.textContent='已自動存稿 '+new Date().toLocaleTimeString();lbl.className='autosave-indicator saved';}
-    }
-  },30000);
-
-  articleDiv.appendChild(editorDiv);
-  body.appendChild(articleDiv);
-
-  /* COPY-specific fields */
-  var copyDiv=ce('div','');
-  copyDiv.id='mf_copyFields';
-  var existingCopy=card||{};
-
-  var btnLabelField=ce('div','modal-field');
-  btnLabelField.appendChild(ce('label','','按鈕名稱 (btnLabel)'));
-  var btnLabelInp=ce('input');
-  btnLabelInp.id='mf_btnLabel';
-  btnLabelInp.type='text';
-  btnLabelInp.value=existingCopy.btnLabel||'點我複製';
-  btnLabelInp.placeholder='例：複製 Prompt / 複製連結';
-  btnLabelField.appendChild(btnLabelInp);
-  copyDiv.appendChild(btnLabelField);
-
-  var btnIconField=ce('div','modal-field');
-  btnIconField.appendChild(ce('label','','按鈕圖示 (btnIcon)'));
-  var btnIconSel=ce('select');
-  btnIconSel.id='mf_btnIcon';
-  [['📋','📋 剪貼簿'],['🔗','🔗 連結'],['💻','💻 程式碼'],['📤','📤 分享'],['📝','📝 文字']].forEach(function(opt){
-    var o=ce('option','',opt[1]);
-    o.value=opt[0];
-    if((existingCopy.btnIcon||'📋')===opt[0])o.selected=true;
-    btnIconSel.appendChild(o);
-  });
-  btnIconField.appendChild(btnIconSel);
-  copyDiv.appendChild(btnIconField);
-
-  var btnStyleField=ce('div','modal-field');
-  btnStyleField.appendChild(ce('label','','按鈕樣式 (btnStyle)'));
-  var btnStyleSel=ce('select');
-  btnStyleSel.id='mf_btnStyle';
-  [['primary','主要（強調色）'],['secondary','次要（低調灰）']].forEach(function(opt){
-    var o=ce('option','',opt[1]);
-    o.value=opt[0];
-    if((existingCopy.btnStyle||'primary')===opt[0])o.selected=true;
-    btnStyleSel.appendChild(o);
-  });
-  btnStyleField.appendChild(btnStyleSel);
-  copyDiv.appendChild(btnStyleField);
-
-  var copyContentField=ce('div','modal-field');
-  var copyContentLbl=ce('label','','複製內容 (copyContent)');
-  copyContentLbl.appendChild(ce('small','',' — 連結、程式碼、Prompt 皆可'));
-  copyContentField.appendChild(copyContentLbl);
-  var copyContentTa=ce('textarea');
-  copyContentTa.id='mf_copyContent';
-  copyContentTa.rows=6;
-  copyContentTa.placeholder='貼入要複製的內容...';
-  copyContentTa.value=existingCopy.copyContent||'';
-  copyContentField.appendChild(copyContentTa);
-  copyDiv.appendChild(copyContentField);
-
-  body.appendChild(copyDiv);
-
-  toggleTypeFields();
-  $('modalOverlay').classList.add('show');
-}
-
-function toggleTypeFields(){
-  var linkFields=document.getElementById('mf_linkFields');
-  var fileFields=document.getElementById('mf_fileFields');
-  var articleFields=document.getElementById('mf_articleFields');
-  var copyFields=document.getElementById('mf_copyFields');
-  /* link type is legacy but still editable for existing cards */
-  if(linkFields)linkFields.style.display=_editType==='link'?'':'none';
-  if(fileFields)fileFields.style.display=_editType==='file'?'':'none';
-  if(articleFields)articleFields.style.display=(_editType==='article')?'':'none';
-  if(copyFields)copyFields.style.display='none';
-}
-
-function updateImgPreview(container,val){
-  container.innerHTML='';
-  if(!val)return;
-  val.split('\n').forEach(function(line){
-    var spec=parseImgSpec(line.trim());
-    if(!spec)return;
-    var img=ce('img');
-    img.src=spec.url;
-    img.onerror=function(){this.style.display='none'};
-    container.appendChild(img);
-  });
-}
-
-$('modalClose').onclick=function(){$('modalOverlay').classList.remove('show');_editCard=null};
-$('modalCancel').onclick=function(){$('modalOverlay').classList.remove('show');_editCard=null};
-$('modalOverlay').onclick=function(e){if(e.target===this){this.classList.remove('show');_editCard=null}};
-
-$('modalSave').onclick=function(){
-  /* Announcement save */
-  if(_editCard==='__announcement__'){
-    var annText=(document.getElementById('mf_announcement')||{}).value||'';
-    var annVisible=document.getElementById('mf_announcement_visible').classList.contains('on')?'true':'false';
-    gasAPI('saveSetting',{key:'announcement',value:annText},function(r1){
-      gasAPI('saveSetting',{key:'announcement_visible',value:annVisible},function(r2){
-        _settings.announcement=annText;
-        _settings.announcement_visible=annVisible;
-        applyAnnouncement();
-        toast('\u516C\u544A\u5DF2\u5132\u5B58');
-        $('modalOverlay').classList.remove('show');
-        _editCard=null;
-      });
-    });
-    return;
-  }
-  /* SEO save */
-  if(_editCard==='__seo__'){
-    var seoFields=['seo_title','seo_description','seo_og_image'];
-    var idx=0;
-    function saveNextSEO(){
-      if(idx>=seoFields.length){
-        applySEO();
-        toast('SEO \u5DF2\u5132\u5B58');
-        $('modalOverlay').classList.remove('show');
-        _editCard=null;
-        return;
-      }
-      var key=seoFields[idx];
-      var val=(document.getElementById('mf_'+key)||{}).value||'';
-      _settings[key]=val;
-      gasAPI('saveSetting',{key:key,value:val},function(){idx++;saveNextSEO()});
-    }
-    saveNextSEO();
-    return;
-  }
-
-  if(_editCard==='__siteinfo__'){
-    var siteFields=['site_title','site_subtitle','site_badge','site_footer','site_nav_title'];
-    var si=0;
-    function saveNextSite(){
-      if(si>=siteFields.length){
-        applySiteInfo();
-        toast('\u57FA\u672C\u8CC7\u6599\u5DF2\u5132\u5B58');
-        $('modalOverlay').classList.remove('show');
-        _editCard=null;
-        return;
-      }
-      var key=siteFields[si];
-      var val=(document.getElementById('mf_'+key)||{}).value||'';
-      _settings[key]=val;
-      gasAPI('saveSetting',{key:key,value:val},function(){si++;saveNextSite()});
-    }
-    saveNextSite();
-    return;
-  }
-
-  /* ====== UNIFIED CARD SAVE ====== */
-  var card=_editCard||{};
-  card.page=document.getElementById('mf_page').value;
-  card.category=card.page;
-  card.title=document.getElementById('mf_title').value;
-  card.tag=document.getElementById('mf_tag').value;
-  card.desc=document.getElementById('mf_desc').value;
-  var imgRaw=document.getElementById('mf_imageUrls').value;
-  card.imageUrls=imgRaw?imgRaw.split('\n').map(function(s){return s.trim()}).filter(function(s){return s}):[];
-  card.visible=document.getElementById('mf_visible').classList.contains('on');
-  card.permission=(document.getElementById('mf_permission')||{}).value||'public';
-  card.type=_editType;
-
-  if(!card.title){toast('\u8ACB\u8F38\u5165\u6A19\u984C');return}
-
-  if(_editType==='link'){
-    card.linkBehavior=(document.getElementById('mf_linkBehavior')||{}).value||'open';
-    card.linkUrl=(document.getElementById('mf_linkUrl')||{}).value||'';
-    card.copyContent=(document.getElementById('mf_copyContent')||{}).value||'';
-    card.linkBtnLabel=(document.getElementById('mf_linkBtnLabel')||{}).value||'';
-    card.linkBtnIcon=(document.getElementById('mf_linkBtnIcon')||{}).value||'';
-    card.btnStyle=(document.getElementById('mf_btnStyle')||{}).value||'primary';
-    /* Store ALL button config in meta1/meta2/meta3 so getData (no auth) can render correctly */
-    card.meta1=card.linkBehavior==='copy'?'copy':'open';
-    card.meta2=card.linkBtnLabel||'';
-    card.meta3=JSON.stringify({i:card.linkBtnIcon||'',s:card.btnStyle||'primary',c:card.copyContent||''});
-    card.btnLabel=card.linkBtnLabel;
-    card.btnIcon=card.linkBtnIcon;
-    card.extra=JSON.stringify({linkBehavior:card.linkBehavior,linkBtnLabel:card.linkBtnLabel,linkBtnIcon:card.linkBtnIcon,copyContent:card.copyContent,btnStyle:card.btnStyle});
-    gasAPI('saveCard',{data:JSON.stringify(card)},function(r){
-      if(r&&r.ok){toast('\u5DF2\u5132\u5B58');$('modalOverlay').classList.remove('show');_editCard=null;loadAdminCards();refreshMainData()}
-      else toast('\u5132\u5B58\u5931\u6557');
-    });
-
-  }else if(_editType==='file'){
-    var fileInput=document.getElementById('mf_uploadFile');
-    var file=fileInput&&fileInput.files[0];
-    var existingExtra=(card.extra&&typeof card.extra==='object')?card.extra:(card.extra?JSON.parse(card.extra):{});
-
-    if(file){
-      /* Upload new file then save card */
-      var reader=new FileReader();
-      reader.onload=function(){
-        var base64=reader.result.split(',')[1];
-        var xhr=new XMLHttpRequest();
-        var formData=new URLSearchParams();
-        formData.set('action','uploadFile');
-        formData.set('pw',SS.get('admin_pw')||'');
-        formData.set('fileData',base64);
-        formData.set('fileName',file.name);
-        formData.set('mimeType',file.type||'application/octet-stream');
-        formData.set('title',card.title);
-        formData.set('desc',card.desc);
-        formData.set('category',card.category);
-        formData.set('tag',card.tag||'');
-
-        var progress=document.getElementById('uploadProgress');
-        var bar=document.getElementById('uploadProgressBar');
-        if(progress)progress.style.display='block';
-
-        xhr.open('POST',GAS_API);
-        xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
-        xhr.onload=function(){
-          if(bar)bar.style.width='100%';
-          try{
-            var json=xhr.responseText.match(/\{[\s\S]*\}/);
-            if(json){var res=JSON.parse(json[0]);
-              if(res&&res.ok){
-                toast('\u4E0A\u50B3\u6210\u529F');
-                $('modalOverlay').classList.remove('show');
-                _editCard=null;
-                loadAdminCards();
-                refreshMainData();
-              }else{
-                toast('\u4E0A\u50B3\u5931\u6557'+(res&&res.error?': '+res.error:''));
-              }
-            }else{toast('\u4E0A\u50B3\u5931\u6557')}
-          }catch(e){toast('\u4E0A\u50B3\u5931\u6557')}
-        };
-        xhr.onerror=function(){toast('\u4E0A\u50B3\u5931\u6557')};
-        xhr.send(formData.toString());
-      };
-      reader.readAsDataURL(file);
-    }else if(existingExtra.fileUrl){
-      /* No new file, just update card metadata */
-      card.linkUrl=existingExtra.fileUrl||'';
-      card.extra=JSON.stringify(existingExtra);
-      gasAPI('saveCard',{data:JSON.stringify(card)},function(r){
-        if(r&&r.ok){toast('\u5DF2\u5132\u5B58');$('modalOverlay').classList.remove('show');_editCard=null;loadAdminCards();refreshMainData()}
-        else toast('\u5132\u5B58\u5931\u6557');
-      });
-    }else{
-      toast('\u8ACB\u9078\u64C7\u6A94\u6848');
-    }
-
-  }else if(_editType==='article'){
-    var coverImage=(document.getElementById('mf_articleCover')||{}).value||'';
-    var editorEl=document.getElementById('articleEditor');
-    var content=editorEl?editorEl.innerHTML:'';
-
-    var articleData={
-      id:card.id||undefined,
-      title:card.title,
-      desc:card.desc,
-      category:card.category,
-      tag:card.tag||'',
-      visible:card.visible,
-      content:content,
-      coverImage:coverImage
-    };
-
-    /* Save article via POST (content can be very large) */
-    var artPerm=(document.getElementById('mf_permission')||{}).value||'public';
-    var contentB64=btoa(unescape(encodeURIComponent(content)));
-    var cardData=JSON.stringify({id:articleData.id,title:articleData.title,desc:articleData.desc,
-        category:articleData.category,tag:articleData.tag,visible:articleData.visible,
-        coverImage:coverImage,permission:artPerm});
-    toast('儲存中...');
-    gasAPIPost('saveArticle',{data:cardData,contentB64:contentB64},function(r){
-      toast('\u6587\u7AE0\u5DF2\u5132\u5B58');
-      $('modalOverlay').classList.remove('show');_editCard=null;
-      setTimeout(function(){loadAdminCards();refreshMainData()},2000);
-    });
-
-  }else if(_editType==='copy'){
-    card.btnLabel=(document.getElementById('mf_btnLabel')||{}).value||'點我複製';
-    card.btnIcon=(document.getElementById('mf_btnIcon')||{}).value||'📋';
-    card.btnStyle=(document.getElementById('mf_btnStyle')||{}).value||'primary';
-    card.copyContent=(document.getElementById('mf_copyContent')||{}).value||'';
-    gasAPI('saveCard',{data:JSON.stringify(card)},function(r){
-      if(r&&r.ok){toast('\u5DF2\u5132\u5B58');$('modalOverlay').classList.remove('show');_editCard=null;loadAdminCards();refreshMainData()}
-      else toast('\u5132\u5B58\u5931\u6557');
-    });
-  }
-};
-
-/* ====== ADMINS TAB ====== */
-function loadAdminEmails(){
-  $('adminBody').innerHTML='<div class="loading-placeholder"><span class="spinner"></span>\u8F09\u5165\u4E2D...</div>';
-  gasAPI('getAdmins',null,function(res){
-    if(!res||!res.ok){$('adminBody').innerHTML='<p>\u8F09\u5165\u5931\u6557</p>';return}
-    _adminEmails=res.admins||[];
-    renderAdminEmails();
-  });
-}
-
-function renderAdminEmails(){
-  var body=$('adminBody');
-  body.innerHTML='';
-
-  var addRow=ce('div','admin-email-add');
-  var inp=ce('input');
-  inp.placeholder='\u8F38\u5165 Email...';
-  inp.id='adminEmailInput';
-  addRow.appendChild(inp);
-  var addBtn=ce('button','','+\u65B0\u589E');
-  addBtn.onclick=function(){
-    var v=document.getElementById('adminEmailInput').value.trim();
-    if(!v)return;
-    _adminEmails.push(v);
-    saveAdminEmails();
-  };
-  addRow.appendChild(addBtn);
-  body.appendChild(addRow);
-
-  _adminEmails.forEach(function(email,i){
-    var row=ce('div','admin-email-row');
-    row.appendChild(ce('span','',esc(email)));
-    var del=ce('button','','\u2716');
-    del.onclick=function(){
-      _adminEmails.splice(i,1);
-      saveAdminEmails();
-    };
-    row.appendChild(del);
-    body.appendChild(row);
-  });
-}
-
-function saveAdminEmails(){
-  gasAPI('saveAdmins',{data:JSON.stringify(_adminEmails)},function(r){
-    if(r&&r.ok)toast('\u5DF2\u5132\u5B58');
-    renderAdminEmails();
-  });
-}
-
-/* ====== Pages/Category Management ====== */
-function loadAdminPages(){
-  var body=$('adminBody');
-  body.innerHTML='';
-
-  var title=ce('div','stats-section-title','\u5206\u985E\u7BA1\u7406');
-  body.appendChild(title);
-
-  var addRow=ce('div','admin-email-add');
-  var inp=ce('input');
-  inp.placeholder='\u65B0\u5206\u985E\u540D\u7A31...';
-  inp.id='newPageInput';
-  addRow.appendChild(inp);
-  var addBtn=ce('button','','+\u65B0\u589E');
-  addBtn.onclick=function(){
-    var v=document.getElementById('newPageInput').value.trim();
-    if(!v)return;
-    if(PAGES.indexOf(v)>=0){toast('\u5206\u985E\u5DF2\u5B58\u5728');return}
-    PAGES.push(v);
-    savePagesAndRefresh();
-  };
-  addRow.appendChild(addBtn);
-  body.appendChild(addRow);
-
-  PAGES.forEach(function(page,i){
-    var row=ce('div','pages-row');
-    row.appendChild(ce('span','',esc(page)));
-
-    var upBtn=ce('button','','\u25B2');
-    upBtn.onclick=function(){
-      if(i===0)return;
-      var tmp=PAGES[i];PAGES[i]=PAGES[i-1];PAGES[i-1]=tmp;
-      savePagesAndRefresh();
-    };
-    row.appendChild(upBtn);
-
-    var downBtn=ce('button','','\u25BC');
-    downBtn.onclick=function(){
-      if(i>=PAGES.length-1)return;
-      var tmp=PAGES[i];PAGES[i]=PAGES[i+1];PAGES[i+1]=tmp;
-      savePagesAndRefresh();
-    };
-    row.appendChild(downBtn);
-
-    var renameBtn=ce('button','','\u270F');
-    renameBtn.onclick=function(){
-      var newName=prompt('\u65B0\u540D\u7A31\uFF1A',page);
-      if(!newName||newName===page)return;
-      PAGES[i]=newName;
-      _adminCards.forEach(function(c){
-        if(c.page===page||c.category===page){
-          c.page=newName;c.category=newName;
-          gasAPI('saveCard',{data:JSON.stringify(c)},null);
-        }
-      });
-      savePagesAndRefresh();
-    };
-    row.appendChild(renameBtn);
-
-    var delBtn=ce('button','del','\u2716');
-    delBtn.onclick=function(){
-      if(!confirm('\u78BA\u5B9A\u522A\u9664\u5206\u985E\u300C'+page+'\u300D\uFF1F'))return;
-      PAGES.splice(i,1);
-      savePagesAndRefresh();
-    };
-    row.appendChild(delBtn);
-
-    body.appendChild(row);
-  });
-}
-
-function savePagesAndRefresh(){
-  gasAPI('savePages',{data:JSON.stringify(PAGES)},function(r){
-    if(r&&r.ok)toast('\u5206\u985E\u5DF2\u5132\u5B58');
-    buildNavTabs();
-    buildHeroGrid();
-    loadAdminPages();
-    refreshMainData();
-  });
-}
-
-/* ====== Stats Dashboard ====== */
-function loadAdminStats(){
-  var body=$('adminBody');
-  body.innerHTML='<div class="loading-placeholder"><span class="spinner"></span>\u8F09\u5165\u7D71\u8A08...</div>';
-
-  gasAPI('getAnalytics',null,function(res){
-    body.innerHTML='';
-
-    body.appendChild(ce('div','stats-big-number',String(totalViews())));
-    body.appendChild(ce('div','stats-big-label','\u7E3D\u700F\u89BD\u6B21\u6578'));
-
-    if(res&&res.ok&&res.analytics&&res.analytics.daily&&res.analytics.daily.length){
-      body.appendChild(ce('div','stats-section-title','\u8FD1 7 \u5929\u700F\u89BD\u8DA8\u52E2'));
-      var daily=res.analytics.daily;
-      var maxCount=1;
-      daily.forEach(function(d){if(d.count>maxCount)maxCount=d.count});
-      var chart=ce('div','stats-daily-chart');
-      daily.forEach(function(d){
-        var bar=ce('div','stats-daily-bar');
-        var fill=ce('div','stats-daily-bar-fill');
-        var h=Math.max(4,Math.round((d.count/maxCount)*100));
-        fill.style.height=h+'px';
-        bar.appendChild(ce('div','stats-daily-bar-count',String(d.count)));
-        bar.appendChild(fill);
-        bar.appendChild(ce('div','stats-daily-bar-label',d.date.slice(5)));
-        chart.appendChild(bar);
-      });
-      body.appendChild(chart);
-    }
-
-    body.appendChild(ce('div','stats-section-title','Top 5 \u9805\u76EE (\u700F\u89BD\u6578)'));
-    var sorted=_adminCards.slice().sort(function(a,b){return (b.views||0)-(a.views||0)}).slice(0,5);
-    var maxViews=sorted.length?(sorted[0].views||1):1;
-    sorted.forEach(function(c){
-      var row=ce('div','stats-bar-row');
-      row.appendChild(ce('div','stats-bar-label',esc(c.title)));
-      var track=ce('div','stats-bar-track');
-      var fill=ce('div','stats-bar-fill');
-      fill.style.width=Math.max(2,Math.round(((c.views||0)/maxViews)*100))+'%';
-      track.appendChild(fill);
-      row.appendChild(track);
-      row.appendChild(ce('div','stats-bar-value',String(c.views||0)));
-      body.appendChild(row);
-    });
-
-    body.appendChild(ce('div','stats-section-title','\u5206\u985E\u7D71\u8A08'));
-    var catCounts={};
-    _adminCards.forEach(function(c){
-      var cat=c.page||c.category||'\u672A\u5206\u985E';
-      catCounts[cat]=(catCounts[cat]||0)+1;
-    });
-    var maxCat=1;
-    for(var k in catCounts){if(catCounts[k]>maxCat)maxCat=catCounts[k]}
-    PAGES.forEach(function(p){
-      var count=catCounts[p]||0;
-      var row=ce('div','stats-bar-row');
-      row.appendChild(ce('div','stats-bar-label',esc(p)));
-      var track=ce('div','stats-bar-track');
-      var fill=ce('div','stats-bar-fill');
-      fill.style.width=Math.max(2,Math.round((count/maxCat)*100))+'%';
-      fill.style.background='var(--accent)';
-      track.appendChild(fill);
-      row.appendChild(track);
-      row.appendChild(ce('div','stats-bar-value',String(count)+' \u500B'));
-      body.appendChild(row);
-    });
-
-    /* Type breakdown */
-    body.appendChild(ce('div','stats-section-title','\u985E\u578B\u7D71\u8A08'));
-    var typeCounts={link:0,file:0,article:0};
-    _adminCards.forEach(function(c){typeCounts[c.type||'link']=(typeCounts[c.type||'link']||0)+1});
-    [{t:'link',l:'\uD83D\uDD17 \u9023\u7D50'},{t:'file',l:'\uD83D\uDCC1 \u6A94\u6848'},{t:'article',l:'\uD83D\uDCDD \u6587\u7AE0'}].forEach(function(item){
-      var row=ce('div','stats-bar-row');
-      row.appendChild(ce('div','stats-bar-label',item.l));
-      var track=ce('div','stats-bar-track');
-      var fill=ce('div','stats-bar-fill');
-      var total=_adminCards.length||1;
-      fill.style.width=Math.max(2,Math.round((typeCounts[item.t]/total)*100))+'%';
-      fill.style.background='var(--accent)';
-      track.appendChild(fill);
-      row.appendChild(track);
-      row.appendChild(ce('div','stats-bar-value',String(typeCounts[item.t])+' \u500B'));
-      body.appendChild(row);
-    });
-  });
-}
-
-/* ====== OPERATION LOG TAB ====== */
-function loadAdminLog(){
-  var body=$('adminBody');
-  body.innerHTML='<div class="loading-placeholder"><span class="spinner"></span>\u8F09\u5165\u64CD\u4F5C\u8A18\u9304...</div>';
-  gasAPI('getAdminLog',null,function(res){
-    body.innerHTML='';
-    var title=ce('div','stats-section-title','\u64CD\u4F5C\u8A18\u9304 (\u6700\u8FD1 50 \u7B46)');
-    body.appendChild(title);
-    if(!res||!res.ok||!res.logs||!res.logs.length){
-      body.appendChild(ce('div','tools-empty','\u5C1A\u7121\u64CD\u4F5C\u8A18\u9304'));
-      return;
-    }
-    var panel=ce('div','admin-log-panel');
-    res.logs.forEach(function(log){
-      var entry=ce('div','log-entry');
-      entry.appendChild(ce('span','log-time',esc(log.timestamp||'')));
-      entry.appendChild(ce('span','log-who',esc(log.admin||'')));
-      var actionClass='act-other';
-      var act=(log.action||'').toLowerCase();
-      if(act.indexOf('\u65B0\u589E')>=0||act.indexOf('create')>=0||act.indexOf('\u4E0A\u50B3')>=0)actionClass='act-create';
-      else if(act.indexOf('\u7DE8\u8F2F')>=0||act.indexOf('edit')>=0||act.indexOf('\u66F4\u65B0')>=0||act.indexOf('\u8A2D\u5B9A')>=0||act.indexOf('\u6392\u5E8F')>=0||act.indexOf('\u79FB\u52D5')>=0||act.indexOf('\u96B1\u85CF')>=0||act.indexOf('\u986F\u793A')>=0)actionClass='act-edit';
-      else if(act.indexOf('\u522A\u9664')>=0||act.indexOf('delete')>=0)actionClass='act-delete';
-      entry.appendChild(ce('span','log-action '+actionClass,esc(log.action||'')));
-      entry.appendChild(ce('span','log-target',esc(log.target||'')));
-      panel.appendChild(entry);
-    });
-    body.appendChild(panel);
-  });
-}
-
-/* ====== REFRESH MAIN DATA ====== */
-function refreshMainData(){
-  /* 權威資料源是 repo 的 data.json / site.json；
-     GAS 的 cards 是遷移前的舊資料，不可再用來覆蓋 CARDS。 */
-  Promise.all([
-    fetch('./data.json?t='+Date.now()).then(function(r){return r.ok?r.json():null}).catch(function(){return null}),
-    fetch('./site.json?t='+Date.now()).then(function(r){return r.ok?r.json():null}).catch(function(){return null})
-  ]).then(function(res){
-    var d=res[0],site=res[1];
-    if(!d||!d.cards||!d.cards.length)return;
-    CARDS=d.cards;
-    if(site){
-      if(site.nav&&site.nav.length){
-        NAV=site.nav;
-        PAGES=NAV.map(function(n){return n.name});
-        HERO_META=NAV.map(function(n){return {ico:n.ico||'',desc:n.desc||''}});
-      }
-      if(site.settings){_settings=site.settings;applyAnnouncement();applySEO();}
-    }
-    buildNavTabs();buildHeroGrid();renderCards();renderLatest();
-    try{saveCache({cards:CARDS,pages:PAGES,nav:NAV,stats:_statsData,settings:_settings});}catch(e){}
-  });
-}
-
 
 /* ====== DARK/LIGHT THEME TOGGLE ====== */
 function initTheme(){
@@ -4375,12 +2321,8 @@ function init(){
   if(_hasCache){
     buildNavTabs();buildHeroGrid();renderCards();renderLatest();updateVisit();observeCards();
   }
-  /* Resume login state — admin 與 student 互斥，管理員優先 */
-  if(SS.get('admin_pw')){
-    /* 若有殘留學員 token，清除以維持互斥 */
-    if(LS.get('student_token'))LS.rm('student_token');
-    enableAdminMode();
-  } else {
+  /* Resume login state（舊版 GAS 後台已移除，管理一律走 /admin/） */
+  {
     var stok=LS.get('student_token');
     if(stok){_userRole='student';var badge=$('studentBadge');if(badge)badge.style.display='';}
   }
@@ -4864,6 +2806,7 @@ function hydrateInlineCopyBtns(container){
 init();
 })();
 </script>
+<link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="blocks.css">
 <script src="blocks.js"></script>
 <script>
