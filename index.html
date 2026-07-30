@@ -42,9 +42,6 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap"></noscript>
 <style>
-.skip-link{position:absolute;left:-9999px;top:0;z-index:999;background:var(--accent);color:#fff;padding:10px 18px;border-radius:0 0 8px 0;font-weight:600}
-.skip-link:focus{left:0}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -620,7 +617,6 @@ html.lite .hero-card,html.lite .card{transition:none}
 </style>
 </head>
 <body>
-<a class="skip-link" href="#tools">跳到主要內容</a>
 <noscript>
 <h1>AI 工具資源平台</h1>
 <p>為教師、學生、行政與影音製作人員整合最新 AI 科技工具的免費平台。內容包含：NotebookLM 簡報生成風格檔、Gemini Gem 海報製作、AI 畫質修復、簡報轉配音影片（VoxSlide）、iPhone 課程錄影（SlideCast）、Photoshop 文字移除自動化（PS Auto）、消除模糊討好 AI 對話工具、證書／桌牌／名牌產生器等。</p>
@@ -634,7 +630,7 @@ html.lite .hero-card,html.lite .card{transition:none}
 
 <div class="announcement-banner" id="announcementBanner">
   <span id="announcementText"></span>
-  <button class="dismiss-btn" id="announcementDismiss" aria-label="關閉公告">&times;</button>
+  <button class="dismiss-btn" id="announcementDismiss">&times;</button>
 </div>
 
 <nav class="nav" id="nav">
@@ -644,11 +640,11 @@ html.lite .hero-card,html.lite .card{transition:none}
   </div>
   <div class="nav-tabs" id="navTabs"></div>
   <div class="global-search-wrap">
-    <input type="search" id="globalSearch" class="global-search" placeholder="搜尋工具..." aria-label="搜尋工具">
+    <input type="search" id="globalSearch" class="global-search" placeholder="搜尋工具...">
   </div>
   <div class="nav-visit" id="navVisit" style="visibility:hidden"></div>
   <div class="student-badge" id="studentBadge" style="display:none">學員</div>
-  <button class="theme-toggle" id="themeToggle" title="切換主題" aria-label="切換深色／淺色主題">&#127769;</button>
+  <button class="theme-toggle" id="themeToggle" title="切換主題">&#127769;</button>
   <button class="nav-burger" id="navBurger" aria-label="開啟分類選單" aria-expanded="false"><span></span><span></span><span></span></button>
 </nav>
 
@@ -679,7 +675,7 @@ html.lite .hero-card,html.lite .card{transition:none}
   <div class="tools-grid" id="latestGrid"></div>
 </section>
 
-<main class="tools" id="tools" role="main">
+<section class="tools" id="tools">
   <div class="mobile-search-wrap" id="mobileSearchWrap">
     <input type="search" id="mobileSearch" class="global-search" placeholder="搜尋工具..." style="width:100%;margin-bottom:16px">
   </div>
@@ -691,7 +687,7 @@ html.lite .hero-card,html.lite .card{transition:none}
     <div class="skeleton-card"><div class="sk-img"></div><div class="sk-body"><div class="sk-line medium"></div><div class="sk-line short"></div><div class="sk-line"></div></div></div>
     <div class="skeleton-card"><div class="sk-img"></div><div class="sk-body"><div class="sk-line medium"></div><div class="sk-line short"></div><div class="sk-line"></div></div></div>
   </div>
-</main>
+</section>
 
 <div id="blocksBottom"></div>
 
@@ -716,8 +712,8 @@ html.lite .hero-card,html.lite .card{transition:none}
 <div class="article-overlay" id="articleOverlay">
   <div class="article-reader-wrap">
     <div class="article-reader-main">
-      <button class="article-back" id="articleBack" aria-label="返回列表">&larr; 返回</button>
-      <img class="article-cover" id="articleCover" style="display:none" alt="">
+      <button class="article-back" id="articleBack">&larr; 返回</button>
+      <img class="article-cover" id="articleCover" style="display:none">
       <h1 id="articleTitle"></h1>
       <div class="article-meta" id="articleMeta"><span id="articleMetaText"></span><span class="article-reading-time" id="articleReadTime"></span><button class="article-share" id="articleShare">🔗 複製連結</button><button class="article-share" id="articleQr">📱 QR Code</button><span class="article-font-ctrl"><button id="fontMinus" title="縮小字體">A-</button><button id="fontPlus" title="放大字體">A+</button></span></div>
       <div class="article-content" id="articleContent"></div>
@@ -783,7 +779,7 @@ html.lite .hero-card,html.lite .card{transition:none}
     <button id="qrClose">關閉</button>
   </div>
 </div>
-<button class="back-to-top" id="backToTop" title="回到頂端" aria-label="回到頁首">&#8593;</button>
+<button class="back-to-top" id="backToTop" title="回到頂端">&#8593;</button>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1322,7 +1318,7 @@ function getCardImages(card){
 
 function buildSlider(imgs,card){
   if(!imgs.length){
-    var ph=ce('div','card-placeholder',card.iconUrl?'<img src="'+esc(toDriveImg(card.iconUrl))+'" style="width:64px;height:64px;object-fit:contain;margin:auto" alt="">':'\uD83D\uDDBC');
+    var ph=ce('div','card-placeholder',card.iconUrl?'<img src="'+esc(toDriveImg(card.iconUrl))+'" style="width:64px;height:64px;object-fit:contain;margin:auto">':'\uD83D\uDDBC');
     return ph;
   }
   var wrap=ce('div','card-slider');
