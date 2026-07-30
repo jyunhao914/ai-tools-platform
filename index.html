@@ -1017,16 +1017,10 @@ function enableStudentMode(token){
   LS.set('student_token',token);
   var badge=$('studentBadge');
   if(badge)badge.style.display='';
-  /* 重新抓資料：原本快取/snapshot 是 public 視角，沒有學員卡片 */
-  gasAPI('getData',null,function(data){
-    if(data&&data.cards&&data.cards.length){
-      CARDS=data.cards;
-      if(data.pages&&data.pages.length)PAGES=data.pages;
-      if(data.stats)_statsData=data.stats;
-      try{saveCache({cards:CARDS,pages:PAGES,nav:NAV,stats:_statsData,settings:_settings});}catch(e){}
-    }
-    renderCards();
-  });
+  /* 卡片權限是前端過濾（資料源 repo data.json 已含全部卡片），
+     直接重繪即可。舊版會向 GAS 取卡片，但 GAS 那份是遷移前的過期資料，
+     一登入就會把整站換成舊內容——已移除。 */
+  renderCards();renderLatest();
 }
 
 function disableStudentMode(){
@@ -1036,14 +1030,7 @@ function disableStudentMode(){
   if(badge)badge.style.display='none';
   var menu=document.getElementById('studentBadgeMenu');
   if(menu)menu.remove();
-  /* 同樣重抓，避免 cache 殘留學員卡片 */
-  gasAPI('getData',null,function(data){
-    if(data&&data.cards&&data.cards.length){
-      CARDS=data.cards;
-      try{saveCache({cards:CARDS,pages:PAGES,nav:NAV,stats:_statsData,settings:_settings});}catch(e){}
-    }
-    renderCards();
-  });
+  renderCards();renderLatest();
 }
 
 function showStudentLogin(){
@@ -4058,24 +4045,28 @@ function loadAdminLog(){
 
 /* ====== REFRESH MAIN DATA ====== */
 function refreshMainData(){
-  gasAPI('getData',null,function(data){
-    /* GAS 配額爆掉/逾時會回 null 或 {error:...}（沒有 cards）——
-       這時絕不能把 CARDS/PAGES 清空，否則登入後整頁變空白。 */
-    if(!data||!data.cards||!data.cards.length)return;
-    CARDS=data.cards;
-    if(data.pages&&data.pages.length)PAGES=data.pages;
-    GEM_URL=data.gemUrl||'';
-    var _s=data.stats||{};_statsData=_s.tools||_s;_totalVisits=_s.total||0;
-    if(data.settings){
-      _settings=data.settings;
-      applyAnnouncement();
-      applySEO();
+  /* 權威資料源是 repo 的 data.json / site.json；
+     GAS 的 cards 是遷移前的舊資料，不可再用來覆蓋 CARDS。 */
+  Promise.all([
+    fetch('./data.json?t='+Date.now()).then(function(r){return r.ok?r.json():null}).catch(function(){return null}),
+    fetch('./site.json?t='+Date.now()).then(function(r){return r.ok?r.json():null}).catch(function(){return null})
+  ]).then(function(res){
+    var d=res[0],site=res[1];
+    if(!d||!d.cards||!d.cards.length)return;
+    CARDS=d.cards;
+    if(site){
+      if(site.nav&&site.nav.length){
+        NAV=site.nav;
+        PAGES=NAV.map(function(n){return n.name});
+        HERO_META=NAV.map(function(n){return {ico:n.ico||'',desc:n.desc||''}});
+      }
+      if(site.settings){_settings=site.settings;applyAnnouncement();applySEO();}
     }
-    buildNavTabs();
-    updateVisit();
-    renderCards();
+    buildNavTabs();buildHeroGrid();renderCards();renderLatest();
+    try{saveCache({cards:CARDS,pages:PAGES,nav:NAV,stats:_statsData,settings:_settings});}catch(e){}
   });
 }
+
 
 /* ====== DARK/LIGHT THEME TOGGLE ====== */
 function initTheme(){
