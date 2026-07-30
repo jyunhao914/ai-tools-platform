@@ -681,47 +681,59 @@ function watchDeploy(){
   },8000);
 }
 
+/* 原子發佈：blobs → tree → commit → ref，一個 commit 全有或全無，
+   不會再出現「圖上了、內容沒上」的半套狀態 */
+function commitAll(files,message){
+  var refUrl='/repos/'+OWNER+'/'+REPO+'/git/ref/heads/'+BRANCH;
+  var baseSha,baseTree;
+  return gh(refUrl).then(function(ref){
+    baseSha=ref.object.sha;
+    return gh('/repos/'+OWNER+'/'+REPO+'/git/commits/'+baseSha);
+  }).then(function(c){
+    baseTree=c.tree.sha;
+    return Promise.all(files.map(function(f){
+      var body=f.base64?{content:f.base64,encoding:'base64'}:{content:f.content,encoding:'utf-8'};
+      return gh('/repos/'+OWNER+'/'+REPO+'/git/blobs',{method:'POST',body:JSON.stringify(body)})
+        .then(function(b){return {path:f.path,mode:'100644',type:'blob',sha:b.sha}});
+    }));
+  }).then(function(tree){
+    return gh('/repos/'+OWNER+'/'+REPO+'/git/trees',{method:'POST',body:JSON.stringify({base_tree:baseTree,tree:tree})});
+  }).then(function(t){
+    return gh('/repos/'+OWNER+'/'+REPO+'/git/commits',{method:'POST',body:JSON.stringify({message:message,tree:t.sha,parents:[baseSha]})});
+  }).then(function(c){
+    return gh('/repos/'+OWNER+'/'+REPO+'/git/refs/heads/'+BRANCH,{method:'PATCH',body:JSON.stringify({sha:c.sha})}).then(function(){return c});
+  });
+}
+
 $('saveBtn').onclick=function(){
   /* schema 驗證閘：資料有問題直接擋下，不讓壞資料上線 */
   var _errs=HUB_BLOCKS.validate(S.data);
   if(_errs.length){alert('發現資料問題，已擋下發佈：\n\n'+_errs.join('\n'));return}
   var btn=$('saveBtn');btn.disabled=true;btn.textContent='發佈中…';
-  var fileKeys=Object.keys(S.newFiles);
-  var chain=Promise.resolve();
-  fileKeys.forEach(function(rel){
-    chain=chain.then(function(){
-      var path=HUB+'/'+rel;
-      return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+path+'?ref='+BRANCH+'&t='+Date.now())
-        .then(function(j){return j.sha}).catch(function(){return null})
-        .then(function(sha){
-          var body={message:HUB+' admin: upload '+rel,content:S.newFiles[rel].base64,branch:BRANCH};
-          if(sha)body.sha=sha;
-          return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+path,{method:'PUT',body:JSON.stringify(body)});
-        });
-    });
+  var files=Object.keys(S.newFiles).map(function(rel){
+    return {path:HUB+'/'+rel,base64:S.newFiles[rel].base64};
   });
-  chain.then(function(){
-    return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+DATA_PATH+'?ref='+BRANCH+'&t='+Date.now()).then(function(j){return j.sha}).catch(function(){return S.dataSha});
-  }).then(function(sha){
-    /* 衝突保護：載入後遠端若已被別處更新，直接覆蓋會吃掉對方的變更 */
-    if(sha!==S.dataSha&&!confirm('⚠️ 這個頁面的內容在你開啟後台後已被別處更新（可能是另一個分頁或另一台裝置）。\n\n繼續發佈會覆蓋掉那些變更。\n建議取消 → 重新整理後台 → 再改一次。\n\n仍要覆蓋？')){
-      throw new Error('__abort__');
-    }
-    return sha;
-  }).then(function(sha){
-    return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+DATA_PATH,{method:'PUT',body:JSON.stringify({
-      message:HUB+' admin: 更新內容',content:b64encodeUtf8(JSON.stringify(S.data,null,1)),branch:BRANCH,sha:sha
-    })});
-  }).then(function(j){
-    S.dataSha=j.content?j.content.sha:S.dataSha;
-    return pushSeo().then(function(){return j});
-  }).then(function(j){
-    S.orig=JSON.stringify(S.data);S.newFiles={};setDirty(false);
-    loadHistory();
-    watchDeploy();
-  }).catch(function(e){
-    if(e.message!=='__abort__')toast('發佈失敗：'+e.message);
-  }).finally(function(){btn.disabled=false;btn.textContent='💾 儲存發佈'});
+  files.push({path:DATA_PATH,content:JSON.stringify(S.data,null,1)});
+  /* 衝突保護：載入後遠端若已被別處更新，覆蓋前先確認 */
+  gh('/repos/'+OWNER+'/'+REPO+'/contents/'+DATA_PATH+'?ref='+BRANCH+'&t='+Date.now())
+    .then(function(j){return j.sha}).catch(function(){return S.dataSha})
+    .then(function(sha){
+      if(sha!==S.dataSha&&!confirm('⚠️ 這個頁面的內容在你開啟後台後已被別處更新（可能是另一個分頁或另一台裝置）。\n\n繼續發佈會覆蓋掉那些變更。\n建議取消 → 重新整理後台 → 再改一次。\n\n仍要覆蓋？')){
+        throw new Error('__abort__');
+      }
+      return commitAll(files,HUB+' admin: 更新內容');
+    }).then(function(){
+      return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+DATA_PATH+'?ref='+BRANCH+'&t='+Date.now());
+    }).then(function(j){
+      S.dataSha=j.sha;
+      return pushSeo();
+    }).then(function(){
+      S.orig=JSON.stringify(S.data);S.newFiles={};setDirty(false);
+      loadHistory();
+      watchDeploy();
+    }).catch(function(e){
+      if(e.message!=='__abort__')toast('發佈失敗：'+e.message);
+    }).finally(function(){btn.disabled=false;btn.textContent='💾 儲存發佈'});
 };
 
 boot();

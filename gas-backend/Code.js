@@ -35,25 +35,9 @@ const GEMINI_GEM_URL = 'https://gemini.google.com/gem/1-I-HEXLdgeStt9PmL-dla2q8B
 // AUTH HELPERS — 三級權限
 // ============================================
 
-function getRole_(pw, token) {
-  if (pw) {
-    var auth = checkAdmin(pw);
-    if (auth.ok) return 'admin';
-  }
-  if (token) {
-    var cache = CacheService.getScriptCache();
-    var role = cache.get('stok_' + token);
-    if (role) return role; // 'student'
-  }
-  return 'public';
-}
 
-function computeHash_(str) {
-  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, str);
-  return bytes.map(function(b) {
-    return ('0' + (b & 0xff).toString(16)).slice(-2);
-  }).join('');
-}
+
+
 
 function filterCardsByRole_(cards, role) {
   return cards.filter(function(c) {
@@ -174,6 +158,39 @@ function doGet(e) {
           } catch(e) {}
           result = { ok:true, stats:getStats(), views:_sv };
           break;
+        case "logError": {
+          /* 前端錯誤上報：每日上限 200 筆防灌爆 */
+          try {
+            var _ec = CacheService.getScriptCache();
+            var _n = parseInt(_ec.get('errcnt') || '0', 10);
+            if (_n < 200) {
+              _ec.put('errcnt', String(_n + 1), 86400);
+              var _ss2 = SpreadsheetApp.openById(SHEET_ID);
+              var _es = _ss2.getSheetByName('前端錯誤') || _ss2.insertSheet('前端錯誤');
+              if (_es.getLastRow() < 1) _es.appendRow(['時間', '頁面', '錯誤']);
+              _es.appendRow([new Date(), String(p.page || '').slice(0, 200), String(p.msg || '').slice(0, 300)]);
+              if (_es.getLastRow() > 500) _es.deleteRows(2, _es.getLastRow() - 500);
+            }
+          } catch (e) {}
+          result = { ok: true };
+          break;
+        }
+        case "getErrors": {
+          if (role !== 'admin') { result = { ok:false, error:'auth' }; break; }
+          var _out = [];
+          try {
+            var _ss3 = SpreadsheetApp.openById(SHEET_ID);
+            var _es2 = _ss3.getSheetByName('前端錯誤');
+            if (_es2 && _es2.getLastRow() > 1) {
+              var _rows = _es2.getRange(Math.max(2, _es2.getLastRow() - 19), 1, Math.min(20, _es2.getLastRow() - 1), 3).getValues();
+              _rows.reverse().forEach(function (r) {
+                _out.push({ at: r[0] ? new Date(r[0]).getTime() : 0, page: String(r[1] || ''), msg: String(r[2] || '') });
+              });
+            }
+          } catch (e) {}
+          result = { ok:true, errors:_out };
+          break;
+        }
         case "getLinkReport": {
           var _lr = null;
           try { _lr = JSON.parse(PropertiesService.getScriptProperties().getProperty('LINK_REPORT') || 'null'); } catch(e) {}
@@ -456,15 +473,7 @@ function convertDriveUrl(url) {
 // 瀏覽統計
 // ============================================
 
-function recordVisit() {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  let sheet = ss.getSheetByName('瀏覽統計');
-  if (!sheet) {
-    sheet = ss.insertSheet('瀏覽統計');
-    sheet.appendRow(['日期時間', '類型', '內容']);
-  }
-  sheet.appendRow([new Date(), 'visit', 'page_view']);
-}
+
 
 
 // ============================================
@@ -481,213 +490,26 @@ function getBackupFolder_() {
   return it.hasNext() ? it.next() : DriveApp.createFolder(BACKUP_FOLDER_NAME);
 }
 
-/* ── 壞連結巡檢 ──
-   掃 data.json 與各子頁面 data.json 的所有對外連結，回報失效者。
-   需要 UrlFetchApp（外部連線）授權：第一次請在 Apps Script 編輯器手動執行
-   authorizeOnce()，同意權限後即可運作。未授權時回 null（前端顯示指引）。 */
-function authorizeOnce() {
-  var r = UrlFetchApp.fetch('https://www.google.com', { muteHttpExceptions: true });
-  Logger.log('授權完成，狀態碼：' + r.getResponseCode());
-}
-function collectLinks_() {
-  var BASE = 'https://jyunhao914.github.io/ai-tools-platform/';
-  var out = [];   // {url, where}
-  function addFrom(obj, where) {
-    ['linkUrl','link','video','url'].forEach(function(k){
-      var v = obj && obj[k];
-      if (typeof v === 'string' && /^https?:\/\//.test(v)) out.push({ url: v, where: where });
-    });
-    (obj && obj.buttons || []).forEach(function(b){
-      if (b.url && /^https?:\/\//.test(b.url)) out.push({ url: b.url, where: where + '（按鈕）' });
-    });
-    (obj && obj.files || []).forEach(function(f){
-      if (f.url && /^https?:\/\//.test(f.url)) out.push({ url: f.url, where: where + '（檔案）' });
-    });
-  }
-  var d = JSON.parse(UrlFetchApp.fetch(BASE + 'data.json', { muteHttpExceptions: true }).getContentText());
-  (d.cards || []).forEach(function(cd){ if (cd.visible !== false) addFrom(cd, '卡片：' + (cd.title || cd.id)); });
-  try {
-    var hubs = JSON.parse(UrlFetchApp.fetch(BASE + 'hubs.json', { muteHttpExceptions: true }).getContentText()).hubs || [];
-    hubs.forEach(function(h){
-      if (h.archived) return;
-      try {
-        var hd = JSON.parse(UrlFetchApp.fetch(BASE + h.folder + '/data.json', { muteHttpExceptions: true }).getContentText());
-        (hd.modules || []).forEach(function(m){
-          addFrom(m, '子頁面 ' + (h.title || h.folder));
-          (m.items || []).forEach(function(it){ addFrom(it, '子頁面 ' + (h.title || h.folder) + '：' + (it.scene || '')); });
-        });
-      } catch(e) {}
-    });
-  } catch(e) {}
-  try {
-    var site = JSON.parse(UrlFetchApp.fetch(BASE + 'site.json', { muteHttpExceptions: true }).getContentText());
-    (site.modules || []).forEach(function(m){
-      addFrom(m, '網站區塊：' + (m.title || m.type));
-      (m.items || []).forEach(function(it){ addFrom(it, '網站區塊：' + (it.scene || '') ); });
-    });
-  } catch(e) {}
-  /* 去重（同網址只查一次，但保留所有出處） */
-  var map = {};
-  out.forEach(function(l){ (map[l.url] = map[l.url] || []).push(l.where); });
-  return Object.keys(map).map(function(u){ return { url: u, wheres: map[u] }; });
-}
-function runLinkCheck_() {
-  var links;
-  try { links = collectLinks_(); }
-  catch(e) { return null; }   /* UrlFetchApp 未授權 */
-  var broken = [];
-  for (var i = 0; i < links.length; i += 20) {
-    var chunk = links.slice(i, i + 20);
-    try {
-      var resps = UrlFetchApp.fetchAll(chunk.map(function(l){
-        return { url: l.url, muteHttpExceptions: true, followRedirects: true,
-                 headers: { 'User-Agent': 'Mozilla/5.0 (link-check)' } };
-      }));
-      resps.forEach(function(r, k){
-        var code = r.getResponseCode();
-        if (code >= 400) broken.push({ url: chunk[k].url, status: code, where: chunk[k].wheres.join('、') });
-      });
-    } catch(e) {
-      chunk.forEach(function(l){ broken.push({ url: l.url, status: 0, where: l.wheres.join('、') }); });
-    }
-  }
-  var report = { checkedAt: Date.now(), total: links.length, broken: broken };
-  PropertiesService.getScriptProperties().setProperty('LINK_REPORT', JSON.stringify(report));
-  return report;
-}
 
-function runBackup_() {
-  var folder = getBackupFolder_();
-  var stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmm');
-  var name = '平台資料備份_' + stamp;
-  DriveApp.getFileById(SHEET_ID).makeCopy(name, folder);
 
-  // 只留最近 N 份
-  var files = [], it = folder.getFiles();
-  while (it.hasNext()) files.push(it.next());
-  files.sort(function(a, b) { return b.getDateCreated() - a.getDateCreated(); });
-  for (var i = BACKUP_KEEP; i < files.length; i++) files[i].setTrashed(true);
 
-  PropertiesService.getScriptProperties().setProperty('lastBackupAt', String(Date.now()));
-  return { ok: true, saved: name, kept: Math.min(files.length + 1, BACKUP_KEEP), folder: folder.getUrl() };
-}
+
+
 
 // 惰性排程：距上次備份滿 7 天就在下一次 API 呼叫時補做（失敗不影響 API）
-function maybeBackup_() {
-  try {
-    var props = PropertiesService.getScriptProperties();
-    var last = Number(props.getProperty('lastBackupAt') || 0);
-    if (Date.now() - last < BACKUP_INTERVAL_MS) return;
-    props.setProperty('lastBackupAt', String(Date.now()));   // 先記時間，避免同時多次觸發
-    runBackup_();
-  } catch (e) { /* 靜默略過 */ }
-}
+
 
 function weeklyBackup() {
   try { return runBackup_(); }
   catch (e) { return { ok: false, error: String(e) }; }
 }
 
-function getStatsByIds_(idsCsv) {
-  var out = {};
-  try {
-    var ids = String(idsCsv).split(',').map(function(s){return s.trim()}).filter(String);
-    if (!ids.length) return out;
-    var ss = SpreadsheetApp.openById(SHEET_ID);
-    var st = ss.getSheetByName('Stats');
-    if (!st || st.getLastRow() < 2) return out;
-    var rows = st.getRange(2, 1, st.getLastRow() - 1, 2).getValues();
-    var map = {};
-    rows.forEach(function(r){ map[String(r[0])] = Number(r[1]) || 0; });
-    ids.forEach(function(id){ out[id] = map[id] || 0; });
-  } catch(e) {}
-  return out;
-}
 
-function recordToolClick(toolTitle, cardId) {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  let sheet = ss.getSheetByName('瀏覽統計');
-  if (!sheet) {
-    sheet = ss.insertSheet('瀏覽統計');
-    sheet.appendRow(['日期時間', '類型', '內容', '卡片ID']);
-  }
-  sheet.appendRow([new Date(), 'tool_click', toolTitle, cardId || '']);
-  // 以 id 為鍵累加 Stats 表（卡片 views 的權威來源）
-  if (cardId && cardId !== '_page_view') {
-    try {
-      var lock = LockService.getScriptLock();
-      lock.tryLock(5000);
-      var st = ss.getSheetByName('Stats') || ss.insertSheet('Stats');
-      if (st.getLastRow() < 1) st.appendRow(['id', 'views']);
-      var found = false;
-      if (st.getLastRow() > 1) {
-        var ids = st.getRange(2, 1, st.getLastRow() - 1, 2).getValues();
-        for (var i = 0; i < ids.length; i++) {
-          if (String(ids[i][0]) === String(cardId)) {
-            st.getRange(i + 2, 2).setValue((Number(ids[i][1]) || 0) + 1);
-            found = true;
-            break;
-          }
-        }
-      }
-      if (!found) st.appendRow([String(cardId), 1]);
-      lock.releaseLock();
-    } catch (e) {}
-  }
-}
 
-/* 統計表是逐次瀏覽累加的，列數會一直長；掃全表很貴（實測 7-9 秒）。
-   → 結果快取 60 秒，並改用時間戳比較取代逐列 Utilities.formatDate。 */
-function getStats() {
-  var cache = null;
-  try {
-    cache = CacheService.getScriptCache();
-    var hit = cache.get('stats_v1');
-    if (hit) return JSON.parse(hit);
-  } catch(e) {}
-  var out = computeStats_();
-  try { if (cache) cache.put('stats_v1', JSON.stringify(out), 60); } catch(e) {}
-  return out;
-}
-function computeStats_() {
-  try {
-    const ss = SpreadsheetApp.openById(SHEET_ID);
-    const sheet = ss.getSheetByName('瀏覽統計');
-    if (!sheet) return { total: 0, today: 0, tools: {}, cardsToday: {} };
-    const data = sheet.getDataRange().getValues();
-    let total = 0;
-    const tools = {};
-    var today = 0;
-    var cardsToday = {};
-    // 今日區間（台北時區）只算一次，之後純數字比較
-    var nowTpe = new Date(Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy/MM/dd HH:mm:ss'));
-    var offset = new Date().getTime() - nowTpe.getTime();
-    var startTpe = new Date(Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy/MM/dd') + ' 00:00:00');
-    var dayStart = startTpe.getTime() + offset;
-    var dayEnd = dayStart + 86400000;
-    data.slice(1).forEach(row => {
-      if (row[1] === 'visit') total++;
-      if (row[1] === 'tool_click') {
-        tools[row[2]] = (tools[row[2]] || 0) + 1;
-      }
-      if (row[0] instanceof Date) {
-        var ts = row[0].getTime();
-        if (ts >= dayStart && ts < dayEnd) {
-          if (row[2] === '_page_view' || row[1] === 'visit') today++;
-          else if (row[1] === 'tool_click') {
-            var key = String(row[3] || '') || String(row[2] || '');
-            if (key) cardsToday[key] = (cardsToday[key] || 0) + 1;
-          }
-        }
-      }
-    });
-    var override = sheet.getRange(1,5).getValue();
-    if (override && Number(override) > 0) total = Number(override);
-    return { total, today, tools, cardsToday };
-  } catch(e) {
-    return { total: 0, today: 0, tools: {}, cardsToday: {} };
-  }
-}
+
+
+
+
 
 // ============================================
 // Settings
@@ -732,105 +554,13 @@ function getDynamicPages() {
 // Analytics
 // ============================================
 
-function getAnalytics() {
-  try {
-    var ss = SpreadsheetApp.openById(SHEET_ID);
-    var sheet = ss.getSheetByName('瀏覽統計');
-    if (!sheet) return { daily: [] };
-    var data = sheet.getDataRange().getValues();
-    var dailyMap = {};
-    var now = new Date();
-    for (var d = 6; d >= 0; d--) {
-      var dt = new Date(now.getTime() - d * 86400000);
-      var key = Utilities.formatDate(dt, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-      dailyMap[key] = 0;
-    }
-    data.slice(1).forEach(function(row) {
-      if (row[1] === 'visit' && row[0]) {
-        var dateKey;
-        try {
-          dateKey = Utilities.formatDate(new Date(row[0]), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-        } catch(e) { return; }
-        if (dailyMap.hasOwnProperty(dateKey)) {
-          dailyMap[dateKey]++;
-        }
-      }
-    });
-    var daily = [];
-    for (var k in dailyMap) {
-      if (dailyMap.hasOwnProperty(k)) {
-        daily.push({ date: k, count: dailyMap[k] });
-      }
-    }
-    daily.sort(function(a,b){ return a.date < b.date ? -1 : 1; });
-    return { daily: daily };
-  } catch(e) {
-    return { daily: [] };
-  }
-}
+
 
 // ═══════════════════════════════════════════
 //  Admin System
 // ═══════════════════════════════════════════
 
-function checkAdmin(pw) {
-  var cache = CacheService.getScriptCache();
-  var LOCK_KEY  = 'admin_lock';
-  var FAIL_KEY  = 'admin_fail';
-  var MAX_FAILS = 5;
-  var LOCK_SEC  = 900;  // 15 分鐘
-  var FAIL_SEC  = 600;  // 計數視窗 10 分鐘
 
-  // 1. 先判斷是否已被鎖定
-  if (cache.get(LOCK_KEY)) {
-    return {ok:false, email:'', error:'locked', msg:'登入次數過多，請 15 分鐘後再試'};
-  }
-
-  try {
-    // 2. Google OAuth 登入（不計入暴力計數）
-    var email = Session.getActiveUser().getEmail();
-    if (email) {
-      var sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName('Admins');
-      if (!sheet || sheet.getLastRow()===0) return {ok:false,email:email};
-      var emails = sheet.getRange(1,1,sheet.getLastRow(),1).getValues()
-        .map(function(r){return r[0].toString().toLowerCase().trim();})
-        .filter(function(e){return e;});
-      return {ok:emails.indexOf(email.toLowerCase())>=0, email:email};
-    }
-
-    // 3. 密碼登入
-    if (pw) {
-      var adminSheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName('Admins');
-      var storedPw = '';
-      if (adminSheet && adminSheet.getLastRow() >= 1) {
-        storedPw = adminSheet.getRange(1,2).getValue().toString().trim();
-      }
-      if (!storedPw) storedPw = 'admin';
-
-      var success = (pw === storedPw);
-
-      if (!success) {
-        // 記錄失敗次數
-        var fails = parseInt(cache.get(FAIL_KEY) || '0', 10) + 1;
-        if (fails >= MAX_FAILS) {
-          cache.put(LOCK_KEY, '1', LOCK_SEC);
-          cache.remove(FAIL_KEY);
-          try { logAdminAction('SECURITY', 'admin_locked', '密碼錯誤 ' + MAX_FAILS + ' 次，封鎖 15 分鐘'); } catch(e2){}
-        } else {
-          cache.put(FAIL_KEY, String(fails), FAIL_SEC);
-        }
-        return {ok:false, email:'', fails:fails};
-      }
-
-      // 登入成功 — 清除計數
-      cache.remove(FAIL_KEY);
-      cache.remove(LOCK_KEY);
-      return {ok:true, email:'admin'};
-    }
-
-    return {ok:false, email:''};
-  } catch(e) { return {ok:false, email:'', err:e.toString()}; }
-}
 
 function getCardsAdmin() {
   var ss = SpreadsheetApp.openById(SHEET_ID);

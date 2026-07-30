@@ -276,6 +276,8 @@ h2.sec{font-size:17px;margin-bottom:16px}
     <div id="tab-hubs" class="hidden">
       <h2 class="sec">子頁面</h2>
       <p class="hint" style="margin-bottom:14px">像「ChatGPT 簡報風格指令庫」這樣的獨立頁面：一頁一個資料夾，各有自己的卡片資料與後台。建立後約 1 分鐘上線。</p>
+      <div style="margin-bottom:10px"><button class="btn small" id="hubSyncBtn" type="button">🔄 更新全部子頁面模板</button>
+        <span class="hint" style="margin-left:8px">模板改版後按一次，所有子頁面套用新版（各自的標題與分享設定會保留）</span></div>
       <div id="hubList" style="margin-bottom:20px"></div>
       <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px 18px">
         <strong style="display:block;margin-bottom:10px">＋ 建立新頁面</strong>
@@ -314,6 +316,10 @@ h2.sec{font-size:17px;margin-bottom:16px}
         <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px 18px">
           <strong style="display:block;margin-bottom:10px;font-size:13.5px">最多人看的卡片 Top 10</strong>
           <div id="statTop" class="hint">載入中…</div>
+        </div>
+        <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px 18px">
+          <strong style="display:block;margin-bottom:10px;font-size:13.5px">🐞 前台錯誤（訪客端最近 20 筆）</strong>
+          <div id="statErrs" class="hint">載入中…</div>
         </div>
         <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px 18px">
           <strong style="display:block;margin-bottom:10px;font-size:13.5px">指令複製熱度 Top 10</strong>
@@ -709,7 +715,7 @@ document.querySelectorAll('.side button').forEach(function(b){
     if(b.dataset.tab==='files')loadFileLib();
     if(b.dataset.tab==='hubs')loadHubs();
     if(b.dataset.tab==='blocks'&&window.loadBlocks)window.loadBlocks();
-    if(b.dataset.tab==='stats'){loadStats();loadLinkReport();loadCopyStats();}
+    if(b.dataset.tab==='stats'){loadStats();loadLinkReport();loadCopyStats();loadErrs();}
   };
 });
 
@@ -1667,6 +1673,39 @@ bindDrop($('driveDrop'),$('driveFile'),uploadToDrive);
 /* ================= BOOT ================= */
 tryLogin();
 
+/* ── 模板更新傳播：把 hub-template 最新版套到所有未下架子頁面，保留各自 SEO 區塊 ── */
+if($('hubSyncBtn'))$('hubSyncBtn').onclick=function(){
+  var btn=this;
+  if(!confirm('把最新模板套用到所有子頁面？各頁的標題／分享設定（SEO 區塊）會保留。'))return;
+  btn.disabled=true;btn.textContent='更新中…';
+  var tpl;
+  gh('/repos/'+OWNER+'/'+REPO+'/contents/'+TEMPLATE_PATH+'?ref='+BRANCH+'&t='+Date.now()).then(function(t){
+    tpl=b64decodeUtf8(t.content);
+    return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+HUBS_PATH+'?ref='+BRANCH+'&t='+Date.now());
+  }).then(function(j){
+    var hubs=(JSON.parse(b64decodeUtf8(j.content)).hubs||[]).filter(function(h){return !h.archived});
+    var chain=Promise.resolve(),done=0,skipped=0;
+    hubs.forEach(function(h){
+      chain=chain.then(function(){
+        return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+h.folder+'/index.html?ref='+BRANCH+'&t='+Date.now()).then(function(cur){
+          var html=b64decodeUtf8(cur.content);
+          var seoM=html.match(/<!--SEO-->[\s\S]*?<!--\/SEO-->/);
+          var next=tpl;
+          if(seoM)next=next.replace(/<!--SEO-->[\s\S]*?<!--\/SEO-->/,seoM[0].replace(/\$/g,'$$$$'));
+          if(next===html){skipped++;return null}
+          return gh('/repos/'+OWNER+'/'+REPO+'/contents/'+h.folder+'/index.html',{method:'PUT',body:JSON.stringify({
+            message:'admin: 子頁面模板更新 '+h.folder,content:b64encodeUtf8(next),branch:BRANCH,sha:cur.sha
+          })}).then(function(){done++});
+        }).catch(function(){skipped++});
+      });
+    });
+    return chain.then(function(){return {done:done,skipped:skipped,total:hubs.length}});
+  }).then(function(r){
+    toast('✅ 已更新 '+r.done+' 個子頁面'+(r.skipped?('，'+r.skipped+' 個已是最新／略過'):''));
+  }).catch(function(e){toast('更新失敗：'+e.message,6000)})
+    .finally(function(){btn.disabled=false;btn.textContent='🔄 更新全部子頁面模板'});
+};
+
 /* ================= 密碼登入（跨裝置） ================= */
 /* GAS 端用管理密碼驗證後發放 GitHub token，讓手機／他人電腦免手打 token。
    token 存在 GAS Script Properties，不在 repo、不在前端原始碼。 */
@@ -2105,6 +2144,207 @@ function blkRenderKeepOpen(){
 })();
 window.loadBlocks=blkRender;
 })();
+</script>
+<script>
+/* ── 連結健康檢查 ── */
+var SCRIPT_EDITOR_URL='https://script.google.com/home/projects/1ZV2PYsE1Dpxn75r0-hzQvTloSgjdsfdnHzonOeTw3VMzO1H_T2ooHZBl/edit';
+function renderLinkReport(j){
+  var el=$('statLinks');
+  if(!el)return;
+  if(!j||!j.ok){
+    if(j&&j.error==='unauthorized'){
+      el.innerHTML='<span style="color:var(--warn)">⚠ 尚未啟用。</span>需要一次性授權：'
+        +'<a href="'+SCRIPT_EDITOR_URL+'" target="_blank">開啟 Apps Script 編輯器 ↗</a> → 上方函式選單選 <b>authorizeOnce</b> → 按「執行」→ 同意權限。之後就會每週自動巡檢。';
+    }else el.textContent='載入失敗';
+    return;
+  }
+  var r=j.report;
+  var when=new Date(r.checkedAt);
+  var head='<div class="hint" style="margin-bottom:8px">上次巡檢：'+(when.getMonth()+1)+'/'+when.getDate()+' '
+    +String(when.getHours()).padStart(2,'0')+':'+String(when.getMinutes()).padStart(2,'0')
+    +'・共檢查 '+r.total+' 個連結（每 7 天自動一次）</div>';
+  if(!r.broken.length){el.innerHTML=head+'<span style="color:var(--ok)">✓ 全部連結正常</span>';el.classList.remove('hint');return}
+  el.classList.remove('hint');
+  el.innerHTML=head+r.broken.map(function(b){
+    return '<div style="display:flex;gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px">'
+      +'<span style="color:var(--bad);flex-shrink:0">✕ '+(b.status||'無法連線')+'</span>'
+      +'<span style="flex:1;min-width:0"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="'+esc(b.url)+'" target="_blank">'+esc(b.url)+'</a></div>'
+      +'<div class="hint">'+esc(b.where)+'</div></span></div>';
+  }).join('');
+}
+function loadLinkReport(){
+  var el=$('statLinks');
+  if(el)el.textContent='載入中…（第一次或超過 7 天會現場巡檢，需十幾秒）';
+  gasGet({action:'getLinkReport'}).then(renderLinkReport).catch(function(){if(el)el.textContent='載入失敗'});
+}
+if($('linkCheckBtn'))$('linkCheckBtn').onclick=function(){
+  var b=this;b.disabled=true;b.textContent='巡檢中…';
+  $('statLinks').textContent='巡檢中，約十幾秒…';
+  gasGet({action:'runLinkCheck'}).then(function(j){
+    if(j&&j.error==='cooldown'){toast(j.msg);loadLinkReport()}
+    else renderLinkReport(j);
+  }).catch(function(){$('statLinks').textContent='巡檢失敗'})
+    .finally(function(){b.disabled=false;b.textContent='立即巡檢'});
+};
+
+/* ── 前台錯誤 ── */
+function loadErrs(){
+  var el=$('statErrs');
+  if(!el)return;
+  if(!gasPw()){el.innerHTML='<span class="hint">需要雲端密碼才能查看（到「檔案庫」分頁輸入一次）</span>';return}
+  gasGet({action:'getErrors',pw:gasPw()}).then(function(j){
+    if(!j||!j.ok){el.textContent=(j&&j.error==='auth')?'雲端密碼已失效':'載入失敗';return}
+    if(!j.errors.length){el.innerHTML='<span style="color:var(--ok)">✓ 沒有錯誤紀錄</span>';el.classList.remove('hint');return}
+    el.classList.remove('hint');
+    el.innerHTML=j.errors.map(function(e){
+      var d=new Date(e.at);
+      return '<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px">'
+        +'<span class="hint">'+(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+'・'+esc(e.page)+'</span><br>'
+        +esc(e.msg)+'</div>';
+    }).join('');
+  }).catch(function(){el.textContent='載入失敗'});
+}
+
+/* ── 指令複製熱度 ── */
+function loadCopyStats(){
+  var el=$('statCopy');
+  if(!el)return;
+  gh('/repos/'+OWNER+'/'+REPO+'/contents/hubs.json?ref='+BRANCH+'&t='+Date.now()).then(function(j){
+    var hubs=(JSON.parse(b64decodeUtf8(j.content)).hubs||[]).filter(function(h){return !h.archived});
+    return Promise.all(hubs.map(function(h){
+      return fetch('../'+h.folder+'/data.json?t='+Date.now()).then(function(r){return r.json()})
+        .then(function(d){
+          var items=[];
+          (d.modules||[]).forEach(function(m){(m.items||[]).forEach(function(it){
+            if(it.prompt)items.push({id:'hubcopy:'+h.folder+':'+it.id,label:it.scene||it.name||it.id});
+          })});
+          return items;
+        }).catch(function(){return []});
+    }));
+  }).then(function(lists){
+    var items=[].concat.apply([],lists);
+    if(!items.length){el.textContent='（尚無可複製的卡片）';return}
+    var ids=items.map(function(i){return i.id}).join(',');
+    return fetch(GAS_API+'?action=getStatsByIds&ids='+encodeURIComponent(ids)).then(function(r){return r.json()}).then(function(j2){
+      var stats=(j2&&j2.stats)||{};
+      var rows=items.map(function(i){return {label:i.label,n:stats[i.id]||0}})
+        .sort(function(a,b){return b.n-a.n}).slice(0,10);
+      if(!rows.some(function(r){return r.n>0})){el.textContent='（還沒有複製紀錄，數據會從現在開始累計）';return}
+      el.classList.remove('hint');
+      el.innerHTML=rows.map(function(r){
+        return '<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">'
+          +'<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(r.label)+'</span>'
+          +'<b>'+r.n+'</b></div>';
+      }).join('');
+    });
+  }).catch(function(){el.textContent='載入失敗'});
+}
+
+/* ================= 數據總覽 ================= */
+function loadBackupStatus(){
+  var el=$('statBackup');
+  if(!el)return;
+  if(!gasPw()){el.innerHTML='<span class="hint">需要雲端密碼才能查看（到「檔案庫」分頁輸入一次）</span>';return}
+  el.textContent='載入中…';
+  gasGet({action:'backupStatus',pw:gasPw()}).then(function(j){
+    if(!j||!j.ok){el.textContent=(j&&j.error==='auth')?'雲端密碼已失效':'載入失敗';return}
+    el.classList.remove('hint');
+    var rows=(j.files||[]).slice(0,5).map(function(f){
+      var d=new Date(f.at);
+      return statRow(f.name,(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'));
+    }).join('');
+    el.innerHTML=(j.scheduled?'<div class="hint" style="margin-bottom:6px">✓ 每週自動備份已啟用</div>':'<div class="hint" style="margin-bottom:6px;color:var(--warn)">⚠ 尚未排程，按「立即備份」即會自動啟用</div>')
+      +(rows||'<span class="hint">尚無備份檔</span>')
+      +(j.folder?'<div style="margin-top:8px"><a href="'+esc(j.folder)+'" target="_blank">開啟備份資料夾 ↗</a></div>':'');
+  }).catch(function(){el.textContent='載入失敗'});
+}
+if($('backupNowBtn'))$('backupNowBtn').onclick=function(){
+  if(!gasPw()){toast('請先到「檔案庫」分頁輸入雲端密碼');return}
+  var b=this;b.disabled=true;b.textContent='備份中…';
+  gasGet({action:'runBackup',pw:gasPw()}).then(function(j){
+    if(j&&j.ok)toast('✅ 已備份：'+j.saved);
+    else toast('備份失敗：'+((j&&j.error)||'未知錯誤'),5000);
+    loadBackupStatus();
+  }).catch(function(e){toast('備份失敗：'+e.message,5000)})
+   .finally(function(){b.disabled=false;b.textContent='立即備份'});
+};
+
+function statRow(label,value,sub){
+  return '<div style="display:flex;align-items:center;gap:10px;padding:7px 2px;border-bottom:1px solid var(--border);font-size:13px">'
+    +'<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(label)+'</span>'
+    +(sub?'<span class="hint">'+esc(sub)+'</span>':'')
+    +'<strong style="flex-shrink:0">'+esc(String(value))+'</strong></div>';
+}
+function loadStats(){
+  /* 摘要卡：卡片數／分類數／子頁面數 */
+  var cards=(S.data&&S.data.cards)||[];
+  var visible=cards.filter(function(c){return c.visible!==false});
+  var navCount=((S.site&&S.site.nav)||[]).length;
+  var totalViews=visible.reduce(function(n,c){return n+(parseInt(c.views,10)||0)},0);
+  $('statCards').innerHTML=[
+    ['卡片總數',visible.length+' / '+cards.length,'顯示中 / 全部'],
+    ['分類數',navCount,''],
+    ['卡片總點閱',totalViews,''],
+    ['區塊數',((S.site&&S.site.modules)||[]).length,'主站自訂區塊']
+  ].map(function(x){
+    return '<div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:14px 16px">'
+      +'<div class="hint">'+x[0]+(x[2]?' <span style="opacity:.7">('+x[2]+')</span>':'')+'</div>'
+      +'<div style="font-size:22px;font-weight:700;margin-top:4px">'+esc(String(x[1]))+'</div></div>';
+  }).join('');
+
+  /* 分類卡片數 */
+  var byCat={};
+  visible.forEach(function(c){var k=c.page||c.category||'（未分類）';byCat[k]=(byCat[k]||0)+1});
+  var cats=Object.keys(byCat).sort(function(a,b){return byCat[b]-byCat[a]});
+  $('statCats').innerHTML=cats.length?cats.map(function(k){return statRow(k,byCat[k])}).join(''):'（無資料）';
+  $('statCats').classList.remove('hint');
+
+  /* Top 10 卡片 */
+  var top=visible.slice().sort(function(a,b){return (parseInt(b.views,10)||0)-(parseInt(a.views,10)||0)}).slice(0,10);
+  $('statTop').innerHTML=top.length?top.map(function(c){return statRow(c.title||c.id,(parseInt(c.views,10)||0)+' 次',c.page||c.category||'')}).join(''):'（無資料）';
+  $('statTop').classList.remove('hint');
+
+  /* 7 天曲線 */
+  var chart=$('statChart');
+  chart.innerHTML='<span class="hint">載入中…</span>';
+  fetch(GAS_API+'?action=getAnalytics').then(function(r){return r.json()}).then(function(j){
+    var daily=(j&&j.analytics&&j.analytics.daily)||[];
+    if(!daily.length){chart.innerHTML='<span class="hint">（無資料）</span>';return}
+    var max=Math.max.apply(null,daily.map(function(d){return d.count}))||1;
+    chart.innerHTML=daily.map(function(d){
+      var h=Math.max(4,Math.round(d.count/max*110));
+      var label=d.date.slice(5).replace('-','/');
+      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px">'
+        +'<span style="font-size:11.5px;color:var(--muted)">'+d.count+'</span>'
+        +'<div style="width:100%;height:'+h+'px;background:linear-gradient(180deg,var(--accent),rgba(99,102,241,.45));border-radius:6px 6px 3px 3px"></div>'
+        +'<span style="font-size:11px;color:var(--muted)">'+label+'</span></div>';
+    }).join('');
+  }).catch(function(){chart.innerHTML='<span class="hint">載入失敗</span>'});
+
+  /* 備份狀態 */
+  loadBackupStatus();
+
+  /* 子頁面瀏覽數 */
+  var hubsEl=$('statHubs');
+  hubsEl.textContent='載入中…';
+  gh('/repos/'+OWNER+'/'+REPO+'/contents/'+HUBS_PATH+'?ref='+BRANCH+'&t='+Date.now())
+    .then(function(j){return JSON.parse(b64decodeUtf8(j.content))})
+    .catch(function(){return {hubs:[]}})
+    .then(function(reg){
+      var hubs=reg.hubs||[];
+      if(!hubs.length){hubsEl.textContent='（尚無子頁面）';return}
+      var ids=hubs.map(function(h){return 'hub:'+h.folder}).join(',');
+      return fetch(GAS_API+'?action=getStatsByIds&ids='+encodeURIComponent(ids)).then(function(r){return r.json()}).then(function(j){
+        var stats=(j&&j.stats)||{};
+        hubsEl.innerHTML=hubs.map(function(h){
+          return statRow(h.title||h.folder,(stats['hub:'+h.folder]||0)+' 次',h.archived?'已下架':'');
+        }).join('');
+        hubsEl.classList.remove('hint');
+      });
+    }).catch(function(){hubsEl.textContent='載入失敗'});
+}
+
+
 </script>
 </body>
 </html>
