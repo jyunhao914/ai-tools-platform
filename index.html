@@ -1803,8 +1803,10 @@ var _currentArticleId=null;
 function openArticleReader(card){
   var overlay=$('articleOverlay');
   _currentArticleId=card.id;
-  /* Set URL hash for shareable link */
-  history.pushState(null,'',location.pathname.replace(/\/(cards\/[^/]*|index\.html?)?$/,'')+'/cards/'+card.id+'.html');
+  /* 分享網址用 #article=；不要把路徑改成 /cards/<id>.html——那會把 document.baseURI
+     一起帶到 cards/ 底下，之後所有相對路徑（分類圖示、site.json、blocks.js、子頁 data.json）
+     都會多一層而 404。分享鈕與 QR 另外自己組 /cards/<id>.html，不受這裡影響。 */
+  history.pushState(null,'',location.pathname.replace(/\/(cards\/[^/]*|index\.html?)?$/,'')+'/#article='+card.id);
   $('articleTitle').textContent=card.title||'';
   var cover=$('articleCover');
   if(card.coverImage){
