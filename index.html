@@ -41,6 +41,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap"></noscript>
+<!-- 設計變數必須在 head、且在下面的 <style> 之前載入。
+     放到 body 尾端會讓首次繪製時所有 var(--x) 都是未定義，
+     頁面短暫變成沒有底色的透明狀態（文章開起來會透出首頁）。 -->
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="blocks.css">
 <style>
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -2802,8 +2807,6 @@ function hydrateInlineCopyBtns(container){
 init();
 })();
 </script>
-<link rel="stylesheet" href="tokens.css">
-<link rel="stylesheet" href="blocks.css">
 <script src="blocks.js"></script>
 <script>
 /* ══ 網站區塊引擎：讀 site.json modules[]，渲染委派給 blocks.js ══ */
