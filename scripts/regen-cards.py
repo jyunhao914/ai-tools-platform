@@ -6,7 +6,7 @@ Run manually after adding new articles:
   python3 scripts/regen-cards.py
 Then: git add cards/ && git commit -m "chore: regen card OG pages" && git push
 """
-import urllib.request, urllib.parse, json, os, html as htmlmod, sys, subprocess, ssl
+import urllib.request, urllib.parse, json, os, html as htmlmod, sys, subprocess, ssl, re
 
 GAS = 'https://script.google.com/macros/s/AKfycbx6qfQFbhAwiqA4AdRisH2HuZDw8iLQEEw-pxraTYCCoMInj0O9cpygBSsB6ii32j21/exec?action=getData'
 BASE = 'https://jyunhao914.github.io/ai-tools-platform'
@@ -64,14 +64,23 @@ def main():
         if not cid:
             continue
         ids_seen.add(cid)
-        title = htmlmod.escape(c.get('title') or 'AI 工具資源平台')
-        desc = htmlmod.escape((c.get('desc') or '')[:150])
-        raw_img = c.get('coverImage') or ''
+        # 與 admin 的 OG 產生器一致：標題要帶站名後綴，否則兩邊互相覆蓋
+        title = htmlmod.escape((c.get('title') or '') + ' | AI 工具資源平台')
+        desc = htmlmod.escape(re.sub(r'\s+', ' ', c.get('desc') or c.get('description') or '').strip()[:160])
+        raw_img = ''
+        try:
+            ex = c.get('extra')
+            ex = json.loads(ex) if isinstance(ex, str) else (ex or {})
+            raw_img = ex.get('coverImage') or ''
+        except Exception:
+            pass
+        raw_img = c.get('coverImage') or raw_img
         if not raw_img:
             imgs = c.get('imageUrls', [])
             raw_img = (imgs[0] if isinstance(imgs, list) and imgs else '') or ''
+        raw_img = str(raw_img).split('|')[0]   # 縮圖顯示參數（|contain 等）不能進 og:image
         if raw_img and not raw_img.startswith('http'):
-            raw_img = BASE + '/' + raw_img
+            raw_img = BASE + '/' + raw_img.lstrip('./')
         image = raw_img or DEFAULT_IMG
         redirect = BASE + '/#article=' + cid
         page_url = BASE + '/cards/' + cid + '.html'
@@ -100,7 +109,7 @@ def main():
     # (index.html fetches ./data.json before GAS to skip the 2-5s GAS cold start)
     # 蓋更新日期章（頁尾顯示用）
     import datetime as _dt
-    data.setdefault('settings', {})['site_updated'] = _dt.date.today().isoformat()
+    data.setdefault('settings', {})['site_updated'] = _dt.datetime.now(_dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.') + '%03dZ' % (_dt.datetime.now(_dt.timezone.utc).microsecond // 1000)
     site_path_stamp = os.path.join(here, 'site.json')
     if os.path.exists(site_path_stamp):
         with open(site_path_stamp, encoding='utf-8') as f:
