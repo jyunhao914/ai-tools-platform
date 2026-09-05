@@ -78,6 +78,7 @@ def main():
         json.dump(data, f, ensure_ascii=False)
     print(f'Wrote data.json snapshot ({os.path.getsize(data_json_path)} bytes).')
 
+    subprocess.run(['node', '-e', "const fs=require('fs'),r=require('./scripts/card-pages');fs.writeFileSync('index.html',r.updateHome(fs.readFileSync('index.html','utf8'),JSON.parse(fs.readFileSync('data.json')).cards));"], cwd=here, check=True)
     write_sitemap(here, data)
 
 def write_sitemap(here, data):
