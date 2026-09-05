@@ -129,6 +129,8 @@ def write_sitemap(here, data):
     path = os.path.join(here, 'sitemap.xml')
     with open(path, 'w', encoding='utf-8') as f:
         f.write('\n'.join(body) + '\n')
+    with open(os.path.join(here, 'sitemap-public.txt'), 'w', encoding='utf-8') as f:
+        f.write('\n'.join(loc for loc, _, _ in urls) + '\n')
     print(f'Wrote sitemap.xml ({len(urls)} urls).')
 
 if __name__ == '__main__':

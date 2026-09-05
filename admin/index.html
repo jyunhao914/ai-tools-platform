@@ -1459,7 +1459,11 @@ $('pubGoBtn').onclick=function(){
     return gh('/repos/'+OWNER+'/'+REPO+'/contents/sitemap.xml?ref='+BRANCH).then(function(j){
       var xml=b64decodeUtf8(j.content).replace(/\s*<url>(?:(?!<\/url>)[\s\S])*?<loc>[^<]*(?:\/cards\/|#)[^<]*<\/loc>[\s\S]*?<\/url>/g,'');
       var entries=S.data.cards.filter(CardPages.isPublic).map(function(c){return '<url><loc>'+BASE_URL+'/cards/'+encodeURIComponent(c.id)+'.html</loc></url>'}).join('\n');
-      files.push({path:'sitemap.xml',content:xml.replace('</urlset>',entries+'\n</urlset>')});
+      var updatedXml=xml.replace('</urlset>',entries+'\n</urlset>');
+      files.push({path:'sitemap.xml',content:updatedXml});
+      var parsedXml=new DOMParser().parseFromString(updatedXml,'application/xml');
+      if(parsedXml.querySelector('parsererror'))throw new Error('Sitemap XML 格式錯誤');
+      files.push({path:'sitemap-public.txt',content:Array.from(parsedXml.getElementsByTagName('loc')).map(function(n){return n.textContent}).join('\n')+'\n'});
       return gh('/repos/'+OWNER+'/'+REPO+'/contents/index.html?ref='+BRANCH).then(function(home){
         files.push({path:'index.html',content:CardPages.updateHome(b64decodeUtf8(home.content),S.data.cards)});
         return commitFiles(files,msg);
