@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chat Video Pro Lite</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Chat Video Pro Lite <span class="ver">v0.1.0</span></h1>
+    <button id="btnSettings" class="icon-btn" title="設定">⚙</button>
+  </header>
+
+  <main>
+    <!-- Step 1: 媒體選擇 -->
+    <section class="step">
+      <h2>1. 選擇來源素材</h2>
+      <p class="hint">從 Premiere 專案的 Project Panel 點選一個影片片段，然後按下方按鈕。</p>
+      <button id="btnPickSourceItem" class="primary">綁定目前選取的 Project Item</button>
+      <div id="sourceItemInfo" class="muted small">尚未綁定</div>
+    </section>
+
+    <!-- Step 2: 逐字稿 -->
+    <section class="step">
+      <h2>2. 取得逐字稿</h2>
+      <div class="tabs">
+        <button class="tab active" data-mode="paste">手動貼上</button>
+        <button class="tab" data-mode="whisper">Whisper 自動轉錄</button>
+      </div>
+
+      <div id="paneTranscriptPaste" class="pane">
+        <p class="hint">貼上含時間戳的逐字稿（SRT / VTT / WebVTT 格式皆可）。</p>
+        <textarea id="transcriptInput" rows="8" placeholder="00:00:01,000 --&gt; 00:00:04,500&#10;今天我們要聊的是...&#10;&#10;00:00:04,500 --&gt; 00:00:09,200&#10;..."></textarea>
+      </div>
+
+      <div id="paneTranscriptWhisper" class="pane hidden">
+        <p class="hint">選擇音訊或影片檔，Plugin 會呼叫 OpenAI Whisper API 產生逐字稿。</p>
+        <label class="file-btn">
+          選擇媒體檔
+          <input type="file" id="mediaFile" accept="audio/*,video/*" />
+        </label>
+        <div id="mediaFileInfo" class="muted small">尚未選擇</div>
+        <button id="btnTranscribe" class="primary" disabled>開始轉錄</button>
+        <div id="transcribeStatus" class="muted small"></div>
+      </div>
+    </section>
+
+    <!-- Step 3: 設定 -->
+    <section class="step">
+      <h2>3. 剪輯設定</h2>
+      <label>
+        想要的精華片段數量
+        <input type="number" id="clipCount" value="10" min="1" max="30" />
+      </label>
+      <label>
+        每段大約秒數
+        <input type="number" id="clipDuration" value="45" min="10" max="180" />
+      </label>
+      <label>
+        風格描述（可選）
+        <input type="text" id="clipStyle" placeholder="例：適合 IG Reels、強調金句、有情緒張力的段落" />
+      </label>
+    </section>
+
+    <!-- Step 4: 產生 -->
+    <section class="step">
+      <h2>4. 產生剪輯到時間軸</h2>
+      <button id="btnGenerate" class="primary big">分析逐字稿並剪到時間軸</button>
+      <div id="generateStatus" class="muted small"></div>
+      <ul id="clipsList"></ul>
+    </section>
+  </main>
+
+  <!-- 設定 modal -->
+  <div id="settingsModal" class="modal hidden">
+    <div class="modal-content">
+      <h2>設定</h2>
+      <label>
+        Anthropic API Key
+        <input type="password" id="anthropicKey" placeholder="sk-ant-..." />
+      </label>
+      <label>
+        OpenAI API Key（Whisper 用，可選）
+        <input type="password" id="openaiKey" placeholder="sk-..." />
+      </label>
+      <label>
+        Claude Model
+        <select id="claudeModel">
+          <option value="claude-opus-4-7">claude-opus-4-7（最強）</option>
+          <option value="claude-sonnet-4-6" selected>claude-sonnet-4-6（平衡）</option>
+          <option value="claude-haiku-4-5-20251001">claude-haiku-4-5（快速便宜）</option>
+        </select>
+      </label>
+      <div class="modal-actions">
+        <button id="btnSaveSettings" class="primary">儲存</button>
+        <button id="btnCloseSettings">取消</button>
+      </div>
+      <p class="muted small">
+        API Key 只會存在你的本機 Premiere 設定中，不會上傳到任何伺服器。
+      </p>
+    </div>
+  </div>
+
+  <script src="lib/anthropic.js"></script>
+  <script src="lib/whisper.js"></script>
+  <script src="lib/premiere.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
