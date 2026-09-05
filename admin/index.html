@@ -209,6 +209,7 @@ h2.sec{font-size:17px;margin-bottom:16px}
     <button data-tab="cards" class="on">🗂 卡片管理</button>
     <button data-tab="pages">📑 頁面與分類</button>
     <button data-tab="site">🛠 網站設定</button>
+    <button data-tab="sales">🛍 外掛下載開關</button>
     <button data-tab="files">📦 檔案庫</button>
     <button data-tab="hubs">📄 子頁面</button>
     <button data-tab="stats">📊 數據總覽</button>
@@ -217,6 +218,28 @@ h2.sec{font-size:17px;margin-bottom:16px}
   </div>
   <div class="main">
 
+    <div id="tab-sales" class="hidden">
+      <h2 class="sec">Presentation Maker · 下載開關</h2>
+      <p class="hint" style="margin-bottom:18px">選擇模式後按「儲存並發布」。此處獨立儲存，不需要按右上方的發佈變更。</p>
+      <form id="pmSalesForm">
+        <fieldset style="border:0;display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+          <legend style="margin-bottom:10px">下載模式</legend>
+          <label class="btn"><input type="radio" name="pmMode" value="free" style="width:auto"> 免費下載</label>
+          <label class="btn"><input type="radio" name="pmMode" value="paid" style="width:auto"> 付費購買</label>
+          <label class="btn"><input type="radio" name="pmMode" value="paused" style="width:auto"> 暫停開放</label>
+        </fieldset>
+        <div class="field"><label for="pmPrice">售價（NT$）</label><input id="pmPrice" type="number" min="1" step="1" required></div>
+        <div class="field"><label for="pmUntil">免費截止時間（台灣時間，留空表示不限期）</label><input id="pmUntil" type="datetime-local"><p class="hint">免費模式到期後，自動恢復付費購買。</p></div>
+        <div class="field"><label for="pmPurchase">蝦皮商品連結</label><input id="pmPurchase" type="url" required></div>
+        <div class="field"><label for="pmAnnouncement">交付說明</label><textarea id="pmAnnouncement" rows="3" maxlength="500"></textarea></div>
+        <p id="pmSummary" style="padding:16px;border:1px solid var(--border);border-radius:12px;margin:16px 0"></p>
+        <button type="submit" id="pmSave" class="btn primary" disabled>儲存並發布</button>
+        <button type="button" id="pmReload" class="btn">重新載入設定</button>
+        <a href="../presentation-maker/" target="_blank" rel="noopener" class="btn">查看下載入口 ↗</a>
+        <p id="pmStatus" role="status" aria-live="polite" style="margin-top:14px"></p>
+        <p class="hint" style="margin-top:14px">此開關管理網站下載入口。公開 GitHub 檔案仍可直接存取。</p>
+      </form>
+    </div>
     <!-- CARDS TAB -->
     <div id="tab-cards">
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px">
@@ -689,7 +712,7 @@ document.querySelectorAll('.side button').forEach(function(b){
   b.onclick=function(){
     document.querySelectorAll('.side button').forEach(function(x){x.classList.remove('on')});
     b.classList.add('on');
-    ['cards','pages','site','files','history','hubs','blocks','stats'].forEach(function(t){$('tab-'+t).classList.toggle('hidden',t!==b.dataset.tab)});
+    ['cards','pages','site','sales','files','history','hubs','blocks','stats'].forEach(function(t){$('tab-'+t).classList.toggle('hidden',t!==b.dataset.tab)});
     if(b.dataset.tab==='history')loadHistory();
     if(b.dataset.tab==='files')loadFileLib();
     if(b.dataset.tab==='hubs')loadHubs();
@@ -2337,5 +2360,5 @@ function loadStats(){
 
 
 </script>
-</body>
+<script src="presentation-sales.js"></script></body>
 </html>
