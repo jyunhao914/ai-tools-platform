@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Presentation Maker｜安裝圖片教學</title><link rel="stylesheet" href="install.css"><link rel="stylesheet" href="guide.css"></head>
+<body><main>
+<nav><a href="./">← 免費安裝入口</a><span>Jyunhao · 操作教學</span></nav>
+<header><div class="eyebrow">安裝方式擇一即可</div><h1>跟著畫面，完成安裝。</h1><p class="lead">1. GitHub 指令安裝　2. Mac 手動安裝　3. Windows 手動安裝</p><div class="requirement"><b>桌面 App → Codex → 本機任務</b><span>不是一般 ChatGPT 聊天、網頁雲端任務或手機。已在 Windows 11 ARM 實測安裝。</span></div></header>
+<div class="actions"><a href="#online">1. GitHub 指令</a><a href="#mac">2. Mac 手動</a><a href="#windows">3. Windows 手動</a></div>
+<section id="online"><h2>1. GitHub 指令安裝</h2>
+<figure><figcaption><b>① 在安裝頁按「複製安裝指令」</b><span>看到「已複製 ✓」後，切到桌面 Codex 本機任務。</span><small>實際網頁操作截圖；不需要登入 GitHub。</small></figcaption><a href="images/github-copy.png"><img src="images/github-copy.png" alt="實際安裝頁按下複製後顯示已複製與下一步操作" loading="lazy"></a></figure>
+<div class="instruction"><h3>② 貼上送出 → ③ 確認權限 → ④ 開新任務</h3><p>將指令貼入桌面 Codex 的<strong>本機任務</strong>。代理會讀指南、下載、核對並安裝；只看到「已下載」不代表完成。成功結果應包含版本、啟用狀態與安裝位置。</p><p>必要時重新開啟 App，再於<strong>新本機任務</strong>選 Presentation Maker。</p><small>此段是文字操作說明，非 App 實拍；目前擷取工具不允許拍攝該 App 內部畫面。</small></div></section>
+<section id="mac"><h2>2. Mac 手動安裝</h2>
+<figure><figcaption><b>① 下載 macOS ZIP，完整解壓縮</b><span>選名稱含 macOS-install2 的安裝包。不要下載 Source code。</span><small>GitHub 發布頁實拍；舊安裝包僅保留作版本追溯。</small></figcaption><a href="images/github-release.png"><img src="images/github-release.png" alt="GitHub Releases 安裝包下載列表" loading="lazy"></a></figure>
+<figure><figcaption><b>② 打開資料夾，雙擊 .command 安裝檔</b><span>dependencies、plugins 與安裝檔要留在一起，不要只搬出單一檔案。</span><small>Mac Finder 實拍；由同一發布包解壓得到的資料夾。</small></figcaption><a href="images/mac-folder.png"><img src="images/mac-folder.png" alt="Finder 顯示安裝 Presentation Maker.command 與必要資料夾" loading="lazy"></a></figure>
+<figure><figcaption><b>③ 確認安裝成功，再開新任務</b><span>不要關閉仍在執行的安裝視窗；看到成功訊息後才開始使用。</span><small>Mac 實際安裝紀錄，於網頁顯示；非終端機介面截圖。測試機已有桌面執行環境，不等於所有全新電腦皆已驗證。</small></figcaption><a href="images/mac-result.png"><img src="images/mac-result.png" alt="Mac 實際安裝執行紀錄，包含安裝成功與版本" loading="lazy"></a></figure>
+<p><a href="https://github.com/jyunhao914/ai-tools-platform/releases/download/presentation-maker-20260905/Presentation-Maker-macOS-install2.zip">下載 macOS 安裝包 →</a></p></section>
+<section id="windows"><h2>3. Windows 手動安裝</h2><div class="instruction warning"><h3>Windows 11 ARM 已完成安裝測試</h3><p>使用桌面 App 提供的 x64 Python；內附繁中／英文 OCR 已驗證可執行。下方提供下載頁實拍與實際安裝紀錄，檔案總管操作以文字說明。x64 實體電腦尚未另行實測。</p></div>
+<figure><figcaption><b>① 從 GitHub 選 Windows-install2.zip</b><span>下載後按右鍵選「解壓縮全部」。</span><small>GitHub 實際下載頁。</small></figcaption><a href="images/github-release.png"><img src="images/github-release.png" alt="GitHub 的 Windows 安裝包下載位置" loading="lazy"></a></figure><ol class="windows-steps"><li><b>下載 Windows ZIP</b><p>從上方 GitHub 發布頁選 Presentation-Maker-Windows-install2.zip，不要選 Source code。</p></li><li><b>按右鍵 → 解壓縮全部</b><p>開啟解壓後的 ai-presentation-marketplace 資料夾，不要直接在 ZIP 中執行。</p></li><li><b>雙擊「安裝 Presentation Maker.bat」</b><p>保留 install_windows.ps1、dependencies 與 plugins。安全提示或組織封鎖時先核對來源，不要停用防毒。</p></li><li><b>確認成功 → 開新本機任務</b><p>若顯示失敗，保留錯誤訊息並交給 Codex 排查；不要把下載完成當成安裝完成。</p></li></ol>
+<figure><figcaption><b>安裝結果：外掛已啟用、繁中 OCR 通過</b><span>成功後於新本機任務選取 Presentation Maker。</span><small>Windows 11 ARM 的實際執行紀錄，於網頁呈現；非終端機介面截圖。</small></figcaption><a href="images/windows-result.png"><img src="images/windows-result.png" alt="Windows 安裝成功與繁中 OCR 驗證紀錄" loading="lazy"></a></figure><p><a href="https://github.com/jyunhao914/ai-tools-platform/releases/download/presentation-maker-20260905/Presentation-Maker-Windows-install2.zip">下載 Windows 64 位元版 →</a></p></section>
+<details><summary>遇到初始化或安全提示？</summary><p>尚缺執行環境：先在桌面 Codex 本機任務輸入「請初始化本機 Python 與 Node.js 執行環境」，完成後再安裝。系統拒絕執行時，先核對發布者與下載來源；不要全面關閉安全保護。</p></details>
+<footer>外掛版本 0.1.0+codex.20260904233925 · 僅更新安裝與教學，不改簡報生成流程。</footer>
+</main></body></html>
