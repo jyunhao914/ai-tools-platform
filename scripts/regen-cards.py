@@ -12,27 +12,6 @@ GAS = 'https://script.google.com/macros/s/AKfycbx6qfQFbhAwiqA4AdRisH2HuZDw8iLQEE
 BASE = 'https://jyunhao914.github.io/ai-tools-platform'
 DEFAULT_IMG = BASE + '/assets/yaml-gem-thumb.jpg'
 
-TMPL = '''<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-<meta charset="UTF-8">
-<title>{title}</title>
-<meta name="description" content="{desc}">
-<meta property="og:type" content="article">
-<meta property="og:site_name" content="AI 工具資源平台">
-<meta property="og:title" content="{title}">
-<meta property="og:description" content="{desc}">
-<meta property="og:image" content="{image}">
-<meta property="og:image:width" content="1024">
-<meta property="og:image:height" content="572">
-<meta property="og:url" content="{url}">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="{title}">
-<meta name="twitter:description" content="{desc}">
-<meta name="twitter:image" content="{image}">
-<script>location.replace("{redirect}")</script>
-</head><body></body></html>'''
-
 def main():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     cards_dir = os.path.join(here, 'cards')
@@ -57,37 +36,16 @@ def main():
     cards = data.get('cards', [])
     print(f'Got {len(cards)} cards')
 
-    count = 0
+    rendered = json.loads(subprocess.check_output(['node', os.path.join(here, 'scripts/card-pages.js')], input=json.dumps(cards).encode()))
     ids_seen = set()
-    for c in cards:
-        cid = c.get('id', '')
-        if not cid:
-            continue
+    count = 0
+    for page in rendered:
+        cid = page['id']
+        if not re.fullmatch(r'[\w-]+', str(cid)):
+            raise ValueError('Invalid card id')
         ids_seen.add(cid)
-        # 與 admin 的 OG 產生器一致：標題要帶站名後綴，否則兩邊互相覆蓋
-        title = htmlmod.escape((c.get('title') or '') + ' | AI 工具資源平台')
-        desc = htmlmod.escape(re.sub(r'\s+', ' ', c.get('desc') or c.get('description') or '').strip()[:160])
-        raw_img = ''
-        try:
-            ex = c.get('extra')
-            ex = json.loads(ex) if isinstance(ex, str) else (ex or {})
-            raw_img = ex.get('coverImage') or ''
-        except Exception:
-            pass
-        raw_img = c.get('coverImage') or raw_img
-        if not raw_img:
-            imgs = c.get('imageUrls', [])
-            raw_img = (imgs[0] if isinstance(imgs, list) and imgs else '') or ''
-        raw_img = str(raw_img).split('|')[0]   # 縮圖顯示參數（|contain 等）不能進 og:image
-        if raw_img and not raw_img.startswith('http'):
-            raw_img = BASE + '/' + raw_img.lstrip('./')
-        image = raw_img or DEFAULT_IMG
-        redirect = BASE + '/#article=' + cid
-        page_url = BASE + '/cards/' + cid + '.html'
-        content = TMPL.format(title=title, desc=desc, image=image, url=page_url, redirect=redirect)
-        out_path = os.path.join(cards_dir, cid + '.html')
-        with open(out_path, 'w', encoding='utf-8') as f:
-            f.write(content)
+        with open(os.path.join(cards_dir, cid + '.html'), 'w', encoding='utf-8') as f:
+            f.write(page['html'])
         count += 1
 
     # Remove stale card html files whose id no longer exists
@@ -95,9 +53,6 @@ def main():
     removed = 0
     for f in existing:
         cid = f[:-5]
-        if '_' in cid:
-            # image subpages from legacy generation, skip
-            continue
         if cid not in ids_seen:
             os.remove(os.path.join(cards_dir, f))
             removed += 1
@@ -131,25 +86,12 @@ def write_sitemap(here, data):
     today = datetime.date.today().isoformat()
     urls = [(BASE + '/', '1.0', 'weekly')]
 
-    # 分類（含子分類）— hash 路由
-    nav = data.get('nav') or []
-    if not nav:
-        site_path = os.path.join(here, 'site.json')
-        if os.path.exists(site_path):
-            with open(site_path, encoding='utf-8') as f:
-                nav = json.load(f).get('nav') or []
-    for n in nav:
-        name = n.get('name') if isinstance(n, dict) else n
-        if not name:
-            continue
-        urls.append((BASE + '/#' + urllib.parse.quote(name), '0.8', 'weekly'))
-        for kid in (n.get('children') or []) if isinstance(n, dict) else []:
-            urls.append((BASE + '/#' + urllib.parse.quote(name + '/' + kid), '0.7', 'weekly'))
+    # 不把 hash 分類路由寫入 sitemap。Google 不會將 # 後方內容視為獨立網址。
 
-    # 每張可見卡片的分享頁（OG 頁本身會轉址回站內，但能被索引）
+    # 每張公開可見卡片的獨立內容頁
     for c in data.get('cards', []):
         cid = c.get('id')
-        if not cid or c.get('visible') is False:
+        if not cid or c.get('visible') is False or c.get('archived') or c.get('hidden'):
             continue
         if (c.get('permission') or 'public') != 'public':
             continue

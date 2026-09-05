@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>管理後台 — AI 工具資源平台</title>
+<title>管理後台 — Jyunhao AI工具資源平台</title>
 <link rel="stylesheet" href="../tokens-admin.css">
 <link rel="stylesheet" href="../blocks-admin.css">
 <link rel="icon" href="../assets/favicon.png">
@@ -511,6 +511,7 @@ h2.sec{font-size:17px;margin-bottom:16px}
 
 <div class="toast" id="toast"></div>
 
+<script src="../scripts/card-pages.js"></script>
 <script>
 /* ================= CONFIG ================= */
 var OWNER='jyunhao914', REPO='ai-tools-platform', BRANCH='main';
@@ -613,24 +614,7 @@ function commitFiles(files,message){ /* files: [{path, content(str)|base64(str),
 }
 
 /* ================= OG PAGE GENERATION (port of scripts/regen-cards.py) ================= */
-var OG_TMPL='<!DOCTYPE html>\n<html lang="zh-TW">\n<head>\n<meta charset="UTF-8">\n<title>{title}</title>\n<meta name="description" content="{desc}">\n<meta property="og:type" content="article">\n<meta property="og:site_name" content="AI 工具資源平台">\n<meta property="og:title" content="{title}">\n<meta property="og:description" content="{desc}">\n<meta property="og:image" content="{image}">\n<meta property="og:image:width" content="1024">\n<meta property="og:image:height" content="572">\n<meta property="og:url" content="{url}">\n<meta name="twitter:card" content="summary_large_image">\n<meta name="twitter:title" content="{title}">\n<meta name="twitter:description" content="{desc}">\n<meta name="twitter:image" content="{image}">\n<script>location.replace("{redirect}")<\/script>\n</head><body></body></html>';
-function ogImageOf(c){
-  var img='';
-  if(c.imageUrls&&c.imageUrls.length)img=String(c.imageUrls[0]).split('|')[0];
-  try{var ex=typeof c.extra==='string'?JSON.parse(c.extra||'{}'):(c.extra||{});if(ex.coverImage)img=String(ex.coverImage).split('|')[0];}catch(e){}
-  if(c.coverImage)img=String(c.coverImage).split('|')[0];
-  if(!img)img=BASE_URL+'/assets/yaml-gem-thumb.jpg';
-  if(!/^https?:/.test(img))img=BASE_URL+'/'+img.replace(/^\.?\//,'');
-  return img;
-}
-function genOgPage(c){
-  var title=(c.title||'')+' | AI 工具資源平台';
-  var desc=(c.desc||c.description||'').replace(/\s+/g,' ').trim().slice(0,160);
-  var url=BASE_URL+'/cards/'+c.id+'.html';
-  var redirect=BASE_URL+'/#article='+c.id;
-  function fill(s){return s.replace(/\{title\}/g,esc(title)).replace(/\{desc\}/g,esc(desc)).replace(/\{image\}/g,esc(ogImageOf(c))).replace(/\{url\}/g,esc(url)).replace(/\{redirect\}/g,redirect)}
-  return fill(OG_TMPL);
-}
+function genOgPage(c){return CardPages.page(c)}
 
 /* ================= LOGIN ================= */
 function tryLogin(){
@@ -1472,7 +1456,12 @@ $('pubGoBtn').onclick=function(){
       btn.disabled=false;btn.textContent='確認發佈';
       return null;
     }
-    return commitFiles(files,msg);
+    return gh('/repos/'+OWNER+'/'+REPO+'/contents/sitemap.xml?ref='+BRANCH).then(function(j){
+      var xml=b64decodeUtf8(j.content).replace(/\s*<url>(?:(?!<\/url>)[\s\S])*?<loc>[^<]*(?:\/cards\/|#)[^<]*<\/loc>[\s\S]*?<\/url>/g,'');
+      var entries=S.data.cards.filter(CardPages.isPublic).map(function(c){return '<url><loc>'+BASE_URL+'/cards/'+encodeURIComponent(c.id)+'.html</loc></url>'}).join('\n');
+      files.push({path:'sitemap.xml',content:xml.replace('</urlset>',entries+'\n</urlset>')});
+      return commitFiles(files,msg);
+    });
   }).then(function(c){
     if(!c)return;
     $('pubOverlay').classList.remove('show');
