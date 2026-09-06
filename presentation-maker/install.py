@@ -19,11 +19,11 @@ import tempfile
 import urllib.request
 import zipfile
 
-VERSION = "0.1.0+codex.20260904233925"
-BASE = "https://github.com/jyunhao914/ai-tools-platform/releases/download/presentation-maker-20260905/"
+VERSION = "0.1.0+codex.20260906225849"
+BASE = "https://github.com/jyunhao914/ai-tools-platform/releases/download/presentation-maker-20260906/"
 PACKAGES = {
-    "macos": ("Presentation-Maker-macOS-install2.zip", "948ec954f9a04f20c627b545a193821cddaa506d4c8f9fa62ae6763b2b040c1d"),
-    "windows": ("Presentation-Maker-Windows-install2.zip", "e6d9b00a6c2e476d626cb62b93e9caa9051ab33468c11abddd20aa8b04a7cafd"),
+    "macos": ("Presentation-Maker-macOS.zip", "c6f589eb9c06257faf97b9ee5edb49e2afeeb1e8eb666f94cfd0044b8f4d9fd6"),
+    "windows": ("Presentation-Maker-Windows.zip", "91d31fbd669cc11c8e695e84e6af8f00c3d53c69aa89456881e13e465517cbc9"),
 }
 
 def system_key(system=None, machine=None):
@@ -73,7 +73,7 @@ def main():
     store = Path.home() / ".presentation-maker" / "installations"
     store.mkdir(parents=True, exist_ok=True)
     # Keep each attempt separate, retain old installations and personal styles.
-    attempt = Path(tempfile.mkdtemp(prefix="20260905-", dir=store))
+    attempt = Path(tempfile.mkdtemp(prefix="20260906-", dir=store))
     archive = args.archive or (attempt / filename)
     if not args.archive:
         print("[1/4] Downloading publisher release...", flush=True)
