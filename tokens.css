@@ -1,0 +1,22 @@
+/* tokens.css — 前台設計變數唯一來源（主站、子頁面共用）
+   改主色／背景只要改這裡，所有前台頁面同步。 */
+:root{
+  /* 底層 */
+  --bg:#22252f;--bg2:#292d39;--bg3:#313644;
+  /* 卡片與邊界 */
+  --card:rgba(255,255,255,0.045);--card-h:rgba(255,255,255,0.075);
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.11);
+  /* 文字 */
+  --text:#ededf0;--text2:#8b8b95;--text3:#5c5c66;
+  /* 主色（內斂單色；accent2/3 指回同色以相容舊規則） */
+  --accent:#6366f1;--accent2:#6366f1;--accent3:#6366f1;
+  --accent-soft:rgba(99,102,241,0.12);
+  /* 圓角 */
+  --r:12px;--r2:18px;
+}
+[data-theme="light"]{
+  --bg:#fafafa;--bg2:#ffffff;--bg3:#f4f4f5;
+  --card:rgba(0,0,0,0.03);--card-h:rgba(0,0,0,0.06);
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.12);
+  --text:#18181b;--text2:#52525b;--text3:#a1a1aa;
+}
