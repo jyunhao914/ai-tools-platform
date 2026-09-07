@@ -1985,44 +1985,6 @@ document.addEventListener('keydown',function(e){
   }
 });
 
-/* ── 管理員入口隱藏邏輯 ── */
-(function(){
-
-  // URL 參數 ?admin → 新版 GitHub 後台。
-  // 舊的 GAS 後台已停用：資料源改成 repo 的 data.json 後，從那邊改不會生效也不會報錯，
-  // 誤入會白改一場，所以一律導向新後台。
-  if(location.search.indexOf('admin')>=0){
-    if(location.search.indexOf('admin=legacy')>=0){
-      alert('舊版 GAS 後台已停用（改在那裡編輯不會生效）。\n已為你開啟新版後台。');
-    }
-    location.href='manage.html';
-  }
-
-  // 方1b：鍵盤 Ctrl+Shift+A (非 Mac 用) 或任何平台 Alt+A
-  document.addEventListener('keydown',function(e){
-    if(((e.ctrlKey&&!e.metaKey)&&e.shiftKey&&(e.key==='A'||e.key==='a'))||(e.altKey&&(e.key==='A'||e.key==='a'))){
-      e.preventDefault();
-      location.href='manage.html';
-    }
-  });
-
-  // 方2：在 Logo 快速點擊 5 次
-  var clickCount=0,clickTimer=null;
-  var logoEl=document.querySelector('.nav-logo')||document.querySelector('header');
-  if(logoEl){
-    logoEl.addEventListener('click',function(){
-      clickCount++;
-      clearTimeout(clickTimer);
-      if(clickCount>=5){
-        clickCount=0;
-        location.href='manage.html';
-      } else {
-        clickTimer=setTimeout(function(){clickCount=0;},1500);
-      }
-    });
-  }
-})();
-
 /* ====== DARK/LIGHT THEME TOGGLE ====== */
 function initTheme(){
   var saved=LS.get('theme')||'dark';
@@ -2902,5 +2864,25 @@ fetch('./site.json',{cache:'no-cache'}).then(function(r){return r.ok?r.json():nu
 })();
 })();
 </script>
-<script src="presentation-maker/access.js"></script></body>
+<script src="presentation-maker/access.js"></script>
+<script>
+/* Administrator entry is independent of content loading and page rendering. */
+(function(){
+  var target='/ai-tools-platform/manage.html';
+  function openAdmin(){window.location.assign(target);}
+  if(new URLSearchParams(location.search).has('admin'))openAdmin();
+  var count=0,lastClick=0;
+  document.addEventListener('click',function(e){
+    if(!e.target.closest||!e.target.closest('.nav-logo'))return;
+    var now=Date.now();count=now-lastClick<=3000?count+1:1;lastClick=now;
+    if(count>=5){count=0;e.preventDefault();e.stopImmediatePropagation();openAdmin();}
+  },true);
+  document.addEventListener('keydown',function(e){
+    if((e.ctrlKey&&!e.metaKey&&e.shiftKey&&e.key.toLowerCase()==='a')||(e.altKey&&e.key.toLowerCase()==='a')){e.preventDefault();openAdmin();}
+  });
+  var logo=document.querySelector('.nav-logo-icon');
+  if(logo){logo.draggable=false;logo.style.touchAction='manipulation';logo.style.userSelect='none';}
+})();
+</script>
+</body>
 </html>
