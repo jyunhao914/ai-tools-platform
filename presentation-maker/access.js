@@ -46,9 +46,6 @@
         show();
       }
     }
-    if(free()) {
-      const notice=document.createElement('p');notice.textContent=settings.freeUntil?'限時免費下載至 '+new Date(settings.freeUntil).toLocaleString('zh-TW',{timeZone:'Asia/Taipei'}):'推廣期間免費下載';notice.style.cssText='padding:16px;text-align:center;background:#e8f6ef;color:#175238;font-weight:bold';
-      if(location.hash.includes('1787999825773') || location.pathname.includes('1787999825773') || location.pathname.startsWith(base.pathname)) document.body.prepend(notice);
-    }
+
   });
 })();
