@@ -13,7 +13,7 @@
       if(scenes.indexOf(choice)===-1){var wasActive=active();delete root.dataset.scene;if(wasActive&&restoreOriginal)restoreOriginal();return;}
       root.dataset.scene=choice;
       var appearance=getAppearance&&getAppearance(choice);
-      if(appearance!=='dark'&&appearance!=='light')appearance='light';
+      if(appearance!=='dark'&&appearance!=='light')appearance=choice==='forest'?'dark':'light';
       root.setAttribute('data-theme',appearance);
       var toggle=document.getElementById('themeToggle');
       if(toggle)toggle.textContent=appearance==='dark'?'☀️':'🌙';

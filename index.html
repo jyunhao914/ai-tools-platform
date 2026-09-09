@@ -625,7 +625,7 @@ html.lite .hero-card,html.lite .card{transition:none}
 </style>
 <link rel="stylesheet" href="nature-themes.css?v=20260909-editorial">
 <link rel="stylesheet" href="original-stability.css?v=20260909-audit">
-<script src="nature-themes.js?v=20260909-editorial"></script>
+<script src="nature-themes.js?v=20260909-forest-dark"></script>
 </head>
 <body>
 <noscript>
@@ -1803,7 +1803,7 @@ function applySEO(){
 
 /* ====== APPLY SITE INFO ====== */
 function applySiteInfo(){
-  if(window.NatureThemes)NatureThemes.apply(_settings,initTheme,function(scene){return LS.get('editorial_theme_'+scene);});
+  if(window.NatureThemes)NatureThemes.apply(_settings,initTheme,function(scene){return LS.get('editorial_theme_'+scene+(scene==='forest'?'_v2':''));});
   var t=document.querySelector('.hero-title');
   var s=document.querySelector('.hero-sub');
   var b=document.querySelector('.hero-badge');
@@ -2009,7 +2009,7 @@ function applyTheme(theme){
   var btn=$('themeToggle');
   if(btn)btn.textContent=theme==='dark'?'\u2600\uFE0F':'\uD83C\uDF19';
   var scene=document.documentElement.dataset.scene;
-  LS.set(scene?'editorial_theme_'+scene:'theme',theme);
+  LS.set(scene?'editorial_theme_'+scene+(scene==='forest'?'_v2':''):'theme',theme);
 }
 if($('themeToggle')){
   $('themeToggle').onclick=function(){
