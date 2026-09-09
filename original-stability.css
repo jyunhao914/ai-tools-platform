@@ -1,4 +1,9 @@
 /* Original mode is a stable layout, not the experimental animated prototype. */
+html:not([data-scene]){--accent:#5558d6;--text3:#adb4c2}
+html:not([data-scene])[data-theme="light"]{--accent:#4c50c7;--text3:#526072}
+.card-link--success,.inline-copy-btn .icb-action.style-success{background:#187b43;color:#fff}
+.card-link--warning,.inline-copy-btn .icb-action.style-warning{background:#8d5a08;color:#fff}
+.card-link--danger,.inline-copy-btn .icb-action.style-danger{background:#bd3030;color:#fff}
 html:not([data-scene]) :is(.hero-content,.hero-card,.card,.star,.hero-blob,.hero-card-img,.hero-card-ico){animation:none!important;filter:none!important}
 html:not([data-scene]) :is(.hero,.hero-grid,.hero-card,.tools)::before,
 html:not([data-scene]) :is(.hero,.hero-grid,.hero-card,.hero-bg,.tools)::after{animation:none!important;display:none!important}
@@ -8,3 +13,9 @@ html:not([data-scene]) .hero-grid .hero-card{position:relative!important;left:au
 html:not([data-scene]) .card{opacity:1!important;transform:none!important;transition:background .2s,border-color .2s!important}
 html:not([data-scene]) .hero-content{opacity:1!important;transform:none!important}
 @media(prefers-reduced-motion:reduce){.sk-img,.sk-line{animation:none!important}}
+@media(max-width:600px){
+  html:not([data-scene]) .hero-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px}
+  html:not([data-scene]) .hero-grid .hero-card{min-height:110px;padding:12px}
+  html:not([data-scene]) .nav{height:auto;min-height:60px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px;gap:8px}
+  html:not([data-scene]) .nav-visit{position:static;order:10;width:100%;font-size:12px;text-align:right}
+}

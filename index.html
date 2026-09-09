@@ -623,9 +623,9 @@ html.lite .hero-card,html.lite .card{transition:none}
 .icb-dialog .icb-actions button.icb-primary{background:var(--accent);color:#fff;border:none}
 .brand-directory{max-width:1100px;margin:24px auto;padding:20px;color:var(--text);font-size:14px;line-height:1.8;overflow-wrap:anywhere}.brand-directory h2{font-size:18px}.brand-directory summary{cursor:pointer}.brand-directory a{color:var(--accent)}.brand-directory ul{padding-left:22px}
 </style>
-<link rel="stylesheet" href="nature-themes.css">
-<link rel="stylesheet" href="original-stability.css">
-<script src="nature-themes.js"></script>
+<link rel="stylesheet" href="nature-themes.css?v=20260909-audit">
+<link rel="stylesheet" href="original-stability.css?v=20260909-audit">
+<script src="nature-themes.js?v=20260909-audit"></script>
 </head>
 <body>
 <noscript>
@@ -1167,7 +1167,6 @@ function countOf(name){
 }
 
 function buildNavTabs(){
-  if(window.NatureThemes && NatureThemes.buildNav())return;
   var cont=$('navTabs');
   cont.innerHTML='';
   clearNavMenus();
@@ -1266,10 +1265,10 @@ window.addEventListener('resize',closeNavMenus);
 
 /* 快照與 GAS 的加總值會差幾次，先顯示再更新會看到數字跳動。
    → 等 GAS 新鮮值（現約 2.7 秒）才顯示；GAS 掛掉時 6 秒後退回快照值。 */
-var _visitReady=false;
+var _visitReady=false,_statsFresh=false;
 setTimeout(function(){if(!_visitReady){_visitReady=true;updateVisit()}},6000);
 function updateVisit(isFresh){
-  if(isFresh)_visitReady=true;
+  if(isFresh){_visitReady=true;_statsFresh=true;}
   if(!_visitReady)return;
   var n=totalViews();
   var el=$('navVisit');
@@ -1281,7 +1280,7 @@ function updateVisit(isFresh){
 
 /* ====== HERO CARDS ====== */
 function buildHeroGrid(){
-  if(window.NatureThemes && NatureThemes.buildHero())return;
+  if(window.NatureThemes && NatureThemes.buildHero(PAGES,switchTab))return;
   var grid=$('heroGrid');
   grid.innerHTML='';
   PAGES.forEach(function(p,i){
@@ -1494,7 +1493,7 @@ function renderOneLinkCard(grid,card){
   var link=ce('a','card-link card-link--'+btnStyle,btnIcon+' '+btnLabel);
   if(isCopy){
     link.href='javascript:void(0)';
-    link.onclick=function(e){e.preventDefault();copyText(copyContent);flashBtn(link,'\u2705 \u5DF2\u8907\u88FD');toast('\u5DF2\u8907\u88FD');trackClick(card,viewsSpan);};
+    link.onclick=function(e){e.preventDefault();copyText(copyContent).then(function(ok){if(!ok)return;flashBtn(link,'\u2705 \u5DF2\u8907\u88FD');toast('\u5DF2\u8907\u88FD');trackClick(card,viewsSpan);});};
   }else{
     link.href=card.linkUrl||'#';link.target='_blank';link.rel='noopener';
     link.onclick=function(e){e.stopPropagation();flashBtn(link,'\u2197 \u958B\u555F\u4E2D\u2026');trackClick(card,viewsSpan)};
@@ -1603,12 +1602,13 @@ function renderOneCopyCard(grid,card){
   btn.onclick=function(e){
     e.preventDefault();
     var text=this.getAttribute('data-copy');
-    copyText(text);
-    var orig=this.textContent;
-    this.textContent='✅ 已複製！';
     var self=this;
-    setTimeout(function(){self.textContent=orig;},2000);
-    trackClick(card,viewsSpan);
+    copyText(text).then(function(ok){
+      if(!ok)return;
+      var orig=self.textContent;self.textContent='✅ 已複製！';
+      setTimeout(function(){self.textContent=orig;},2000);
+      trackClick(card,viewsSpan);
+    });
   };
   foot.appendChild(btn);
   var views=cardViews(card);
@@ -1628,8 +1628,15 @@ function flashBtn(btn,msg){
   setTimeout(function(){btn.textContent=orig;btn._flashing=false;},1600);
 }
 function copyText(text){
-  if(navigator.clipboard){navigator.clipboard.writeText(text).catch(function(){})}
-  else{var ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta)}
+  function fallback(){
+    var ta=document.createElement('textarea'),focused=document.activeElement,ok=false;
+    ta.value=text||'';ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();
+    try{ok=document.execCommand('copy');}catch(e){}finally{ta.remove();if(focused&&focused.focus)focused.focus();}
+    if(!ok)toast('無法複製，請允許剪貼簿存取後重試');
+    return ok;
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(text||'').then(function(){return true;},fallback);
+  return Promise.resolve(fallback());
 }
 
 /* ====== CLICK TRACKING ====== */
@@ -1796,7 +1803,7 @@ function applySEO(){
 
 /* ====== APPLY SITE INFO ====== */
 function applySiteInfo(){
-  if(window.NatureThemes)NatureThemes.apply(_settings);
+  if(window.NatureThemes)NatureThemes.apply(_settings,initTheme,function(scene){return LS.get('scene_theme_'+scene);});
   var t=document.querySelector('.hero-title');
   var s=document.querySelector('.hero-sub');
   var b=document.querySelector('.hero-badge');
@@ -1820,7 +1827,7 @@ function openArticleReader(card){
   /* 分享網址用 #article=；不要把路徑改成 /cards/<id>.html——那會把 document.baseURI
      一起帶到 cards/ 底下，之後所有相對路徑（分類圖示、site.json、blocks.js、子頁 data.json）
      都會多一層而 404。分享鈕與 QR 另外自己組 /cards/<id>.html，不受這裡影響。 */
-  history.pushState(null,'',location.pathname.replace(/\/(cards\/[^/]*|index\.html?)?$/,'')+'/#article='+card.id);
+  history.pushState(null,'',location.pathname.replace(/\/(cards\/[^/]*|index\.html?)?$/,'')+'/'+location.search+'#article='+encodeURIComponent(card.id));
   $('articleTitle').textContent=card.title||'';
   var cover=$('articleCover');
   if(card.coverImage){
@@ -1862,8 +1869,7 @@ function openArticleReader(card){
 $('articleShare').onclick=function(){
   var base=location.origin+location.pathname.replace(/\/(cards\/[^/]*|index\.html?)?$/,'');
   var url=base+'/cards/'+_currentArticleId+'.html';
-  copyText(url);
-  toast('已複製分享連結');
+  copyText(url).then(function(ok){if(ok)toast('已複製分享連結');});
 };
 
 /* Build Table of Contents from H2/H3 */
@@ -1903,7 +1909,7 @@ function closeArticleReader(){
   $('articleOverlay').classList.remove('show');
   document.body.style.overflow='';
   _currentArticleId=null;
-  history.pushState(null,'',(location.pathname.replace(/\/(cards\/[^/]*|index\.html?)?$/,'')||'/')+'#'+_activeTab);
+  history.pushState(null,'',location.pathname.replace(/\/(cards\/[^/]*|index\.html?)?$/,'')+'/'+location.search+'#'+encodeURIComponent(_activeTab)+(_activeSub?'/'+encodeURIComponent(_activeSub):''));
 }
 $('articleBack').onclick=closeArticleReader;
 $('articleBackBottom').onclick=closeArticleReader;
@@ -2002,11 +2008,12 @@ function applyTheme(theme){
   document.documentElement.setAttribute('data-theme',theme);
   var btn=$('themeToggle');
   if(btn)btn.textContent=theme==='dark'?'\u2600\uFE0F':'\uD83C\uDF19';
-  LS.set('theme',theme);
+  var scene=document.documentElement.dataset.scene;
+  LS.set(scene?'scene_theme_'+scene:'theme',theme);
 }
 if($('themeToggle')){
   $('themeToggle').onclick=function(){
-    var current=LS.get('theme')||'dark';
+    var current=document.documentElement.getAttribute('data-theme')||'dark';
     applyTheme(current==='dark'?'light':'dark');
   };
 }
@@ -2290,7 +2297,7 @@ function init(){
         if(d.pages&&d.pages.length)PAGES=d.pages;
         if(d.settings){_settings=d.settings;applyAnnouncement();applySEO();applySiteInfo();}
       }
-      if(d.stats){var _s=d.stats;_statsData=_s.tools||_s;_totalVisits=_s.total||0;_todayVisits=_s.today||0;}
+      if(d.stats&&!_statsFresh){var _s=d.stats;_statsData=_s.tools||_s;_totalVisits=_s.total||0;_todayVisits=_s.today||0;}
       applyHashRoute();
       buildNavTabs();buildHeroGrid();renderCards();renderLatest();updateVisit();observeCards();checkArticleHash();
       saveCache({cards:CARDS,pages:PAGES,nav:NAV,stats:_statsData,settings:_settings});
@@ -2737,7 +2744,7 @@ function hydrateInlineCopyBtns(container){
       if(behavior==='link'){
         btn.onclick=function(){window.open(linkUrl,linkNewTab?'_blank':'_self')};
       }else{
-        btn.onclick=function(){copyText(copyContent);var o=btn.textContent;btn.textContent='\u2705 \u5DF2\u8907\u88FD\uFF01';setTimeout(function(){btn.textContent=o},2000)};
+        btn.onclick=function(){copyText(copyContent).then(function(ok){if(!ok)return;var o=btn.textContent;btn.textContent='\u2705 \u5DF2\u8907\u88FD\uFF01';setTimeout(function(){btn.textContent=o},2000)});};
       }
       bar.appendChild(btn);el.appendChild(bar);
     }else{
@@ -2748,7 +2755,7 @@ function hydrateInlineCopyBtns(container){
       if(behavior==='link'){
         btn.onclick=function(e){e.stopPropagation();window.open(linkUrl,linkNewTab?'_blank':'_self')};
       }else{
-        btn.onclick=function(e){e.stopPropagation();copyText(copyContent);var o=btn.textContent;btn.textContent='\u2705 \u5DF2\u8907\u88FD\uFF01';setTimeout(function(){btn.textContent=o},2000)};
+        btn.onclick=function(e){e.stopPropagation();copyText(copyContent).then(function(ok){if(!ok)return;var o=btn.textContent;btn.textContent='\u2705 \u5DF2\u8907\u88FD\uFF01';setTimeout(function(){btn.textContent=o},2000)});};
       }
       bar.appendChild(btn);
       el.appendChild(bar);
@@ -2876,7 +2883,7 @@ fetch('./site.json',{cache:'no-cache'}).then(function(r){return r.ok?r.json():nu
 <script>
 /* Administrator entry is independent of content loading and page rendering. */
 (function(){
-  var target='/ai-tools-platform/manage.html';
+  var target=new URL('./manage.html',location.href).href;
   function openAdmin(){window.location.assign(target);}
   if(new URLSearchParams(location.search).has('admin'))openAdmin();
   var count=0,lastClick=0;
@@ -2889,7 +2896,12 @@ fetch('./site.json',{cache:'no-cache'}).then(function(r){return r.ok?r.json():nu
     if((e.ctrlKey&&!e.metaKey&&e.shiftKey&&e.key.toLowerCase()==='a')||(e.altKey&&e.key.toLowerCase()==='a')){e.preventDefault();openAdmin();}
   });
   var logo=document.querySelector('.nav-logo-icon');
-  if(logo){logo.draggable=false;logo.style.touchAction='manipulation';logo.style.userSelect='none';}
+  if(logo){
+    logo.draggable=false;logo.style.touchAction='manipulation';logo.style.userSelect='none';
+    logo.tabIndex=0;logo.setAttribute('role','link');logo.setAttribute('aria-label','管理員登入');logo.title='管理員登入';
+    logo.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();openAdmin();});
+    logo.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();openAdmin();}});
+  }
 })();
 </script>
 </body>
