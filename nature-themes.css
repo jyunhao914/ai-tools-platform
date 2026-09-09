@@ -27,9 +27,9 @@ html[data-scene] .hero{position:relative;isolation:isolate;min-height:0;padding:
 html[data-scene] .hero::before{display:block!important;content:'';position:absolute;inset:-12px;z-index:-2;background:var(--scene-image) center 44%/cover no-repeat;pointer-events:none;transform:translate3d(var(--nature-x,0px),var(--nature-y,0px),0);transition:transform 1.4s ease-out}
 html[data-scene] .hero::after{display:block!important;content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(90deg,rgba(var(--hero-wash),1) 0%,rgba(var(--hero-wash),.98) 28%,rgba(var(--hero-wash),.85) 43%,rgba(var(--hero-wash),.16) 68%,rgba(var(--hero-wash),0) 100%)}
 html[data-scene] .hero-content{max-width:none;text-align:left;animation:none}
-html[data-scene] .hero-title{font-family:Georgia,'Noto Serif TC','Songti TC',serif;font-size:clamp(36px,4.2vw,60px);font-weight:500;line-height:1.16;letter-spacing:-.025em;background:none;-webkit-text-fill-color:var(--text);color:var(--text);text-shadow:none;margin:0 0 16px}
+html[data-scene] .hero-title{font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',system-ui,sans-serif;font-size:clamp(36px,4.2vw,60px);font-weight:500;line-height:1.16;letter-spacing:-.025em;background:none;-webkit-text-fill-color:var(--text);color:var(--text);text-shadow:none;margin:0 0 16px}
 html[data-scene] .hero-title::first-line{font-size:1.22em}
-html[data-scene] .hero-sub{font-family:Georgia,serif;font-size:clamp(18px,1.8vw,24px);font-weight:400;color:var(--text);margin:0;max-width:none}
+html[data-scene] .hero-sub{font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',system-ui,sans-serif;font-size:clamp(18px,1.8vw,24px);font-weight:400;color:var(--text);margin:0;max-width:none}
 html[data-scene] .hero-grid{display:flex;position:static;gap:0;width:auto;height:auto;transform:none!important;perspective:none}
 html[data-scene] .hero-grid::before{display:none}
 html[data-scene] .hero-grid button{background:var(--accent);color:var(--on-accent);border:1px solid var(--accent);border-radius:3px;padding:11px 22px;font-size:15px;font-weight:500;letter-spacing:.04em;min-height:44px}
