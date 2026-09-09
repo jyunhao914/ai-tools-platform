@@ -61,4 +61,16 @@ html[data-scene] :is(button,a,input):focus-visible{outline:2px solid var(--accen
 @media(max-width:1450px){html[data-scene] .nav-tabs{order:10;flex:0 0 100%;width:100%}html[data-scene] .nav-visit{margin-left:auto}html[data-scene] .global-search-wrap{margin-left:auto}}
 @media(max-width:800px){html[data-scene] .tools-grid{grid-template-columns:repeat(2,minmax(0,1fr))}html[data-scene] .hero::after{background:linear-gradient(90deg,rgba(var(--hero-wash),.98),rgba(var(--hero-wash),.93) 40%,rgba(var(--hero-wash),.35))}html[data-scene] .nav{padding:12px 22px;gap:12px}html[data-scene] .nav-tabs{display:flex!important}html[data-scene] .nav-burger{margin-left:auto}}
 @media(max-width:540px){html[data-scene] .nav-logo span::after{font-size:20px}html[data-scene] .nav-visit{order:11;width:100%;margin:0;font-size:12px}html[data-scene] .global-search-wrap{display:none}html[data-scene] .nav-tabs button{padding:9px 12px}html[data-scene] .hero{padding:28px 22px;gap:20px}html[data-scene] .hero-title{font-size:clamp(28px,7.6vw,40px)}html[data-scene] .hero-title::first-line{font-size:1.25em}html[data-scene] .hero::before{background-position:66% center}html[data-scene] :is(.tools,.latest){padding:28px 22px 40px}html[data-scene] .tools-head{font-size:25px}html[data-scene] .tools-grid{grid-template-columns:1fr;gap:28px}html[data-scene] .card-title{font-size:18px}html[data-scene] .card-desc{font-size:16px}html[data-scene] .sub-filter{gap:14px}html[data-scene] .brand-directory{padding:26px 22px}}
+/* On phones, the first tool title belongs in the arrival viewport. */
+@media(max-width:540px){
+ html[data-scene] .hero{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;padding:18px 22px;gap:12px}
+ html[data-scene] .hero-title{font-size:24px;margin-bottom:8px;letter-spacing:-.04em}
+ html[data-scene] .hero-title::first-line{font-size:1.15em}
+ html[data-scene] .hero-sub{font-size:16px;line-height:1.4}
+ html[data-scene] .hero-grid button{font-size:14px;padding:9px 10px;letter-spacing:0}
+ html[data-scene] .tools{padding-top:20px}
+ html[data-scene] .tools-head{font-size:22px;margin-bottom:20px;padding-bottom:10px}
+ html[data-scene] .sub-filter{margin-bottom:16px}
+}
+@media(max-width:360px){html[data-scene] .hero{padding-left:16px;padding-right:16px;gap:8px}html[data-scene] .hero-title{font-size:21px}html[data-scene] .hero-sub{font-size:14px}}
 @media(prefers-reduced-motion:reduce){html[data-scene] *,html[data-scene] .hero::before{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
