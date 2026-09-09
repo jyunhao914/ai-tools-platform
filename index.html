@@ -623,9 +623,9 @@ html.lite .hero-card,html.lite .card{transition:none}
 .icb-dialog .icb-actions button.icb-primary{background:var(--accent);color:#fff;border:none}
 .brand-directory{max-width:1100px;margin:24px auto;padding:20px;color:var(--text);font-size:14px;line-height:1.8;overflow-wrap:anywhere}.brand-directory h2{font-size:18px}.brand-directory summary{cursor:pointer}.brand-directory a{color:var(--accent)}.brand-directory ul{padding-left:22px}
 </style>
-<link rel="stylesheet" href="nature-themes.css?v=20260909-audit">
+<link rel="stylesheet" href="nature-themes.css?v=20260909-editorial">
 <link rel="stylesheet" href="original-stability.css?v=20260909-audit">
-<script src="nature-themes.js?v=20260909-audit"></script>
+<script src="nature-themes.js?v=20260909-editorial"></script>
 </head>
 <body>
 <noscript>
@@ -1803,7 +1803,7 @@ function applySEO(){
 
 /* ====== APPLY SITE INFO ====== */
 function applySiteInfo(){
-  if(window.NatureThemes)NatureThemes.apply(_settings,initTheme,function(scene){return LS.get('scene_theme_'+scene);});
+  if(window.NatureThemes)NatureThemes.apply(_settings,initTheme,function(scene){return LS.get('editorial_theme_'+scene);});
   var t=document.querySelector('.hero-title');
   var s=document.querySelector('.hero-sub');
   var b=document.querySelector('.hero-badge');
@@ -2009,7 +2009,7 @@ function applyTheme(theme){
   var btn=$('themeToggle');
   if(btn)btn.textContent=theme==='dark'?'\u2600\uFE0F':'\uD83C\uDF19';
   var scene=document.documentElement.dataset.scene;
-  LS.set(scene?'scene_theme_'+scene:'theme',theme);
+  LS.set(scene?'editorial_theme_'+scene:'theme',theme);
 }
 if($('themeToggle')){
   $('themeToggle').onclick=function(){

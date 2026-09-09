@@ -13,7 +13,7 @@
       if(scenes.indexOf(choice)===-1){var wasActive=active();delete root.dataset.scene;if(wasActive&&restoreOriginal)restoreOriginal();return;}
       root.dataset.scene=choice;
       var appearance=getAppearance&&getAppearance(choice);
-      if(appearance!=='dark'&&appearance!=='light')appearance=choice==='forest'?'dark':'light';
+      if(appearance!=='dark'&&appearance!=='light')appearance='light';
       root.setAttribute('data-theme',appearance);
       var toggle=document.getElementById('themeToggle');
       if(toggle)toggle.textContent=appearance==='dark'?'☀️':'🌙';
@@ -24,9 +24,8 @@
     buildHero:function(pages,select){
       if(!active())return false;
       var grid=document.getElementById('heroGrid');grid.replaceChildren();
-      [['簡報創作','簡報製作'],['影像生成','圖像生成'],['效率工具','工具箱']].forEach(function(pair){
-        if(pages.indexOf(pair[1])!==-1)grid.appendChild(link(pair[0]+' ↗',function(){go(pair[1],select);}));
-      });return true;
+      if(pages.length)grid.appendChild(link('瀏覽工具 →',function(){go(pages[0],select);}));
+      return true;
     },
     /* Navigation remains owned by the original renderer in every theme. */
     buildNav:function(){return false;}
