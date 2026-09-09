@@ -1,0 +1,10 @@
+/* Original mode is a stable layout, not the experimental animated prototype. */
+html:not([data-scene]) :is(.hero-content,.hero-card,.card,.star,.hero-blob,.hero-card-img,.hero-card-ico){animation:none!important;filter:none!important}
+html:not([data-scene]) :is(.hero,.hero-grid,.hero-card,.tools)::before,
+html:not([data-scene]) :is(.hero,.hero-grid,.hero-card,.hero-bg,.tools)::after{animation:none!important;display:none!important}
+html:not([data-scene]) :is(.hero-orbit,.hero-beam,.hero-scan,.hero-particle){display:none!important}
+html:not([data-scene]) .hero-grid{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));height:auto!important;gap:16px;perspective:none!important;transform:none!important}
+html:not([data-scene]) .hero-grid .hero-card{position:relative!important;left:auto!important;top:auto!important;width:auto!important;min-height:112px;transform:none!important;opacity:1!important;scale:1!important;transition:background .2s,border-color .2s!important}
+html:not([data-scene]) .card{opacity:1!important;transform:none!important;transition:background .2s,border-color .2s!important}
+html:not([data-scene]) .hero-content{opacity:1!important;transform:none!important}
+@media(prefers-reduced-motion:reduce){.sk-img,.sk-line{animation:none!important}}
