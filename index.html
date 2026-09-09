@@ -623,6 +623,8 @@ html.lite .hero-card,html.lite .card{transition:none}
 .icb-dialog .icb-actions button.icb-primary{background:var(--accent);color:#fff;border:none}
 .brand-directory{max-width:1100px;margin:24px auto;padding:20px;color:var(--text);font-size:14px;line-height:1.8;overflow-wrap:anywhere}.brand-directory h2{font-size:18px}.brand-directory summary{cursor:pointer}.brand-directory a{color:var(--accent)}.brand-directory ul{padding-left:22px}
 </style>
+<link rel="stylesheet" href="nature-themes.css">
+<script src="nature-themes.js"></script>
 </head>
 <body>
 <noscript>
@@ -1164,6 +1166,7 @@ function countOf(name){
 }
 
 function buildNavTabs(){
+  if(window.NatureThemes && NatureThemes.buildNav())return;
   var cont=$('navTabs');
   cont.innerHTML='';
   clearNavMenus();
@@ -1277,6 +1280,7 @@ function updateVisit(isFresh){
 
 /* ====== HERO CARDS ====== */
 function buildHeroGrid(){
+  if(window.NatureThemes && NatureThemes.buildHero())return;
   var grid=$('heroGrid');
   grid.innerHTML='';
   PAGES.forEach(function(p,i){
@@ -1791,13 +1795,16 @@ function applySEO(){
 
 /* ====== APPLY SITE INFO ====== */
 function applySiteInfo(){
+  if(window.NatureThemes)NatureThemes.apply(_settings);
   var t=document.querySelector('.hero-title');
   var s=document.querySelector('.hero-sub');
   var b=document.querySelector('.hero-badge');
   var f=document.querySelector('.footer');
   var n=document.querySelector('.nav-logo span');
-  if(_settings.site_title&&t)t.textContent=_settings.site_title;
-  if(_settings.site_subtitle&&s)s.textContent=_settings.site_subtitle;
+  if(!document.documentElement.dataset.scene){
+    if(_settings.site_title&&t)t.textContent=_settings.site_title;
+    if(_settings.site_subtitle&&s)s.textContent=_settings.site_subtitle;
+  }
   if(_settings.site_badge&&b)b.textContent=_settings.site_badge;
   if(_settings.site_footer&&f)f.textContent=_settings.site_footer;
   var su=$('siteUpdated');if(su&&_settings.site_updated)su.textContent='更新於 '+String(_settings.site_updated).slice(0,10);
