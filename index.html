@@ -1034,9 +1034,7 @@ function toast(msg){
 }
 
 function totalViews(){
-  var n=0;
-  if(_statsData){for(var k in _statsData){if(_statsData.hasOwnProperty(k))n+=(parseInt(_statsData[k])||0)}}
-  return n;
+  return Math.max(0,Number(_totalVisits)||0);
 }
 
 function fileIcon(mimeType){
@@ -1272,8 +1270,8 @@ function updateVisit(isFresh){
   if(!_visitReady)return;
   var n=totalViews();
   var el=$('navVisit');
-  if(n>0){
-    el.innerHTML='\uD83D\uDC41 '+n.toLocaleString()+' \u6B21\u700F\u89BD'+(_todayVisits>0?' <span style="opacity:0.65">\u00B7 \u4ECA\u65E5 '+_todayVisits.toLocaleString()+'</span>':'');
+  if(n>0||_statsFresh){
+    el.innerHTML='\uD83D\uDC41 '+n.toLocaleString()+' \u6B21\u700F\u89BD'+' <span>\u00B7 \u4ECA\u65E5 '+_todayVisits.toLocaleString()+'</span>';
     el.style.visibility='visible';
   }
 }
@@ -2239,7 +2237,7 @@ function applyFullData(data,adminCards){
     if(data.cards&&data.cards.length)CARDS=data.cards;
     if(data.pages&&data.pages.length)PAGES=data.pages;
     if(data.gemUrl)GEM_URL=data.gemUrl;
-    var _s=data.stats||{};_statsData=_s.tools||_s;_totalVisits=_s.total||0;
+    var _s=data.stats||{};_statsData=_s.tools||_s;_totalVisits=_s.total||0;_todayVisits=_s.today||0;
     if(data.settings){_settings=data.settings;applyAnnouncement();applySEO();applySiteInfo();}
   }
   mergeAdminExtra(CARDS,adminCards);
@@ -2260,7 +2258,7 @@ function init(){
   buildStars();
   initSearch();
   loadHubIndex();
-  gasAPI('recordClick',{title:'_page_view'},null);
+  /* getStats records one visit; do not also record a synthetic tool click. */
 
   /* 1. Try render from localStorage cache (instant, correct data) */
   var cache=loadCache();
@@ -2270,7 +2268,7 @@ function init(){
     CARDS=cache.cards;
     if(cache.nav&&cache.nav.length){NAV=cache.nav;PAGES=NAV.map(function(n){return n.name});HERO_META=NAV.map(function(n){return{ico:n.ico||'',desc:n.desc||''}});}
     else if(cache.pages&&cache.pages.length){PAGES=cache.pages;NAV=PAGES.map(function(p){return{name:p,children:[]}});}
-    if(cache.stats)_statsData=cache.stats;
+    if(cache.stats){_statsData=cache.stats.tools||cache.stats;_totalVisits=cache.stats.total||0;_todayVisits=cache.stats.today||0;}
     if(cache.settings){_settings=cache.settings;applyAnnouncement();applySEO();applySiteInfo();}
   }
   /* 1b. 權威資料源：repo 的 data.json + site.json（GitHub Pages 靜態檔，快且穩）。
@@ -2302,7 +2300,7 @@ function init(){
       if(d.stats&&!_statsFresh){var _s=d.stats;_statsData=_s.tools||_s;_totalVisits=_s.total||0;_todayVisits=_s.today||0;}
       applyHashRoute();
       buildNavTabs();buildHeroGrid();renderCards();renderLatest();updateVisit();observeCards();checkArticleHash();
-      saveCache({cards:CARDS,pages:PAGES,nav:NAV,stats:_statsData,settings:_settings});
+      saveCache({cards:CARDS,pages:PAGES,nav:NAV,stats:{total:_totalVisits,today:_todayVisits,tools:_statsData},settings:_settings});
     }).catch(function(){});
   }
   applyHashRoute();
