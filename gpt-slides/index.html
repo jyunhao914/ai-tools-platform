@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!--SEO-->
+<title>ChatGPT 專案-簡報製作指令</title>
+<meta name="description" content="ChatGPT 專案-簡報製作指令">
+<meta property="og:title" content="ChatGPT 專案-簡報製作指令">
+<meta property="og:description" content="ChatGPT 專案-簡報製作指令">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://jyunhao914.github.io/ai-tools-platform/gpt-slides/">
+<meta property="og:image" content="https://jyunhao914.github.io/ai-tools-platform/gpt-slides/thumbs/s01.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<!--/SEO-->
+<link rel="icon" href="../favicon.ico">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com">
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../blocks.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans TC',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+img{display:block;max-width:100%}
+.nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:60px;background:rgba(31,34,44,0.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
+[data-theme="light"] .nav{background:rgba(250,250,250,0.9);border-bottom-color:rgba(0,0,0,0.08)}
+.nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;cursor:pointer;user-select:none}
+.nav-logo .mark{width:32px;height:32px;border-radius:8px;object-fit:cover;display:block;flex-shrink:0}
+.nav-right{display:flex;align-items:center;gap:8px}
+.back{font-size:13px;color:var(--text2);border:1px solid var(--border2);border-radius:8px;padding:7px 14px;white-space:nowrap;transition:.2s}
+.back:hover{color:var(--accent);border-color:var(--accent)}
+.theme-toggle{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;background:var(--card);border:1px solid var(--border);transition:all .2s;flex-shrink:0}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 70px}
+.feature{margin:26px 0 0;background:var(--card);border:1px solid var(--border);border-radius:var(--r2)}
+.feature summary{list-style:none;cursor:pointer;padding:15px 20px;font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:8px}
+.feature summary::-webkit-details-marker{display:none}
+.feature summary .arrow{margin-left:auto;color:var(--text3);transition:transform .2s;font-size:12px}
+.feature[open] summary .arrow{transform:rotate(180deg)}
+.feature ul{padding:0 22px 16px 40px;color:var(--text2);font-size:13.5px;display:grid;gap:6px}
+.footer{text-align:center;padding:32px 24px;color:var(--text3);font-size:13px;border-top:1px solid var(--border)}
+.footer a{color:var(--text2)}
+.footer a:hover{color:var(--accent)}
+.toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(20px);background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:10px 22px;border-radius:999px;font-size:13.5px;opacity:0;pointer-events:none;transition:.25s;z-index:99}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-logo" id="logo"><img class="mark" src="../assets/logo.png" alt="logo"><span id="siteTitle">載入中…</span></div>
+  <div class="nav-right">
+    <a class="back" id="backLink" href="https://jyunhao914.github.io/ai-tools-platform/">← 回 AI 工具平台</a>
+    <button class="theme-toggle" id="themeToggle" title="切換主題">🌙</button>
+  </div>
+</nav>
+
+<div class="wrap">
+  <details class="feature" id="featureBox" style="display:none">
+    <summary><span id="featureTitle"></span><span class="arrow">▼</span></summary>
+    <ul id="featureList"></ul>
+  </details>
+  <div id="modules"></div>
+</div>
+
+<footer class="footer" id="siteFooter"></footer>
+
+<div class="toast" id="toast">已複製指令</div>
+
+<script src="../blocks.js"></script>
+<script>
+/* 主題：與平台共用 localStorage 'theme' */
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  document.getElementById('themeToggle').textContent=t==='dark'?'☀️':'🌙';
+  lsSet('theme',t);
+}
+applyTheme(lsGet('theme')||'dark');
+document.getElementById('themeToggle').onclick=function(){
+  applyTheme((lsGet('theme')||'dark')==='dark'?'light':'dark');
+};
+
+/* 後台入口：?admin、Alt+A / Ctrl+Shift+A、Logo 快點 5 下 */
+var HUB=location.pathname.replace(/\/index\.html$/,'').split('/').filter(Boolean).pop();
+if(location.search.indexOf('admin')>=0)location.href='../hub-admin.html?hub='+HUB;
+document.addEventListener('keydown',function(e){
+  if(((e.ctrlKey&&!e.metaKey)&&e.shiftKey&&(e.key==='A'||e.key==='a'))||(e.altKey&&(e.key==='A'||e.key==='a'))){
+    e.preventDefault();location.href='../hub-admin.html?hub='+HUB;
+  }
+});
+(function(){
+  var n=0,t=null;
+  document.getElementById('logo').addEventListener('click',function(){
+    n++;clearTimeout(t);
+    if(n>=5){n=0;location.href='../hub-admin.html?hub='+HUB}
+    else t=setTimeout(function(){n=0},1500);
+  });
+})();
+
+var toastT;
+function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){t.classList.remove('show')},1800)}
+function copyText(txt,btn){
+  function done(){toast('已複製指令');if(btn){var o=btn.innerHTML;btn.classList.add('ok');btn.innerHTML='✓ 已複製';setTimeout(function(){btn.classList.remove('ok');btn.innerHTML=o},1600)}}
+  if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(txt).then(done)}
+  else{var ta=document.createElement('textarea');ta.value=txt;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();done()}
+}
+
+var GAS_API='https://script.google.com/macros/s/AKfycbx6qfQFbhAwiqA4AdRisH2HuZDw8iLQEEw-pxraTYCCoMInj0O9cpygBSsB6ii32j21/exec';
+function trackVisit(title){
+  if(_isPreview)return;
+  try{
+    if(sessionStorage.getItem('hubv_'+HUB))return;
+    sessionStorage.setItem('hubv_'+HUB,'1');
+  }catch(e){}
+  fetch(GAS_API+'?action=recordClick&id=hub:'+encodeURIComponent(HUB)+'&title='+encodeURIComponent(title||HUB),{mode:'no-cors'}).catch(function(){});
+}
+function trackCopy(itemId,label){
+  try{
+    fetch(GAS_API+'?action=recordClick&id='+encodeURIComponent('hubcopy:'+HUB+':'+itemId)+'&title='+encodeURIComponent('複製｜'+(label||'')),{mode:'no-cors'}).catch(function(){});
+  }catch(e){}
+}
+
+/* 前端錯誤上報（去重，最多 3 筆/頁） */
+(function(){
+  var sent=0,seen={};
+  window.addEventListener('error',function(e){
+    var key=(e.message||'')+'@'+(e.lineno||0);
+    if(sent>=3||seen[key])return;
+    seen[key]=1;sent++;
+    try{fetch(GAS_API+'?action=logError&page='+encodeURIComponent(location.pathname)+'&msg='+encodeURIComponent((e.message||'').slice(0,200)+' @'+(e.filename||'').split('/').pop()+':'+e.lineno),{mode:'no-cors'}).catch(function(){})}catch(x){}
+  });
+})();
+
+var _isPreview=location.search.indexOf('preview=1')>=0;
+function loadData(){
+  if(_isPreview){
+    try{
+      var d=localStorage.getItem('hub_preview_'+HUB);
+      if(d){
+        var bar=document.createElement('div');
+        bar.style.cssText='background:rgba(251,191,36,.14);color:#fbbf24;padding:8px 20px;font-size:13px;text-align:center';
+        bar.textContent='👁 預覽模式：這是後台尚未發佈的草稿內容';
+        document.body.insertBefore(bar,document.body.firstChild);
+        return Promise.resolve(JSON.parse(d));
+      }
+    }catch(e){}
+  }
+  return fetch('data.json?t='+Date.now()).then(function(r){return r.json()});
+}
+loadData().then(function(data){
+  var site=data.site||{};
+  document.getElementById('siteTitle').textContent=site.title||'工具頁';
+  if(!_isPreview)document.title=site.title||'工具頁';
+  if(site.desc){
+    var md=document.querySelector('meta[name=description]')||document.head.appendChild(Object.assign(document.createElement('meta'),{name:'description'}));
+    md.content=site.desc;
+  }
+  if(site.backUrl)document.getElementById('backLink').href=site.backUrl;
+  if(site.backLabel)document.getElementById('backLink').textContent='← '+site.backLabel;
+  if(site.featureTitle&&site.features&&site.features.length){
+    var fb=document.getElementById('featureBox');fb.style.display='';
+    document.getElementById('featureTitle').textContent=site.featureTitle;
+    var ul=document.getElementById('featureList');
+    site.features.forEach(function(f){var li=document.createElement('li');li.textContent=f;ul.appendChild(li)});
+  }
+  document.getElementById('siteFooter').textContent=site.footer||'';
+  trackVisit(site.title);
+
+  var mods=data.modules;
+  if((!mods||!mods.length)&&data.styles&&data.styles.length){
+    mods=[{type:'cards',title:site.secTitle||'選擇風格，複製專案指令',items:data.styles}];
+  }
+  var host=document.getElementById('modules');
+  var ctx={
+    resolveSrc:function(r){return r},
+    onCopy:function(s,btn){copyText(s.prompt,btn);trackCopy(s.id,s.scene)}
+  };
+  (mods||[]).forEach(function(m){
+    if(!HUB_BLOCKS.schedOk(m))return;
+    var sec=document.createElement('section');sec.className='blk';
+    if(m.title&&m.type!=='accordion'){
+      var h=document.createElement('div');h.className='blk-title';h.textContent=m.title;sec.appendChild(h);
+    }
+    if(HUB_BLOCKS.render(sec,m,ctx))host.appendChild(sec);
+  });
+}).catch(function(){document.getElementById('modules').innerHTML='<p style="color:var(--text3);margin-top:30px">資料載入失敗，請稍後再試。</p>'});
+</script>
+</body>
+</html>

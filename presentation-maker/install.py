@@ -19,11 +19,11 @@ import tempfile
 import urllib.request
 import zipfile
 
-VERSION = "0.1.0+codex.20260911063257"
-BASE = "https://github.com/jyunhao914/ai-tools-platform/releases/download/presentation-maker-20260911-image-efficiency/"
+VERSION = "0.1.0+codex.20260907014659"
+BASE = "https://github.com/jyunhao914/ai-tools-platform/releases/download/presentation-maker-20260907/"
 PACKAGES = {
-    "macos": ("Presentation-Maker-macOS.zip", "baf2b5d97d8436fccb64f91f1c8c401f40ca75225f7b5c6d6166a41c24c1ae34"),
-    "windows": ("Presentation-Maker-Windows.zip", "8cb189525397f68db0b50984ac08f1dac91b0f07ba05f5704b2efdf95b606f6e"),
+    "macos": ("Presentation-Maker-macOS.zip", "170e9000f12bee9a4916753cbce564b28cba1884d5ead9af3cc9f98d65633498"),
+    "windows": ("Presentation-Maker-Windows.zip", "54ec302c1b17553bd9264cef298eb7d544c6b74784299f8604f983237f05ab7e"),
 }
 
 def system_key(system=None, machine=None):
@@ -59,31 +59,6 @@ def extract_verified(archive, destination, digest):
                 if mode:
                     (destination / entry.filename).chmod(mode)
 
-def download_release(url, destination):
-    """Download with the OS curl when available, then fall back to urllib.
-
-    Some otherwise supported macOS Python installations do not have a usable
-    CA bundle. The system curl uses the Keychain trust store and avoids making
-    users repair Python certificates before they can install the plugin.
-    """
-    curl = shutil.which("curl")
-    if curl:
-        subprocess.run([
-            curl,
-            "--fail",
-            "--location",
-            "--retry", "3",
-            "--connect-timeout", "30",
-            "--max-time", "300",
-            "--user-agent", "PresentationMaker-Installer/1",
-            "--output", str(destination),
-            url,
-        ], check=True)
-        return
-    req = urllib.request.Request(url, headers={"User-Agent": "PresentationMaker-Installer/1"})
-    with urllib.request.urlopen(req, timeout=90) as response, destination.open("wb") as out:
-        shutil.copyfileobj(response, out)
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--prepare-only", action="store_true")
@@ -102,7 +77,9 @@ def main():
     archive = args.archive or (attempt / filename)
     if not args.archive:
         print("[1/4] Downloading publisher release...", flush=True)
-        download_release(BASE + filename, archive)
+        req = urllib.request.Request(BASE + filename, headers={"User-Agent": "PresentationMaker-Installer/1"})
+        with urllib.request.urlopen(req, timeout=90) as response, archive.open("wb") as out:
+            shutil.copyfileobj(response, out)
     print("[2/4] Checking SHA-256 and extracting...", flush=True)
     extract_verified(archive, attempt, digest)
     root = attempt / "ai-presentation-marketplace"
