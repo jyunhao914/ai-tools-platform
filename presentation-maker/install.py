@@ -59,6 +59,31 @@ def extract_verified(archive, destination, digest):
                 if mode:
                     (destination / entry.filename).chmod(mode)
 
+def download_release(url, destination):
+    """Download with the OS curl when available, then fall back to urllib.
+
+    Some otherwise supported macOS Python installations do not have a usable
+    CA bundle. The system curl uses the Keychain trust store and avoids making
+    users repair Python certificates before they can install the plugin.
+    """
+    curl = shutil.which("curl")
+    if curl:
+        subprocess.run([
+            curl,
+            "--fail",
+            "--location",
+            "--retry", "3",
+            "--connect-timeout", "30",
+            "--max-time", "300",
+            "--user-agent", "PresentationMaker-Installer/1",
+            "--output", str(destination),
+            url,
+        ], check=True)
+        return
+    req = urllib.request.Request(url, headers={"User-Agent": "PresentationMaker-Installer/1"})
+    with urllib.request.urlopen(req, timeout=90) as response, destination.open("wb") as out:
+        shutil.copyfileobj(response, out)
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--prepare-only", action="store_true")
@@ -77,9 +102,7 @@ def main():
     archive = args.archive or (attempt / filename)
     if not args.archive:
         print("[1/4] Downloading publisher release...", flush=True)
-        req = urllib.request.Request(BASE + filename, headers={"User-Agent": "PresentationMaker-Installer/1"})
-        with urllib.request.urlopen(req, timeout=90) as response, archive.open("wb") as out:
-            shutil.copyfileobj(response, out)
+        download_release(BASE + filename, archive)
     print("[2/4] Checking SHA-256 and extracting...", flush=True)
     extract_verified(archive, attempt, digest)
     root = attempt / "ai-presentation-marketplace"
