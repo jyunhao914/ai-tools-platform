@@ -22,8 +22,8 @@ import zipfile
 VERSION = "0.1.0+codex.20260911075431"
 BASE = "https://github.com/jyunhao914/ai-tools-platform/releases/download/presentation-maker-20260911-text-warning-only/"
 PACKAGES = {
-    "macos": ("Presentation-Maker-macOS.zip", "17e27673be4232adedcdf77989ec2441cec0aac6a21e40fba3eb37d44bd96e86"),
-    "windows": ("Presentation-Maker-Windows.zip", "7d9746bbab5b48912cdf02b3fd1fc3699dd4f39228fac3e20c8e054cd54b6a10"),
+    "macos": ("Presentation-Maker-macOS.zip", "74571e491815c6639aef43899f27ead224e330ee94913d43ccaf6a1dcb6b4073"),
+    "windows": ("Presentation-Maker-Windows.zip", "8588af6adfc7cf69249b1435b13f14504d4fed8ba7affe25dc32dd5a87f90e55"),
 }
 
 def system_key(system=None, machine=None):
