@@ -24,7 +24,7 @@
 
 ## 原始下載
 
-- [macOS ZIP](https://github.com/jyunhao914/ai-tools-platform/releases/download/presentation-maker-20260914-content-preservation/Presentation-Maker-macOS.zip)
-- [Windows ZIP（ARM 系統需 App 的 x64 Python）](https://github.com/jyunhao914/ai-tools-platform/releases/download/presentation-maker-20260914-content-preservation/Presentation-Maker-Windows.zip)
+- [macOS ZIP](https://github.com/jyunhao914/ai-tools-platform/releases/download/presentation-maker-20260914-text-policy-102021/Presentation-Maker-macOS.zip)
+- [Windows ZIP（ARM 系統需 App 的 x64 Python）](https://github.com/jyunhao914/ai-tools-platform/releases/download/presentation-maker-20260914-text-policy-102021/Presentation-Maker-Windows.zip)
 
 安裝包由 Jyunhao 發布；程式可閱讀。所有必要確認由使用者決定，無需提供密碼或 API Key 到對話。
