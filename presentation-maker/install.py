@@ -22,8 +22,8 @@ import zipfile
 VERSION = "0.1.0+codex.20260917065814"
 BASE = "https://github.com/jyunhao914/ai-tools-platform/releases/download/presentation-maker-safe-substitution-20260917065814/"
 PACKAGES = {
-    "macos": ("Presentation-Maker-macOS.zip", "add7c2014cf9d72dcd933a0a68843c2ea77041661e22eb081cd930956fec511b"),
-    "windows": ("Presentation-Maker-Windows.zip", "cfd7a152da44703ce43d4aa427d141e33cb64e61e13399193f2a0ed3948474d4"),
+    "macos": ("Presentation-Maker-macOS.zip", "aa2d6dc0aebe14e17cb94a16e2ddfe2f1e0449dd78ea89dfcd140fe57a850b36"),
+    "windows": ("Presentation-Maker-Windows.zip", "30a4f2152d1aed74daa869a39f723186303e04f3aaed133bc38907464afd7ca3"),
 }
 
 def system_key(system=None, machine=None):
