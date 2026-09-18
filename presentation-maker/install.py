@@ -19,11 +19,11 @@ import tempfile
 import urllib.request
 import zipfile
 
-VERSION = "0.1.0+codex.20260918012518"
-BASE = "https://github.com/jyunhao914/ai-tools-platform/releases/download/presentation-maker-recovery-20260918012518/"
+VERSION = "0.1.0+codex.20260918065341"
+BASE = "https://github.com/jyunhao914/ai-tools-platform/releases/download/presentation-maker-full-fix-20260918065341/"
 PACKAGES = {
-    "macos": ("Presentation-Maker-macOS.zip", "e3a81c4221619ad140f20afb07799d7bd10d0e42b9673fac6f70076ac4ea1457"),
-    "windows": ("Presentation-Maker-Windows.zip", "5707e323e078c585d7cb4730c87d07fb5a0b7c4980063d0e98efa08ae8562094"),
+    "macos": ("Presentation-Maker-macOS.zip", "c5f323c43c1a9db273d4eb10c7368f20d52cb9a117fc1ab4a4b29cb1885fe681"),
+    "windows": ("Presentation-Maker-Windows.zip", "06a96428773b5522e1fa86448684ff04fe260fd4bd03fa87bb7a749076b7b885"),
 }
 
 def system_key(system=None, machine=None):
