@@ -1,0 +1,12 @@
+[project]
+name = "presentation-maker-offline"
+version = "0.1.0"
+description = "Offline-first presentation workflow core"
+requires-python = ">=3.11"
+
+[project.scripts]
+presentation-maker-offline = "presentation_maker_offline.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
