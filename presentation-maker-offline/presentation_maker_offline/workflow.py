@@ -32,6 +32,15 @@ class ImageResult:
     evidence: dict[str, Any]
 
 
+class LocalImageBackend:
+    """Adapter contract for a local checkpoint; no network or moderation hooks."""
+
+    name = "local"
+
+    def generate(self, prompt: str) -> dict[str, Any]:
+        raise NotImplementedError
+
+
 class ProjectStore:
     """Durable state store; every inference attempt is recorded exactly once."""
 
@@ -84,7 +93,7 @@ class Workflow:
         self.store.update(project_id, state="planning", operation=operation.value, image_strategy=image_strategy.value, style=style)
         return project_id
 
-    def image(self, project_id: str, page: int, prompt: str, strategy: ImageStrategy, *, photorealistic_ok: bool = True, generate_ok: bool = True) -> ImageResult:
+    def image(self, project_id: str, page: int, prompt: str, strategy: ImageStrategy, *, photorealistic_ok: bool = True, generate_ok: bool = True, backend: LocalImageBackend | None = None) -> ImageResult:
         request = {"prompt": prompt, "strategy": strategy.value}
         if strategy is ImageStrategy.NONE:
             result = ImageResult("skipped", "none", 0, {"reason": "image strategy disabled"})
@@ -96,6 +105,12 @@ class Workflow:
             result = ImageResult("generated", "free_generate", 2 if strategy is ImageStrategy.PHOTOREALISTIC else 1, {"model": "Qwen/Qwen-Image-2.1", "fallback": strategy.value})
         else:
             result = ImageResult("reused", "original", 2, {"fallback": "generation_failed"})
+        if backend is not None and result.status == "generated":
+            try:
+                backend_result = backend.generate(prompt)
+                result = ImageResult(result.status, result.source, result.attempt, {**result.evidence, "backend": backend.name, "backend_result": backend_result})
+            except Exception as exc:  # technical failure is recorded, never treated as content rejection
+                self.store.update(project_id, state="paused_technical_failure")
+                result = ImageResult("technical_failure", "none", result.attempt, {"backend": backend.name, "error_type": type(exc).__name__, "resumable": True})
         self.store.record_attempt(project_id, page, "image", request, result.__dict__)
         return result
-
