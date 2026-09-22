@@ -1,5 +1,6 @@
 from __future__ import annotations
 import platform, urllib.request
+from pathlib import Path
 from dataclasses import dataclass
 from .manifest import CheckpointManifest
 
@@ -17,14 +18,17 @@ class ImageBackend:
 class LocalQwenTextBackend(TextBackend):
     manifest: CheckpointManifest
     endpoint: str | None = None
-    name: str = "qwen3-8b-local"
+    name: str = "qwen3.8-27b-local"
+    format: str = "mlx"
     def health(self) -> dict:
         errors = self.manifest.validate(verify_hash=False)
+        if self.format not in {"mlx", "gguf"}: errors.append("text model format must be mlx or gguf")
+        if Path(self.manifest.path).is_dir() and not any(Path(self.manifest.path).iterdir()): errors.append("selected model folder is empty")
         if self.endpoint:
             try:
                 urllib.request.urlopen(self.endpoint.rstrip("/") + "/health", timeout=2)
             except Exception as exc: errors.append(f"service unavailable: {type(exc).__name__}")
-        return {"ok": not errors, "backend": self.name, "errors": errors}
+        return {"ok": not errors, "backend": self.name, "format": self.format, "errors": errors}
     def plan(self, prompt: str) -> dict:
         raise RuntimeError("local Qwen service adapter is not connected; configure endpoint")
 
