@@ -44,3 +44,5 @@ class PresentationMakerApp(tk.Tk):
 
 def main(): PresentationMakerApp().mainloop()
 
+if __name__ == "__main__":
+    main()
