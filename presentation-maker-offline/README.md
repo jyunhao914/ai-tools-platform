@@ -2,6 +2,10 @@
 
 此分支用來把 Presentation Maker 改造成可完全離線執行的桌面簡報製作軟體。
 
+## 桌面產品入口
+
+安裝依賴後執行 `presentation-maker-offline-app`，即可開啟 macOS 桌面 UI。第一階段 UI 已串起建立專案、匯入來源、五種處理入口、整份圖片策略、風格選擇、逐頁大綱／預覽與 PPTX 匯出。一般使用者不需要理解 checkpoint、manifest、VAE 或 backend；這些只屬於進階設定。
+
 ## 基準模型
 
 - 文字與流程規劃：`Qwen/Qwen3-8B`
