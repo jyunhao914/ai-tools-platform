@@ -56,6 +56,8 @@
 模型、生成快取與專案輸出使用三個分開的位置，預設建議選擇外接 SSD。程式不會把模型複製到 Hugging Face 預設快取；可用 `MODEL_HOME`／`HF_HOME` 指向選定磁碟，所有 backend 只引用該單一權重位置。下載前會估算容量並要求額外保留至少 20 GB；空間不足會阻止操作。生成快取可安全清除，不會刪除模型或專案輸出。
 
 開發機會優先偵測既有的 LM Studio MLX 模型：`~/.cache/lm-studio/models/orcarouter/Qwen3.8-27B-Uncensored-MLX-8bit`。此目錄只原地引用，不會複製；啟動健康檢查會確認模型目錄與 safetensors 分片存在。
+
+Qwen-Image-2.1 會自動偵測 `~/.cache/lm-studio/models/Qwen/Qwen-Image-2.1`。只有 `model_index.json`、processor、text_encoder、transformer、vae 與核心 safetensors 全部存在，且找不到任何 `.incomplete` 檔案時才會標記為 ready。
 - 本機 Qwen-Image-2.1 生成／編修佇列
 - 既有 PPTX 輸入、五種操作與完整圖片策略
 - 圖像式及可編輯式 PPTX 輸出

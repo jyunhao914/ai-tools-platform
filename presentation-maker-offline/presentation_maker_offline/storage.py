@@ -40,3 +40,12 @@ def selected_model_home() -> Path:
 def discover_qwen38_mlx() -> Path | None:
     path = selected_model_home()
     return path if path.is_dir() and len(list(path.glob("*.safetensors"))) >= 1 else None
+
+def qwen_image21_readiness(path: str | Path = "~/.cache/lm-studio/models/Qwen/Qwen-Image-2.1") -> dict:
+    root = Path(path).expanduser()
+    required = [root / "model_index.json", root / "processor", root / "text_encoder", root / "transformer", root / "vae"]
+    incomplete = list(root.rglob("*.incomplete")) if root.exists() else []
+    missing = [str(p.relative_to(root)) for p in required if not p.exists()]
+    safetensors = list(root.rglob("*.safetensors")) if root.exists() else []
+    if not safetensors: missing.append("core *.safetensors")
+    return {"ready": bool(root.is_dir() and not missing and not incomplete), "path": str(root), "missing": missing, "incomplete": [str(p.relative_to(root)) for p in incomplete], "safetensors": len(safetensors)}
