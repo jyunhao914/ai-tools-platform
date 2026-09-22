@@ -39,8 +39,19 @@ class LocalQwenImageBackend(ImageBackend):
         return "cpu" if editing and platform.system() == "Darwin" and platform.machine() == "arm64" else "mps"
     def health(self) -> dict:
         errors = self.manifest.validate(verify_hash=False)
-        if self.runtime not in {"diffusers", "comfyui"}: errors.append("runtime must be diffusers or comfyui")
+        if self.runtime != "diffusers": errors.append("the desktop image engine must use diffusers")
         return {"ok": not errors, "backend": self.name, "runtime": self.runtime, "vae_device": self.selected_vae_device(False), "errors": errors}
     def generate(self, prompt: str, *, edit_image: str | None = None) -> dict:
-        raise RuntimeError("local image runtime adapter is not connected; install/configure the selected runtime")
-
+        try:
+            import torch
+            from diffusers import DiffusionPipeline
+            device = "mps" if torch.backends.mps.is_available() else "cpu"
+            pipe = DiffusionPipeline.from_pretrained(self.manifest.path, torch_dtype=torch.float16 if device == "mps" else torch.float32)
+            pipe.to(device)
+            if edit_image is not None and hasattr(pipe, "__call__"):
+                result = pipe(prompt=prompt, image=edit_image)
+            else:
+                result = pipe(prompt=prompt)
+            return {"device": device, "vae_device": self.selected_vae_device(edit_image is not None), "image": result.images[0]}
+        except ImportError as exc:
+            raise RuntimeError("內建影像引擎尚未安裝 Diffusers/PyTorch") from exc

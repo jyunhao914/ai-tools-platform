@@ -6,7 +6,7 @@ def test_manifest_hash_and_image_backend_fallback(tmp_path):
     model = tmp_path / "model.bin"; model.write_bytes(b"model")
     m = CheckpointManifest("demo", str(model), hashlib.sha256(b"model").hexdigest(), "local-import", "abc123", "Qwen Research License", "diffusers")
     assert m.validate() == []
-    backend = LocalQwenImageBackend(m, runtime="comfyui", vae_device="auto")
+    backend = LocalQwenImageBackend(m, runtime="diffusers", vae_device="auto")
     assert backend.selected_vae_device(editing=True) in {"cpu", "mps"}
 
 def test_manifest_rejects_bad_hash(tmp_path):
