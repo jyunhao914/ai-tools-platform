@@ -24,6 +24,9 @@ class LocalQwenTextBackend(TextBackend):
         errors = self.manifest.validate(verify_hash=False)
         if self.format not in {"mlx", "gguf"}: errors.append("text model format must be mlx or gguf")
         if Path(self.manifest.path).is_dir() and not any(Path(self.manifest.path).iterdir()): errors.append("selected model folder is empty")
+        if self.format == "mlx":
+            shards = list(Path(self.manifest.path).glob("*.safetensors"))
+            if len(shards) < 1: errors.append("MLX model folder has no safetensors shards")
         if self.endpoint:
             try:
                 urllib.request.urlopen(self.endpoint.rstrip("/") + "/health", timeout=2)

@@ -32,4 +32,11 @@ class StorageConfig:
             else: child.unlink()
         return removed
 def selected_model_home() -> Path:
-    return Path(os.environ.get("MODEL_HOME", os.environ.get("HF_HOME", "~/.cache/huggingface"))).expanduser()
+    candidates = [os.environ.get("MODEL_HOME"), os.environ.get("HF_HOME"), "~/.cache/lm-studio/models/orcarouter/Qwen3.8-27B-Uncensored-MLX-8bit", "~/.cache/huggingface"]
+    for candidate in candidates:
+        if candidate and Path(candidate).expanduser().exists(): return Path(candidate).expanduser()
+    return Path("~/.cache/lm-studio/models/orcarouter/Qwen3.8-27B-Uncensored-MLX-8bit").expanduser()
+
+def discover_qwen38_mlx() -> Path | None:
+    path = selected_model_home()
+    return path if path.is_dir() and len(list(path.glob("*.safetensors"))) >= 1 else None
