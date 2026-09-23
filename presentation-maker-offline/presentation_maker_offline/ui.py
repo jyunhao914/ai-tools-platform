@@ -29,9 +29,13 @@ class PresentationMakerApp(tk.Tk):
         self.candidate: dict | None = None
         self.mark_start: tuple[int, int] | None = None
         self.mark_rect: int | None = None
-        self.title_text = tk.StringVar(value="我的離線簡報")
+        self.title_text = tk.StringVar(value="")
         self.style = tk.StringVar(value="清爽藍")
         self.output = tk.StringVar(value="可編輯式 PPTX")
+        self.operation = tk.StringVar(value="保留內容")
+        self.image_strategy = tk.StringVar(value="沿用原圖")
+        self.intervention = tk.StringVar(value="協助潤飾")
+        self.target_pages = tk.IntVar(value=8)
         self.status_text = tk.StringVar(value="互動原型：示範操作，不會呼叫 AI 模型。")
         self._init_store()
         self._build()
@@ -57,6 +61,22 @@ class PresentationMakerApp(tk.Tk):
         right = ttk.Frame(shell, padding=10, width=310)
         shell.add(left, weight=1); shell.add(center, weight=5); shell.add(right, weight=2)
 
+        ttk.Label(left, text="建立專案", font=("Arial", 13, "bold")).pack(anchor="w")
+        ttk.Button(left, text="新建空白示例", command=self.new_sample).pack(fill="x", pady=(6, 3))
+        ttk.Button(left, text="匯入主簡報／大綱…", command=self.pick_primary).pack(fill="x", pady=3)
+        ttk.Label(left, text="專案名稱").pack(anchor="w", pady=(8, 2))
+        ttk.Entry(left, textvariable=self.title_text).pack(fill="x")
+        ttk.Label(left, text="處理方式").pack(anchor="w", pady=(10, 2))
+        ttk.Combobox(left, textvariable=self.operation, values=["保留內容", "縮減內容", "擴增內容", "還原大綱", "擷取風格"], state="readonly").pack(fill="x")
+        ttk.Label(left, text="全份圖片策略").pack(anchor="w", pady=(8, 2))
+        ttk.Combobox(left, textvariable=self.image_strategy, values=["不用圖片", "沿用原圖", "超擬真重繪", "自由配圖"], state="readonly").pack(fill="x")
+        ttk.Label(left, text="目標頁數").pack(anchor="w", pady=(8, 2))
+        ttk.Spinbox(left, from_=1, to=100, textvariable=self.target_pages).pack(fill="x")
+        ttk.Label(left, text="AI 介入程度").pack(anchor="w", pady=(8, 2))
+        ttk.Combobox(left, textvariable=self.intervention, values=["忠實整理", "協助潤飾", "自由提案"], state="readonly").pack(fill="x")
+        ttk.Label(left, text="輸出格式").pack(anchor="w", pady=(8, 2))
+        ttk.Combobox(left, textvariable=self.output, values=["可編輯式 PPTX", "圖像式 PPTX"], state="readonly").pack(fill="x")
+        ttk.Separator(left).pack(fill="x", pady=12)
         ttk.Label(left, text="投影片", font=("Arial", 13, "bold")).pack(anchor="w")
         self.slide_list = tk.Listbox(left, activestyle="none", height=14, exportselection=False)
         self.slide_list.pack(fill="both", expand=True, pady=8)
@@ -131,8 +151,31 @@ class PresentationMakerApp(tk.Tk):
         document["sources"] = []
         return document
 
+    def new_sample(self):
+        self.source_path = None
+        if not self.title_text.get().strip():
+            self.title_text.set("我的離線簡報")
+        self.start()
+
+    def pick_primary(self):
+        path = filedialog.askopenfilename(filetypes=[("簡報、文件與圖片", "*.pptx *.pdf *.docx *.txt *.png *.jpg *.jpeg *.webp"), ("所有檔案", "*")])
+        if not path:
+            return
+        self.source_path = path
+        if not self.title_text.get().strip():
+            self.title_text.set(Path(path).stem)
+        self.start()
+
     def start(self):
         document = self._sample()
+        document["settings"] = {
+            "operation": self.operation.get(),
+            "image_strategy": self.image_strategy.get(),
+            "style": self.style.get(),
+            "output_format": self.output.get(),
+            "target_pages": max(1, min(100, self.target_pages.get())),
+            "intervention": self.intervention.get(),
+        }
         project_id = str(uuid4())
         asset_dir = self.app_support / "projects" / project_id / "assets"
         if self.source_path:
@@ -142,7 +185,7 @@ class PresentationMakerApp(tk.Tk):
                 messagebox.showerror("無法匯入來源", str(exc))
                 self.status_text.set(f"匯入失敗：{exc}")
                 return
-            document["title"] = Path(self.source_path).stem
+            document["title"] = self.title_text.get().strip() or Path(self.source_path).stem
             document["slides"] = imported_slides
             for slide in imported_slides:
                 slide["source_id"] = source_record["id"]
@@ -181,6 +224,14 @@ class PresentationMakerApp(tk.Tk):
                 return
             self.revision, self.document = loaded
             self.current_project_id = project_id
+            self.title_text.set(self.document.get("title", ""))
+            settings = self.document.get("settings", {})
+            self.operation.set(settings.get("operation", "保留內容"))
+            self.image_strategy.set(settings.get("image_strategy", "沿用原圖"))
+            self.style.set(settings.get("style", "清爽藍"))
+            self.output.set(settings.get("output_format", "可編輯式 PPTX"))
+            self.intervention.set(settings.get("intervention", "協助潤飾"))
+            self.target_pages.set(settings.get("target_pages", len(self.document.get("slides", [])) or 8))
             self.undo_stack.clear(); self.candidate = None
             self._refresh(); self.status_text.set("已從本機資料庫開啟專案。")
             menu.destroy()
@@ -188,6 +239,17 @@ class PresentationMakerApp(tk.Tk):
 
     def _persist(self):
         if not self.document or not self.current_project_id: return
+        if self.title_text.get().strip():
+            self.document["title"] = self.title_text.get().strip()
+        try:
+            target_pages = max(1, min(100, self.target_pages.get()))
+        except (ValueError, tk.TclError):
+            target_pages = 8
+        self.document["settings"] = {
+            "operation": self.operation.get(), "image_strategy": self.image_strategy.get(),
+            "style": self.style.get(), "output_format": self.output.get(),
+            "target_pages": target_pages, "intervention": self.intervention.get(),
+        }
         self.revision = self.project_store.save_document(self.current_project_id, self.document, self.revision)
         self.document["revision"] = self.revision
 
@@ -385,6 +447,9 @@ class PresentationMakerApp(tk.Tk):
     def export(self):
         if not self.document: self.start()
         if not self.document or not self.current_project_id: return
+        if self.output.get() == "圖像式 PPTX":
+            messagebox.showinfo("此格式尚未提供", "目前只支援可編輯式 PPTX；圖像式匯出尚未實作，沒有產生降級替代檔。")
+            return
         path = filedialog.asksaveasfilename(defaultextension=".pptx", filetypes=[("PowerPoint", "*.pptx")], initialfile="offline-presentation-example.pptx")
         if path:
             asset_root = self.app_support / "projects" / self.current_project_id / "assets"
