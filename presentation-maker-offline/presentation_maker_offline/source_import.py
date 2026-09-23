@@ -4,7 +4,7 @@ from pathlib import Path
 from uuid import uuid4
 
 
-def import_source(path: str | Path) -> tuple[list[dict], dict]:
+def import_source(path: str | Path, *, asset_dir: str | Path | None = None) -> tuple[list[dict], dict]:
     """Extract editable text and geometry from supported local source files."""
     source = Path(path).expanduser().resolve()
     if not source.is_file():
@@ -12,7 +12,7 @@ def import_source(path: str | Path) -> tuple[list[dict], dict]:
     suffix = source.suffix.lower()
     warnings = []
     if suffix == ".pptx":
-        slides = _pptx_slides(source)
+        slides = _pptx_slides(source, Path(asset_dir) if asset_dir else None)
     elif suffix == ".txt":
         slides = _text_slides(source.read_text(encoding="utf-8-sig"))
     elif suffix == ".docx":
@@ -35,7 +35,11 @@ def import_source(path: str | Path) -> tuple[list[dict], dict]:
                 warnings.append(f"PDF 第 {index + 1} 頁沒有可擷取文字；可能需要本機 OCR")
             slides.append(_slide_from_text(text, index, page_label=f"PDF 第 {index + 1} 頁"))
     elif suffix in {".png", ".jpg", ".jpeg", ".webp"}:
-        slides = [{"id": str(uuid4()), "order": 0, "title": source.stem, "elements": [], "source_page": 1}]
+        asset_path = _copy_asset(source, Path(asset_dir)) if asset_dir else None
+        element = {"id": str(uuid4()), "type": "image", "x": .08, "y": .2, "width": .84, "height": .64}
+        if asset_path:
+            element["asset_path"] = asset_path
+        slides = [{"id": str(uuid4()), "order": 0, "title": source.stem, "elements": [element], "source_page": 1}]
     else:
         raise ValueError(f"目前不支援此檔案格式：{suffix or '無副檔名'}")
     if not slides:
@@ -64,8 +68,20 @@ def _slide_from_text(text: str, index: int, page_label: str | None = None) -> di
     return {"id": str(uuid4()), "order": index, "title": title, "elements": elements, "source_page": index + 1}
 
 
-def _pptx_slides(path: Path) -> list[dict]:
+def _copy_asset(source: Path, asset_dir: Path) -> str:
+    return _copy_asset_bytes(source.read_bytes(), source.suffix, asset_dir)
+
+
+def _copy_asset_bytes(content: bytes, suffix: str, asset_dir: Path) -> str:
+    asset_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"{uuid4().hex}{suffix.lower()}"
+    (asset_dir / filename).write_bytes(content)
+    return filename
+
+
+def _pptx_slides(path: Path, asset_dir: Path | None = None) -> list[dict]:
     from pptx import Presentation
+    from pptx.enum.shapes import MSO_SHAPE_TYPE
 
     presentation = Presentation(path)
     slides = []
@@ -76,6 +92,18 @@ def _pptx_slides(path: Path) -> list[dict]:
         title_shape_id = title_shape.shape_id if title_shape else None
         elements = []
         for shape in source_slide.shapes:
+            if getattr(shape, "shape_type", None) == MSO_SHAPE_TYPE.PICTURE:
+                image = shape.image
+                element = {
+                    "id": str(uuid4()), "type": "image",
+                    "x": shape.left / width, "y": shape.top / height,
+                    "width": shape.width / width, "height": shape.height / height,
+                    "source_shape": shape.name,
+                }
+                if asset_dir:
+                    element["asset_path"] = _copy_asset_bytes(image.blob, f".{image.ext}", asset_dir)
+                elements.append(element)
+                continue
             if not getattr(shape, "has_text_frame", False):
                 continue
             text = shape.text.strip()

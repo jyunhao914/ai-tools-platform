@@ -37,9 +37,9 @@ class PresentationMakerApp(tk.Tk):
         self._build()
 
     def _init_store(self):
-        root = Path.home() / "Library" / "Application Support" / "PresentationMaker"
-        root.mkdir(parents=True, exist_ok=True)
-        self.project_store = ProjectStore(root / "projects.sqlite3")
+        self.app_support = Path.home() / "Library" / "Application Support" / "PresentationMaker"
+        self.app_support.mkdir(parents=True, exist_ok=True)
+        self.project_store = ProjectStore(self.app_support / "projects.sqlite3")
 
     def _build(self):
         self.configure(bg="#f4f6f8")
@@ -114,7 +114,7 @@ class PresentationMakerApp(tk.Tk):
         ttk.Button(data_tab, text="加入參考資料…", command=self.add_source).pack(fill="x")
         self.source_list = tk.Listbox(data_tab, height=10, activestyle="none")
         self.source_list.pack(fill="both", expand=True, pady=8)
-        ttk.Label(data_tab, text="範例資料僅保存路徑；本原型尚未解析文件內容。", wraplength=260).pack(anchor="w")
+        ttk.Label(data_tab, text="來源在本機解析；PPTX 文字與圖片素材可加入專案，DOCX／PDF／TXT 目前以文字為主。", wraplength=260).pack(anchor="w")
 
         footer = ttk.Frame(self, padding=(14, 4, 14, 12))
         footer.pack(fill="x")
@@ -130,17 +130,21 @@ class PresentationMakerApp(tk.Tk):
 
     def start(self):
         document = self._sample()
+        project_id = str(uuid4())
+        asset_dir = self.app_support / "projects" / project_id / "assets"
         if self.source_path:
             try:
-                imported_slides, source_record = import_source(self.source_path)
+                imported_slides, source_record = import_source(self.source_path, asset_dir=asset_dir)
             except (OSError, ValueError, RuntimeError) as exc:
                 messagebox.showerror("無法匯入來源", str(exc))
                 self.status_text.set(f"匯入失敗：{exc}")
                 return
             document["title"] = Path(self.source_path).stem
             document["slides"] = imported_slides
+            for slide in imported_slides:
+                slide["source_id"] = source_record["id"]
             document["sources"] = [source_record]
-        project_id = self.project_store.create(self.source_path or "example://interaction-prototype")
+        self.project_store.create(self.source_path or "example://interaction-prototype", project_id=project_id)
         document["project_id"] = project_id
         self.project_store.save_document(project_id, document, expected_revision=0)
         self.current_project_id, self.document, self.revision = project_id, document, 1
@@ -150,7 +154,7 @@ class PresentationMakerApp(tk.Tk):
         if warnings:
             self.status_text.set(f"已匯入，但有解析提醒：{warnings[0]}")
         elif self.source_path:
-            self.status_text.set("來源文字已匯入並保存；原圖與完整版面抽取尚未支援。")
+            self.status_text.set("本機來源內容已匯入；PPTX 文字／圖片可編輯與匯出，複雜圖層樣式仍有差異。")
         else:
             self.status_text.set("示例專案已保存；此為 UI 模擬，不是模型生成或推論進度。")
 
@@ -214,6 +218,7 @@ class PresentationMakerApp(tk.Tk):
 
     def draw_slide(self):
         self.canvas.delete("all")
+        self._canvas_images = []
         slide = self._current_slide()
         if not slide: return
         width, height = max(self.canvas.winfo_width(), 500), max(self.canvas.winfo_height(), 360)
@@ -221,7 +226,29 @@ class PresentationMakerApp(tk.Tk):
         self.canvas.create_rectangle(margin, margin, width-margin, height-margin, fill="white", outline="#cbd5e1")
         self.canvas.create_text(margin+28, margin+42, text=slide["title"], anchor="w", fill="#18324b", font=("Arial", 22, "bold"))
         self.canvas.create_line(margin+28, margin+70, width-margin-28, margin+70, fill="#dbeafe", width=3)
-        self.canvas.create_text(margin+32, margin+112, text="在畫布拖曳，新增可保存的區域標記", anchor="w", fill="#64748b", font=("Arial", 13))
+        content_drawn = False
+        for element in slide.get("elements", []):
+            x = margin + float(element.get("x", .08)) * (width-2*margin)
+            y = margin + float(element.get("y", .2)) * (height-2*margin)
+            box_width = float(element.get("width", .84)) * (width-2*margin)
+            box_height = float(element.get("height", .64)) * (height-2*margin)
+            if element.get("type") == "image" and element.get("asset_path") and self.current_project_id:
+                try:
+                    from PIL import Image, ImageTk
+                    image_path = self.app_support / "projects" / self.current_project_id / "assets" / element["asset_path"]
+                    with Image.open(image_path) as image:
+                        image.thumbnail((max(1, int(box_width)), max(1, int(box_height))))
+                        photo = ImageTk.PhotoImage(image.copy())
+                    self._canvas_images.append(photo)
+                    self.canvas.create_image(x, y, image=photo, anchor="nw")
+                    content_drawn = True
+                except (OSError, ImportError):
+                    self.canvas.create_text(x, y, text="圖片素材無法預覽", anchor="nw", fill="#b42318")
+            elif element.get("type", "text") == "text" and element.get("text"):
+                self.canvas.create_text(x, y, width=box_width, text=element["text"], anchor="nw", justify="left", fill="#334155", font=("Arial", 13))
+                content_drawn = True
+        if not content_drawn:
+            self.canvas.create_text(margin+32, margin+112, text="在畫布拖曳，新增可保存的區域標記", anchor="w", fill="#64748b", font=("Arial", 13))
         for idx, mark in enumerate(self._slide_annotations(slide["id"]), 1):
             x1, y1, x2, y2 = mark["rect"]
             x1, x2 = sorted((x1, x2)); y1, y2 = sorted((y1, y2))
@@ -330,7 +357,13 @@ class PresentationMakerApp(tk.Tk):
         path = filedialog.askopenfilename(filetypes=[("簡報與文件", "*.pptx *.pdf *.docx *.txt *.png *.jpg *.jpeg"), ("所有檔案", "*")])
         if not path: return
         if not self.document: self.start()
-        self._mutate(); self.document.setdefault("sources", []).append({"id": str(uuid4()), "path": path, "role": "supplement", "scope": "project", "version": 1})
+        try:
+            source_slides, source_record = import_source(path, asset_dir=self.app_support / "projects" / self.current_project_id / "assets")
+        except (OSError, ValueError, RuntimeError) as exc:
+            messagebox.showerror("無法加入參考資料", str(exc)); return
+        source_record["role"] = "supplement"
+        source_record["pages"] = source_slides
+        self._mutate(); self.document.setdefault("sources", []).append(source_record)
         self._persist(); self._refresh(); self.status_text.set("來源路徑已加入專案；目前原型尚未解析內容。")
 
     def show_settings(self):
@@ -348,7 +381,8 @@ class PresentationMakerApp(tk.Tk):
         if not self.document: self.start()
         path = filedialog.asksaveasfilename(defaultextension=".pptx", filetypes=[("PowerPoint", "*.pptx")], initialfile="offline-presentation-example.pptx")
         if path:
-            export_project_pptx(path, self.document, self.style.get())
+            asset_root = self.app_support / "projects" / self.current_project_id / "assets"
+            export_project_pptx(path, self.document, self.style.get(), asset_root=asset_root)
             self.status_text.set(f"已匯出可編輯 PPTX：{Path(path).name}；原圖尚未包含。")
             messagebox.showinfo("已匯出可編輯 PPTX", "文字與頁面為可編輯物件。此版尚未輸出來源圖片，也未經模型生成。")
 

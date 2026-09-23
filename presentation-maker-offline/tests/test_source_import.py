@@ -1,6 +1,8 @@
 from pptx import Presentation
 from docx import Document
 from pypdf import PdfWriter
+from PIL import Image
+from pptx.util import Inches
 
 from presentation_maker_offline.source_import import import_source
 
@@ -51,3 +53,19 @@ def test_scanned_pdf_is_explicitly_flagged_for_ocr(tmp_path):
     slides, record = import_source(source)
     assert len(slides) == 1
     assert record["warnings"] == ["PDF 第 1 頁沒有可擷取文字；可能需要本機 OCR"]
+
+
+def test_import_pptx_copies_images_into_project_asset_folder(tmp_path):
+    image_path = tmp_path / "source.png"
+    Image.new("RGB", (32, 16), "navy").save(image_path)
+    deck_path = tmp_path / "with-image.pptx"
+    presentation = Presentation()
+    slide = presentation.slides.add_slide(presentation.slide_layouts[6])
+    slide.shapes.add_picture(str(image_path), Inches(1), Inches(1), width=Inches(2))
+    presentation.save(deck_path)
+    asset_dir = tmp_path / "project-assets"
+
+    slides, _record = import_source(deck_path, asset_dir=asset_dir)
+    picture = slides[0]["elements"][0]
+    assert picture["type"] == "image"
+    assert (asset_dir / picture["asset_path"]).is_file()

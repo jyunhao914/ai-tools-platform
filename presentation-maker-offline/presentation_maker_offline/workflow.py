@@ -67,8 +67,8 @@ class ProjectStore:
         )""")
         self.db.commit()
 
-    def create(self, source_path: str) -> str:
-        project_id = str(uuid.uuid4())
+    def create(self, source_path: str, project_id: str | None = None) -> str:
+        project_id = project_id or str(uuid.uuid4())
         self.db.execute("INSERT INTO projects(id, source_path, state) VALUES (?, ?, ?)", (project_id, source_path, "created"))
         self.db.commit()
         return project_id

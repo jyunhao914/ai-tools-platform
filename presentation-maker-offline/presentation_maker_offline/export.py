@@ -18,8 +18,8 @@ def export_demo_pptx(path: str | Path, title: str, outline: list[str], style: st
     prs.save(out); return out
 
 
-def export_project_pptx(path: str | Path, document: dict, style: str = "清爽藍") -> Path:
-    """Export project text as native editable PowerPoint objects."""
+def export_project_pptx(path: str | Path, document: dict, style: str = "清爽藍", *, asset_root: str | Path | None = None) -> Path:
+    """Export project text and available image assets as PowerPoint objects."""
     validate_project_document(document)
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -39,12 +39,37 @@ def export_project_pptx(path: str | Path, document: dict, style: str = "清爽�
             title_run.font.bold = True
             title_run.font.color.rgb = accent
         for element in slide_doc.get("elements", []):
-            if element.get("type", "text") != "text":
-                continue
             x = max(0, min(.98, float(element.get("x", .08))))
             y = max(0, min(.95, float(element.get("y", .24))))
             width = max(.02, min(1-x, float(element.get("width", .84))))
             height = max(.02, min(1-y, float(element.get("height", .58))))
+            if element.get("type", "text") == "image":
+                relative_path = element.get("asset_path")
+                if not relative_path:
+                    continue
+                if not asset_root:
+                    raise ValueError("asset_root is required to export project images")
+                root = Path(asset_root).resolve()
+                image_path = (root / relative_path).resolve()
+                if root not in image_path.parents:
+                    raise ValueError("image asset path must stay inside the project asset folder")
+                if not image_path.is_file():
+                    raise FileNotFoundError(f"找不到專案圖片素材：{relative_path}")
+                from PIL import Image
+                with Image.open(image_path) as image:
+                    image_ratio = image.width / image.height
+                box_width, box_height = width * 13.333, height * 7.5
+                if image_ratio > box_width / box_height:
+                    draw_width, draw_height = box_width, box_width / image_ratio
+                else:
+                    draw_height, draw_width = box_height, box_height * image_ratio
+                slide.shapes.add_picture(
+                    str(image_path), Inches(x * 13.333 + (box_width-draw_width)/2),
+                    Inches(y * 7.5 + (box_height-draw_height)/2), Inches(draw_width), Inches(draw_height),
+                )
+                continue
+            if element.get("type", "text") != "text":
+                continue
             box = slide.shapes.add_textbox(
                 Inches(x * 13.333), Inches(y * 7.5), Inches(width * 13.333), Inches(height * 7.5),
             )
