@@ -59,6 +59,12 @@ class ProjectStore:
                 result_json TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP
             );"""
         )
+        self.db.execute("""CREATE TABLE IF NOT EXISTS project_documents (
+            project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+            revision INTEGER NOT NULL,
+            content_json TEXT NOT NULL,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )""")
         self.db.commit()
 
     def create(self, source_path: str) -> str:
@@ -82,6 +88,42 @@ class ProjectStore:
 
     def attempts(self, project_id: str) -> list[sqlite3.Row]:
         return list(self.db.execute("SELECT * FROM attempts WHERE project_id = ? ORDER BY id", (project_id,)))
+
+    def load_document(self, project_id: str) -> tuple[int, dict] | None:
+        row = self.db.execute("SELECT revision, content_json FROM project_documents WHERE project_id = ?", (project_id,)).fetchone()
+        if not row:
+            return None
+        document = json.loads(row["content_json"])
+        document["revision"] = row["revision"]
+        return row["revision"], document
+
+    def save_document(self, project_id: str, document: dict, expected_revision: int) -> int:
+        from .project_document import validate_project_document
+        validate_project_document(document)
+        if document.get("project_id") != project_id:
+            raise ValueError("document project id does not match the target project")
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            row = self.db.execute("SELECT revision FROM project_documents WHERE project_id = ?", (project_id,)).fetchone()
+            current = row["revision"] if row else 0
+            if current != expected_revision:
+                raise RuntimeError(f"project revision conflict: expected {expected_revision}, found {current}")
+            next_revision = current + 1
+            persisted = dict(document, revision=next_revision)
+            encoded = json.dumps(persisted, ensure_ascii=False, sort_keys=True)
+            self.db.execute(
+                "INSERT INTO project_documents(project_id, revision, content_json) VALUES(?,?,?) "
+                "ON CONFLICT(project_id) DO UPDATE SET revision=excluded.revision, content_json=excluded.content_json, updated_at=CURRENT_TIMESTAMP",
+                (project_id, next_revision, encoded),
+            )
+            self.db.commit()
+            return next_revision
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def list_projects(self) -> list[sqlite3.Row]:
+        return list(self.db.execute("SELECT id, source_path, state, updated_at FROM projects ORDER BY updated_at DESC"))
 
 
 class Workflow:

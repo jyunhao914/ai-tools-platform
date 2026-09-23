@@ -11,5 +11,9 @@ def test_clear_cache_preserves_models(tmp_path):
 
 def test_discovery_prefers_existing_lm_studio_path(monkeypatch, tmp_path):
     model = tmp_path / "Qwen3.8-27B-Uncensored-MLX-8bit"; model.mkdir(); (model / "model-00001.safetensors").write_bytes(b"x")
+    (model / "config.json").write_text("{}")
+    (model / "tokenizer.json").write_text("{}")
+    (model / "tokenizer_config.json").write_text("{}")
+    (model / "model.safetensors.index.json").write_text('{"weight_map":{"x":"model-00001.safetensors"}}')
     monkeypatch.setenv("MODEL_HOME", str(model))
     assert discover_qwen38_mlx() == model

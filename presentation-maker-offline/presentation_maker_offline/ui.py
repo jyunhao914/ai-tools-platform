@@ -2,12 +2,20 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from pathlib import Path
+from uuid import uuid4
 from .export import export_demo_pptx
+from .storage import discover_qwen38_mlx, qwen_image21_readiness
+from .workflow import ProjectStore
+from .project_document import new_project_document
 
 class PresentationMakerApp(tk.Tk):
     def __init__(self):
         super().__init__(); self.title("Presentation Maker Offline"); self.geometry("1100x720"); self.minsize(900, 600)
         self.source = tk.StringVar(); self.title_text = tk.StringVar(value="我的離線簡報"); self.style = tk.StringVar(value="清爽藍"); self.output = tk.StringVar(value="可編輯式 PPTX")
+        project_root = Path.home() / "Library" / "Application Support" / "PresentationMaker"
+        project_root.mkdir(parents=True, exist_ok=True)
+        self.project_store = ProjectStore(project_root / "projects.sqlite3")
+        self.current_project_id = None
         self._build()
     def _build(self):
         header = ttk.Frame(self, padding=24); header.pack(fill="x")
@@ -38,23 +46,37 @@ class PresentationMakerApp(tk.Tk):
         p = filedialog.askopenfilename(filetypes=[("簡報與文件", "*.pptx *.pdf *.docx *.txt"), ("所有檔案", "*")]);
         if p: self.source.set(Path(p).name); self.status.config(text="已加入來源，請確認設定後開始製作。")
     def start(self):
+        title = self.title_text.get().strip() or "未命名簡報"
+        document = new_project_document(title)
+        slide_titles = [title, "核心訊息與聽眾", "內容架構與重點", "行動建議與下一步"]
+        document["slides"] = [
+            {"id": str(uuid4()), "order": index, "title": heading, "elements": []}
+            for index, heading in enumerate(slide_titles)
+        ]
+        source_path = self.source.get() or "example://sample-project"
+        self.current_project_id = self.project_store.create(source_path)
+        self.project_store.save_document(self.current_project_id, document, expected_revision=0)
         self.preview.delete(0, "end"); self.preview.insert("end", self.title_text.get());
         for x in ["核心訊息與聽眾", "內容架構與重點", "行動建議與下一步"]: self.preview.insert("end", x)
         self.progress["value"] = 100
         self.step.set("1 ✓ 來源  ·  2 ✓ 設定  ·  3 ✓ 製作  ·  4 編輯與匯出")
-        self.status.config(text=f"已完成大綱與版面預覽 · {self.operation.get()} · {self.images.get()} · {self.style.get()} · 範例流程")
+        self.status.config(text=f"示例專案已保存 · {self.operation.get()} · {self.images.get()} · {self.style.get()} · 模型流程尚未串接")
     def export(self):
         if not self.preview.size(): self.start()
         p = filedialog.asksaveasfilename(defaultextension=".pptx", filetypes=[("PowerPoint", "*.pptx")], initialfile="offline-presentation.pptx")
         if p:
-            export_demo_pptx(p, self.title_text.get(), list(self.preview.get(1, "end")), self.style.get()); self.status.config(text=f"已匯出：{Path(p).name}"); messagebox.showinfo("完成", "簡報已匯出，可用 PowerPoint 或 Keynote 開啟。")
+            export_demo_pptx(p, self.title_text.get(), list(self.preview.get(1, "end")), self.style.get()); self.status.config(text=f"示例 PPTX 已匯出：{Path(p).name} · 模型流程尚未串接"); messagebox.showinfo("完成", "示例簡報已匯出，可用 PowerPoint 或 Keynote 開啟。此功能目前輸出示例內容，模型工作流程尚未串接。")
     def show_settings(self):
         win = tk.Toplevel(self); win.title("模型與儲存設定"); win.geometry("520x300"); win.transient(self)
         ttk.Label(win, text="進階設定", font=("Arial", 16, "bold")).pack(anchor="w", padx=22, pady=(20,4))
         ttk.Label(win, text="一般流程不需要理解模型細節。以下僅顯示本機狀態。", foreground="#536174").pack(anchor="w", padx=22)
         box = ttk.LabelFrame(win, text="本機引擎狀態", padding=14); box.pack(fill="x", padx=22, pady=18)
-        ttk.Label(box, text="文字模型　Qwen3.8-27B　✓ 已找到（LM Studio MLX）").pack(anchor="w")
-        ttk.Label(box, text="圖片模型　Qwen-Image-2.1　… 下載中").pack(anchor="w", pady=(8,0))
+        text_model = discover_qwen38_mlx()
+        image_model = qwen_image21_readiness()
+        text_status = f"文字模型　Qwen3.8-27B　✓ 已找到（MLX，{len(list(text_model.glob('*.safetensors')))} 個分片）" if text_model else "文字模型　Qwen3.8-27B　尚未找到完整模型資料夾"
+        image_status = f"圖片模型　Qwen-Image-2.1　✓ 權重完整（{image_model['safetensors']} 個權重檔）；推論載入尚未驗證" if image_model["ready"] else f"圖片模型　Qwen-Image-2.1　尚未完整（缺少 {len(image_model['missing'])} 項，暫存 {len(image_model['incomplete'])} 項）"
+        ttk.Label(box, text=text_status, wraplength=455).pack(anchor="w")
+        ttk.Label(box, text=image_status, wraplength=455).pack(anchor="w", pady=(8,0))
         ttk.Label(box, text="儲存位置　由使用者選定的外接磁碟／模型資料夾").pack(anchor="w", pady=(8,0))
         ttk.Button(win, text="關閉", command=win.destroy).pack(anchor="e", padx=22)
 

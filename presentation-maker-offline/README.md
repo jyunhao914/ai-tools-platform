@@ -57,7 +57,9 @@
 
 開發機會優先偵測既有的 LM Studio MLX 模型：`~/.cache/lm-studio/models/orcarouter/Qwen3.8-27B-Uncensored-MLX-8bit`。此目錄只原地引用，不會複製；啟動健康檢查會確認模型目錄與 safetensors 分片存在。
 
-Qwen-Image-2.1 會自動偵測 `~/.cache/lm-studio/models/Qwen/Qwen-Image-2.1`。只有 `model_index.json`、processor、text_encoder、transformer、vae 與核心 safetensors 全部存在，且找不到任何 `.incomplete` 檔案時才會標記為 ready。
+Qwen-Image-2.1 會自動偵測 `~/.cache/lm-studio/models/Qwen/Qwen-Image-2.1`。只有 `model_index.json`、processor、text_encoder、transformer、vae 與索引列出的每個 safetensors 分片都存在，且找不到任何 `.incomplete` 檔案時才會標記為權重完整。
+
+2026-09-23 本機離線載入驗證通過：PyTorch 2.10.0、Diffusers 0.41.0.dev0（commit `8b3c707`）、Transformers 5.17.0、MPS 可用；`QwenImage21Pipeline.from_pretrained(..., local_files_only=True)` 成功載入全部五個元件。這驗證權重和載入流程，尚不等同完整圖片生成／編修驗收。相容套件版本記錄於 `requirements-inference-macos.txt`。
 - 本機 Qwen-Image-2.1 生成／編修佇列
 - 既有 PPTX 輸入、五種操作與完整圖片策略
 - 圖像式及可編輯式 PPTX 輸出

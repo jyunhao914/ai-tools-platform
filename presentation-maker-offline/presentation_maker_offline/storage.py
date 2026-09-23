@@ -1,5 +1,5 @@
 from __future__ import annotations
-import os, shutil
+import json, os, shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -38,14 +38,73 @@ def selected_model_home() -> Path:
     return Path("~/.cache/lm-studio/models/orcarouter/Qwen3.8-27B-Uncensored-MLX-8bit").expanduser()
 
 def discover_qwen38_mlx() -> Path | None:
-    path = selected_model_home()
-    return path if path.is_dir() and len(list(path.glob("*.safetensors"))) >= 1 else None
+    candidates = [
+        os.environ.get("TEXT_MODEL_HOME"),
+        os.environ.get("MODEL_HOME"),
+        "/Users/jyunhao/.cache/lm-studio/models/orcarouter/Qwen3.8-27B-Uncensored-MLX-8bit",
+    ]
+    for candidate in candidates:
+        if not candidate:
+            continue
+        path = Path(candidate).expanduser()
+        if not path.is_dir():
+            continue
+        index = path / "model.safetensors.index.json"
+        required = ["config.json", "tokenizer.json", "tokenizer_config.json", index]
+        if any(not (path / name).is_file() for name in required):
+            continue
+        try:
+            weight_map = json.loads(index.read_text()).get("weight_map", {})
+            shards = set(weight_map.values())
+            if not shards or any(not (path / name).is_file() for name in shards):
+                continue
+        except (OSError, ValueError, TypeError):
+            continue
+        if any(path.rglob("*.incomplete")):
+            continue
+        return path
+    return None
 
 def qwen_image21_readiness(path: str | Path = "~/.cache/lm-studio/models/Qwen/Qwen-Image-2.1") -> dict:
     root = Path(path).expanduser()
     required = [root / "model_index.json", root / "processor", root / "text_encoder", root / "transformer", root / "vae"]
     incomplete = list(root.rglob("*.incomplete")) if root.exists() else []
-    missing = [str(p.relative_to(root)) for p in required if not p.exists()]
+    missing = [p.name if p.parent == root else str(p.relative_to(root)) for p in required if not p.exists()]
     safetensors = list(root.rglob("*.safetensors")) if root.exists() else []
-    if not safetensors: missing.append("core *.safetensors")
-    return {"ready": bool(root.is_dir() and not missing and not incomplete), "path": str(root), "missing": missing, "incomplete": [str(p.relative_to(root)) for p in incomplete], "safetensors": len(safetensors)}
+    expected_shards: set[str] = set()
+    try:
+        model_index = json.loads((root / "model_index.json").read_text())
+        if model_index.get("_class_name") != "QwenImage21Pipeline":
+            missing.append("model_index.json (_class_name=QwenImage21Pipeline)")
+        for component in ("text_encoder", "transformer"):
+            indexes = list((root / component).glob("*.index.json"))
+            if not indexes:
+                missing.append(f"{component}/*.index.json")
+            for index_path in indexes:
+                index_data = json.loads(index_path.read_text())
+                shards = set(index_data.get("weight_map", {}).values())
+                if not shards:
+                    missing.append(str(index_path.relative_to(root)) + " (empty weight_map)")
+                for shard in shards:
+                    expected_shards.add(str((index_path.parent / shard).relative_to(root)))
+                    if not (index_path.parent / shard).is_file():
+                        missing.append(str((index_path.parent / shard).relative_to(root)))
+        for component, filename in (("transformer", "config.json"), ("text_encoder", "config.json"), ("vae", "config.json"), ("processor", "tokenizer.json")):
+            if not (root / component / filename).is_file():
+                missing.append(f"{component}/{filename}")
+        if not list((root / "vae").glob("*.safetensors")):
+            missing.append("vae/*.safetensors")
+    except (OSError, ValueError, TypeError) as exc:
+        missing.append(f"model metadata unreadable: {type(exc).__name__}")
+    if not expected_shards and not safetensors:
+        missing.append("core *.safetensors")
+    ready = bool(root.is_dir() and not missing and not incomplete)
+    return {
+        "ready": ready,
+        "status": "weights_ready_runtime_unverified" if ready else "incomplete",
+        "path": str(root),
+        "missing": sorted(set(missing)),
+        "incomplete": [str(p.relative_to(root)) for p in incomplete],
+        "safetensors": len(safetensors),
+        "indexed_shards": len(expected_shards),
+    }
