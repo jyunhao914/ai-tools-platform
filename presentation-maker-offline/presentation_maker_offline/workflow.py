@@ -65,6 +65,18 @@ class ProjectStore:
             content_json TEXT NOT NULL,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )""")
+        self.db.execute("""CREATE TABLE IF NOT EXISTS project_revisions (
+            project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+            revision INTEGER NOT NULL,
+            parent_revision INTEGER NOT NULL,
+            content_json TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY(project_id, revision)
+        )""")
+        self.db.execute(
+            "INSERT OR IGNORE INTO project_revisions(project_id, revision, parent_revision, content_json, created_at) "
+            "SELECT project_id, revision, 0, content_json, updated_at FROM project_documents"
+        )
         self.db.commit()
 
     def create(self, source_path: str, project_id: str | None = None) -> str:
@@ -97,7 +109,7 @@ class ProjectStore:
         document["revision"] = row["revision"]
         return row["revision"], document
 
-    def save_document(self, project_id: str, document: dict, expected_revision: int) -> int:
+    def save_document(self, project_id: str, document: dict, expected_revision: int, *, parent_revision: int | None = None) -> int:
         from .project_document import validate_project_document
         validate_project_document(document)
         if document.get("project_id") != project_id:
@@ -109,6 +121,14 @@ class ProjectStore:
             if current != expected_revision:
                 raise RuntimeError(f"project revision conflict: expected {expected_revision}, found {current}")
             next_revision = current + 1
+            parent = current if parent_revision is None else parent_revision
+            if parent < 0 or parent >= next_revision:
+                raise ValueError("parent revision must be older than the new revision")
+            if parent and not self.db.execute(
+                "SELECT 1 FROM project_revisions WHERE project_id=? AND revision=?",
+                (project_id, parent),
+            ).fetchone():
+                raise ValueError(f"parent revision {parent} does not exist")
             persisted = dict(document, revision=next_revision)
             encoded = json.dumps(persisted, ensure_ascii=False, sort_keys=True)
             self.db.execute(
@@ -116,11 +136,38 @@ class ProjectStore:
                 "ON CONFLICT(project_id) DO UPDATE SET revision=excluded.revision, content_json=excluded.content_json, updated_at=CURRENT_TIMESTAMP",
                 (project_id, next_revision, encoded),
             )
+            self.db.execute(
+                "INSERT INTO project_revisions(project_id, revision, parent_revision, content_json) VALUES(?,?,?,?)",
+                (project_id, next_revision, parent, encoded),
+            )
             self.db.commit()
             return next_revision
         except Exception:
             self.db.rollback()
             raise
+
+    def load_revision(self, project_id: str, revision: int) -> tuple[int, dict] | None:
+        row = self.db.execute(
+            "SELECT revision, content_json FROM project_revisions WHERE project_id=? AND revision=?",
+            (project_id, revision),
+        ).fetchone()
+        if not row:
+            return None
+        document = json.loads(row["content_json"])
+        return row["revision"], document
+
+    def revision_parent(self, project_id: str, revision: int) -> int | None:
+        row = self.db.execute(
+            "SELECT parent_revision FROM project_revisions WHERE project_id=? AND revision=?",
+            (project_id, revision),
+        ).fetchone()
+        return row["parent_revision"] if row else None
+
+    def list_revisions(self, project_id: str) -> list[sqlite3.Row]:
+        return list(self.db.execute(
+            "SELECT revision, parent_revision, created_at FROM project_revisions WHERE project_id=? ORDER BY revision DESC",
+            (project_id,),
+        ))
 
     def list_projects(self) -> list[sqlite3.Row]:
         return list(self.db.execute("SELECT id, source_path, state, updated_at FROM projects ORDER BY updated_at DESC"))

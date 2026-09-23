@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import tkinter as tk
-from copy import deepcopy
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from uuid import uuid4
@@ -25,7 +24,7 @@ class PresentationMakerApp(tk.Tk):
         self.current_project_id: str | None = None
         self.document: dict | None = None
         self.revision = 0
-        self.undo_stack: list[dict] = []
+        self._next_parent_revision: int | None = None
         self.candidate: dict | None = None
         self.mark_start: tuple[int, int] | None = None
         self.mark_rect: int | None = None
@@ -200,7 +199,6 @@ class PresentationMakerApp(tk.Tk):
         document["project_id"] = project_id
         self.project_store.save_document(project_id, document, expected_revision=0)
         self.current_project_id, self.document, self.revision = project_id, document, 1
-        self.undo_stack.clear()
         self._refresh()
         warnings = document["sources"][0].get("warnings", []) if document.get("sources") else []
         if warnings:
@@ -230,15 +228,8 @@ class PresentationMakerApp(tk.Tk):
                 return
             self.revision, self.document = loaded
             self.current_project_id = project_id
-            self.title_text.set(self.document.get("title", ""))
-            settings = self.document.get("settings", {})
-            self.operation.set(settings.get("operation", "保留內容"))
-            self.image_strategy.set(settings.get("image_strategy", "沿用原圖"))
-            self.style.set(settings.get("style", "清爽藍"))
-            self.output.set(settings.get("output_format", "可編輯式 PPTX"))
-            self.intervention.set(settings.get("intervention", "協助潤飾"))
-            self.target_pages.set(settings.get("target_pages", len(self.document.get("slides", [])) or 8))
-            self.undo_stack.clear(); self.candidate = None
+            self._restore_controls()
+            self.candidate = None
             self._refresh(); self.status_text.set("已從本機資料庫開啟專案。")
             menu.destroy()
         ttk.Button(menu, text="開啟", command=load_selected).pack(pady=(0, 12))
@@ -256,12 +247,25 @@ class PresentationMakerApp(tk.Tk):
             "style": self.style.get(), "output_format": self.output.get(),
             "target_pages": target_pages, "intervention": self.intervention.get(),
         }
-        self.revision = self.project_store.save_document(self.current_project_id, self.document, self.revision)
+        self.revision = self.project_store.save_document(
+            self.current_project_id, self.document, self.revision,
+            parent_revision=self._next_parent_revision,
+        )
+        self._next_parent_revision = None
         self.document["revision"] = self.revision
+
+    def _restore_controls(self):
+        self.title_text.set(self.document.get("title", ""))
+        settings = self.document.get("settings", {})
+        self.operation.set(settings.get("operation", "保留內容"))
+        self.image_strategy.set(settings.get("image_strategy", "沿用原圖"))
+        self.style.set(settings.get("style", "清爽藍"))
+        self.output.set(settings.get("output_format", "可編輯式 PPTX"))
+        self.intervention.set(settings.get("intervention", "協助潤飾"))
+        self.target_pages.set(settings.get("target_pages", len(self.document.get("slides", [])) or 8))
 
     def _mutate(self):
         if self.document is None: self.start()
-        self.undo_stack.append(deepcopy(self.document))
 
     def _refresh(self):
         if not self.document: return
@@ -419,11 +423,21 @@ class PresentationMakerApp(tk.Tk):
         self.candidate = None; self.candidate_text.set("目前沒有候選版本")
 
     def undo(self):
-        if not self.undo_stack or not self.document: return
-        previous = self.undo_stack.pop()
-        previous["project_id"] = self.current_project_id
-        self.document = previous; self._persist(); self._refresh()
-        self.status_text.set("已復原一項變更並保存。")
+        if not self.document or not self.current_project_id: return
+        parent = self.project_store.revision_parent(self.current_project_id, self.revision)
+        if not parent:
+            self.status_text.set("目前已是最早版本，沒有可復原的修改。")
+            return
+        restored = self.project_store.load_revision(self.current_project_id, parent)
+        if not restored:
+            self.status_text.set("找不到此修訂的歷史快照，未變更目前文件。")
+            return
+        earlier_parent = self.project_store.revision_parent(self.current_project_id, parent) or 0
+        _old_revision, self.document = restored
+        self._restore_controls()
+        self._next_parent_revision = earlier_parent
+        self._persist(); self._refresh()
+        self.status_text.set("已從持久化修訂快照復原，並保存為新的目前版本。")
 
     def add_source(self):
         path = filedialog.askopenfilename(filetypes=[("簡報與文件", "*.pptx *.pdf *.docx *.txt *.png *.jpg *.jpeg"), ("所有檔案", "*")])
