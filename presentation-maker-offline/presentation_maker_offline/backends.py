@@ -4,6 +4,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from PIL import Image
 from .manifest import CheckpointManifest
+from .storage import qwen_image21_readiness
 
 class TextBackend:
     name = "text"
@@ -78,6 +79,10 @@ class LocalQwenImageBackend(ImageBackend):
         return "mps" if mps_available else "cpu"
     def health(self) -> dict:
         errors = self.manifest.validate(verify_hash=False)
+        readiness = qwen_image21_readiness(self.manifest.path)
+        errors.extend(readiness["missing"])
+        if readiness["incomplete"]:
+            errors.append("checkpoint contains incomplete download files")
         if self.runtime != "diffusers": errors.append("the desktop image engine must use diffusers")
         if self.vae_device == "cpu": errors.append("CPU-only VAE offload is not enabled; use auto/MPS or full CPU inference")
         try:
@@ -88,7 +93,7 @@ class LocalQwenImageBackend(ImageBackend):
         else:
             if platform.system() == "Darwin" and platform.machine() == "arm64" and not torch.backends.mps.is_available():
                 errors.append("PyTorch MPS is unavailable")
-        return {"ok": not errors, "weights_ready": not self.manifest.validate(verify_hash=False), "backend": self.name, "runtime": self.runtime, "vae_device": self.selected_vae_device(False), "errors": errors}
+        return {"ok": not errors, "weights_ready": readiness["ready"], "backend": self.name, "runtime": self.runtime, "vae_device": self.selected_vae_device(False), "errors": errors}
     def generate(self, prompt: str, *, edit_image: str | None = None) -> dict:
         if self.num_inference_steps < 2:
             raise ValueError("Qwen-Image generation requires at least 2 inference steps")
@@ -101,6 +106,9 @@ class LocalQwenImageBackend(ImageBackend):
             vae_device = self.selected_vae_device(edit_image is not None)
             if vae_device == "cpu" and device == "mps":
                 raise RuntimeError("CPU-only VAE offload is not enabled yet; select auto/MPS to keep inference on the accelerator")
+            readiness = qwen_image21_readiness(self.manifest.path)
+            if not readiness["ready"]:
+                raise RuntimeError("本機 Qwen-Image 權重未通過完整性檢查：" + "; ".join(readiness["missing"] + readiness["incomplete"]))
             if self._pipeline is None:
                 self._pipeline = QwenImage21Pipeline.from_pretrained(
                     self.manifest.path,
@@ -115,17 +123,24 @@ class LocalQwenImageBackend(ImageBackend):
             call = {"prompt": prompt, "num_inference_steps": self.num_inference_steps, "width": self.width, "height": self.height}
             if image_input is not None:
                 call["image"] = image_input
-            result = pipeline(**call)
+            try:
+                result = pipeline(**call)
+            except Exception:
+                self._pipeline = None
+                raise
             images = result.images
-            extrema = images[0].convert("RGB").getextrema()
-            if all(low == high for low, high in extrema):
+            candidate = images[0].convert("RGB")
+            extrema = candidate.getextrema()
+            color_count = len(set(candidate.get_flattened_data()))
+            if all(low == high for low, high in extrema) or color_count < 8:
+                self._pipeline = None
                 raise RuntimeError("Qwen-Image produced a flat/invalid image; no output was saved")
             output_dir = Path.home() / "Library" / "Caches" / "PresentationMaker" / "generated"
             output_dir.mkdir(parents=True, exist_ok=True)
             descriptor, filename = tempfile.mkstemp(suffix=".png", dir=output_dir)
             os.close(descriptor)
             output_path = Path(filename)
-            images[0].save(output_path)
+            candidate.save(output_path)
             return {"device": device, "vae_device": vae_device, "image_path": str(output_path)}
         except ImportError as exc:
             raise RuntimeError("內建影像引擎尚未安裝 Diffusers/PyTorch") from exc
