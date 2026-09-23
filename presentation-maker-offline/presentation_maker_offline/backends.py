@@ -62,14 +62,24 @@ class LocalQwenImageBackend(ImageBackend):
     manifest: CheckpointManifest
     runtime: str = "diffusers"
     vae_device: str = "auto"
+    num_inference_steps: int = 40
+    width: int = 1024
+    height: int = 576
     name: str = "qwen-image-2.1-local"
     _pipeline: object | None = None
     def selected_vae_device(self, editing: bool) -> str:
-        if self.vae_device in {"cpu", "mps"}: return self.vae_device
-        return "cpu" if editing and platform.system() == "Darwin" and platform.machine() == "arm64" else "mps"
+        if self.vae_device == "cpu": return "cpu"
+        try:
+            import torch
+            mps_available = platform.system() == "Darwin" and torch.backends.mps.is_available()
+        except (ImportError, AttributeError):
+            mps_available = False
+        if self.vae_device == "mps": return "mps" if mps_available else "cpu"
+        return "mps" if mps_available else "cpu"
     def health(self) -> dict:
         errors = self.manifest.validate(verify_hash=False)
         if self.runtime != "diffusers": errors.append("the desktop image engine must use diffusers")
+        if self.vae_device == "cpu": errors.append("CPU-only VAE offload is not enabled; use auto/MPS or full CPU inference")
         try:
             import torch
             from diffusers import QwenImage21Pipeline  # noqa: F401
@@ -80,41 +90,42 @@ class LocalQwenImageBackend(ImageBackend):
                 errors.append("PyTorch MPS is unavailable")
         return {"ok": not errors, "weights_ready": not self.manifest.validate(verify_hash=False), "backend": self.name, "runtime": self.runtime, "vae_device": self.selected_vae_device(False), "errors": errors}
     def generate(self, prompt: str, *, edit_image: str | None = None) -> dict:
+        if self.num_inference_steps < 2:
+            raise ValueError("Qwen-Image generation requires at least 2 inference steps")
+        if self.width < 16 or self.height < 16:
+            raise ValueError("image width and height must each be at least 16 pixels")
         try:
             import torch
             from diffusers import QwenImage21Pipeline
             device = "mps" if torch.backends.mps.is_available() else "cpu"
+            vae_device = self.selected_vae_device(edit_image is not None)
+            if vae_device == "cpu" and device == "mps":
+                raise RuntimeError("CPU-only VAE offload is not enabled yet; select auto/MPS to keep inference on the accelerator")
             if self._pipeline is None:
                 self._pipeline = QwenImage21Pipeline.from_pretrained(
                     self.manifest.path,
-                    torch_dtype=torch.float16 if device == "mps" else torch.float32,
+                    dtype=torch.float16 if device == "mps" else torch.float32,
                     local_files_only=True,
                     low_cpu_mem_usage=True,
                 ).to(device)
             pipeline = self._pipeline
-            vae_device = self.selected_vae_device(edit_image is not None)
-            if edit_image is not None and vae_device == "cpu":
-                pipeline.vae.to("cpu")
+            if str(pipeline.vae.device) != device:
+                pipeline.vae.to(device)
             image_input = Image.open(edit_image).convert("RGB") if edit_image else None
-            call = {"prompt": prompt, "num_inference_steps": 40, "width": 1024, "height": 576}
+            call = {"prompt": prompt, "num_inference_steps": self.num_inference_steps, "width": self.width, "height": self.height}
             if image_input is not None:
-                from diffusers import QwenImageEditPlusPipeline
-                if not isinstance(pipeline, QwenImageEditPlusPipeline):
-                    pipeline = QwenImageEditPlusPipeline.from_pretrained(
-                        self.manifest.path,
-                        torch_dtype=torch.float16 if device == "mps" else torch.float32,
-                        local_files_only=True,
-                        low_cpu_mem_usage=True,
-                    ).to(device)
-                    self._pipeline = pipeline
                 call["image"] = image_input
             result = pipeline(**call)
+            images = result.images
+            extrema = images[0].convert("RGB").getextrema()
+            if all(low == high for low, high in extrema):
+                raise RuntimeError("Qwen-Image produced a flat/invalid image; no output was saved")
             output_dir = Path.home() / "Library" / "Caches" / "PresentationMaker" / "generated"
             output_dir.mkdir(parents=True, exist_ok=True)
             descriptor, filename = tempfile.mkstemp(suffix=".png", dir=output_dir)
             os.close(descriptor)
             output_path = Path(filename)
-            result.images[0].save(output_path)
+            images[0].save(output_path)
             return {"device": device, "vae_device": vae_device, "image_path": str(output_path)}
         except ImportError as exc:
             raise RuntimeError("內建影像引擎尚未安裝 Diffusers/PyTorch") from exc
