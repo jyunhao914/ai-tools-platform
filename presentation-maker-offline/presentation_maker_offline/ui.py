@@ -135,8 +135,14 @@ class PresentationMakerApp(tk.Tk):
         self.source_role = tk.StringVar(value="補充資料")
         ttk.Label(data_tab, text="資料用途").pack(anchor="w", pady=(10, 3))
         ttk.Combobox(data_tab, textvariable=self.source_role, values=["補充資料", "主要內容", "修改依據", "風格參考"], state="readonly").pack(fill="x")
+        self.source_scope = tk.StringVar(value="整份簡報")
+        ttk.Label(data_tab, text="套用範圍").pack(anchor="w", pady=(8, 3))
+        ttk.Combobox(data_tab, textvariable=self.source_scope, values=["整份簡報", "目前頁面", "目前標記"], state="readonly").pack(fill="x")
         self.source_list = tk.Listbox(data_tab, height=10, activestyle="none")
         self.source_list.pack(fill="both", expand=True, pady=8)
+        self.source_list.bind("<<ListboxSelect>>", self._preview_source)
+        self.source_preview = tk.Text(data_tab, height=7, wrap="word", state="disabled")
+        self.source_preview.pack(fill="x", pady=(2, 8))
         ttk.Label(data_tab, text="來源在本機解析；PPTX 文字與圖片素材可加入專案，DOCX／PDF／TXT 目前以文字為主。", wraplength=260).pack(anchor="w")
 
         footer = ttk.Frame(self, padding=(14, 4, 14, 12))
@@ -430,8 +436,47 @@ class PresentationMakerApp(tk.Tk):
             messagebox.showerror("無法加入參考資料", str(exc)); return
         source_record["role"] = {"補充資料": "supplement", "主要內容": "primary", "修改依據": "edit_reference", "風格參考": "style_reference"}[self.source_role.get()]
         source_record["pages"] = source_slides
+        scope_map = {"整份簡報": "project", "目前頁面": "slide", "目前標記": "annotation"}
+        source_record["scope"] = scope_map[self.source_scope.get()]
+        slide = self._current_slide()
+        selected_mark = self.annotation_list.curselection()
+        if source_record["scope"] == "slide" and slide:
+            source_record["scope_target"] = slide["id"]
+        elif source_record["scope"] == "annotation" and slide and selected_mark:
+            marks = self._slide_annotations(slide["id"])
+            if selected_mark[0] < len(marks):
+                source_record["scope_target"] = marks[selected_mark[0]]["id"]
+        if source_record["scope"] != "project" and not source_record.get("scope_target"):
+            messagebox.showwarning("請選取範圍", "套用目前頁面或標記前，請先在左側選定對應範圍。")
+            return
         self._mutate(); self.document.setdefault("sources", []).append(source_record)
         self._persist(); self._refresh(); self.status_text.set("參考資料已在本機解析並保存；來源頁數與文字可追溯。")
+
+    def _preview_source(self, _event):
+        selection = self.source_list.curselection()
+        if not selection or not self.document:
+            return
+        sources = self.document.get("sources", [])
+        if selection[0] >= len(sources):
+            return
+        source = sources[selection[0]]
+        pages = source.get("pages")
+        if pages is None:
+            pages = [slide for slide in self.document.get("slides", []) if slide.get("source_id") == source["id"]]
+        summary = [f"來源：{Path(source['path']).name}", f"用途：{source.get('role', 'supplement')} · 範圍：{source.get('scope', 'project')} · 版本：{source.get('version', 1)}", f"頁數：{len(pages)}", ""]
+        for index, page in enumerate(pages, 1):
+            summary.append(f"第 {index} 頁｜{page.get('title', '')}")
+            for element in page.get("elements", []):
+                if element.get("type") == "text":
+                    summary.append(element.get("text", ""))
+                elif element.get("type") == "image":
+                    summary.append("[圖片素材]")
+        if source.get("warnings"):
+            summary.extend(["", "解析提醒：", *source["warnings"]])
+        self.source_preview.configure(state="normal")
+        self.source_preview.delete("1.0", "end")
+        self.source_preview.insert("1.0", "\n".join(summary))
+        self.source_preview.configure(state="disabled")
 
     def show_settings(self):
         win = tk.Toplevel(self); win.title("模型與儲存設定"); win.geometry("560x320"); win.transient(self)
