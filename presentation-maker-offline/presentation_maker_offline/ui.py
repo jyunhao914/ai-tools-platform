@@ -11,7 +11,7 @@ from .project_document import new_project_document
 class PresentationMakerApp(tk.Tk):
     def __init__(self):
         super().__init__(); self.title("Presentation Maker Offline"); self.geometry("1100x720"); self.minsize(900, 600)
-        self.source = tk.StringVar(); self.title_text = tk.StringVar(value="我的離線簡報"); self.style = tk.StringVar(value="清爽藍"); self.output = tk.StringVar(value="可編輯式 PPTX")
+        self.source = tk.StringVar(); self.source_path = None; self.title_text = tk.StringVar(value="我的離線簡報"); self.style = tk.StringVar(value="清爽藍"); self.output = tk.StringVar(value="可編輯式 PPTX")
         project_root = Path.home() / "Library" / "Application Support" / "PresentationMaker"
         project_root.mkdir(parents=True, exist_ok=True)
         self.project_store = ProjectStore(project_root / "projects.sqlite3")
@@ -44,7 +44,7 @@ class PresentationMakerApp(tk.Tk):
         ttk.Button(right, text="匯出 PPTX…", command=self.export).pack(anchor="e")
     def pick(self):
         p = filedialog.askopenfilename(filetypes=[("簡報與文件", "*.pptx *.pdf *.docx *.txt"), ("所有檔案", "*")]);
-        if p: self.source.set(Path(p).name); self.status.config(text="已加入來源，請確認設定後開始製作。")
+        if p: self.source_path = p; self.source.set(Path(p).name); self.status.config(text="已加入來源，請確認設定後開始製作。")
     def start(self):
         title = self.title_text.get().strip() or "未命名簡報"
         document = new_project_document(title)
@@ -53,14 +53,15 @@ class PresentationMakerApp(tk.Tk):
             {"id": str(uuid4()), "order": index, "title": heading, "elements": []}
             for index, heading in enumerate(slide_titles)
         ]
-        source_path = self.source.get() or "example://sample-project"
+        source_path = self.source_path or "example://sample-project"
         self.current_project_id = self.project_store.create(source_path)
+        document["project_id"] = self.current_project_id
         self.project_store.save_document(self.current_project_id, document, expected_revision=0)
         self.preview.delete(0, "end"); self.preview.insert("end", self.title_text.get());
         for x in ["核心訊息與聽眾", "內容架構與重點", "行動建議與下一步"]: self.preview.insert("end", x)
-        self.progress["value"] = 100
+        self.progress["value"] = 0
         self.step.set("1 ✓ 來源  ·  2 ✓ 設定  ·  3 ✓ 製作  ·  4 編輯與匯出")
-        self.status.config(text=f"示例專案已保存 · {self.operation.get()} · {self.images.get()} · {self.style.get()} · 模型流程尚未串接")
+        self.status.config(text=f"示例專案已保存（此為模擬，不是推論進度） · {self.operation.get()} · {self.images.get()} · {self.style.get()} · 模型流程尚未串接")
     def export(self):
         if not self.preview.size(): self.start()
         p = filedialog.asksaveasfilename(defaultextension=".pptx", filetypes=[("PowerPoint", "*.pptx")], initialfile="offline-presentation.pptx")
@@ -74,7 +75,7 @@ class PresentationMakerApp(tk.Tk):
         text_model = discover_qwen38_mlx()
         image_model = qwen_image21_readiness()
         text_status = f"文字模型　Qwen3.8-27B　✓ 已找到（MLX，{len(list(text_model.glob('*.safetensors')))} 個分片）" if text_model else "文字模型　Qwen3.8-27B　尚未找到完整模型資料夾"
-        image_status = f"圖片模型　Qwen-Image-2.1　✓ 權重完整（{image_model['safetensors']} 個權重檔）；推論載入尚未驗證" if image_model["ready"] else f"圖片模型　Qwen-Image-2.1　尚未完整（缺少 {len(image_model['missing'])} 項，暫存 {len(image_model['incomplete'])} 項）"
+        image_status = f"圖片模型　Qwen-Image-2.1　✓ 離線載入已驗證（{image_model['safetensors']} 個權重檔）；生成流程尚待驗收" if image_model["ready"] else f"圖片模型　Qwen-Image-2.1　尚未完整（缺少 {len(image_model['missing'])} 項，暫存 {len(image_model['incomplete'])} 項）"
         ttk.Label(box, text=text_status, wraplength=455).pack(anchor="w")
         ttk.Label(box, text=image_status, wraplength=455).pack(anchor="w", pady=(8,0))
         ttk.Label(box, text="儲存位置　由使用者選定的外接磁碟／模型資料夾").pack(anchor="w", pady=(8,0))
