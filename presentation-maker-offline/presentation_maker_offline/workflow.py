@@ -199,7 +199,20 @@ class Workflow:
                 backend_result = backend.generate(prompt)
                 result = ImageResult(result.status, result.source, result.attempt, {**result.evidence, "backend": backend.name, "backend_result": backend_result})
             except Exception as exc:  # technical failure is recorded, never treated as content rejection
-                self.store.update(project_id, state="paused_technical_failure")
-                result = ImageResult("technical_failure", "none", result.attempt, {"backend": backend.name, "error_type": type(exc).__name__, "resumable": True})
+                current_state = self.store.db.execute("SELECT state FROM projects WHERE id = ?", (project_id,)).fetchone()
+                if current_state and current_state["state"] not in {"paused_technical_failure", "paused_memory_pressure"}:
+                    self.store.update(project_id, state="paused_technical_failure")
+                result = ImageResult(
+                    "technical_failure",
+                    "none",
+                    result.attempt,
+                    {
+                        **result.evidence,
+                        "backend": backend.name,
+                        "error_type": type(exc).__name__,
+                        "error": str(exc),
+                        "resumable": True,
+                    },
+                )
         self.store.record_attempt(project_id, page, "image", request, result.__dict__)
         return result
