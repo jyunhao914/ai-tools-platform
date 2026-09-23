@@ -112,6 +112,9 @@ class PresentationMakerApp(tk.Tk):
         ttk.Button(chat_tab, text="取消候選", command=self.cancel_candidate).pack(fill="x", pady=4)
 
         ttk.Button(data_tab, text="加入參考資料…", command=self.add_source).pack(fill="x")
+        self.source_role = tk.StringVar(value="補充資料")
+        ttk.Label(data_tab, text="資料用途").pack(anchor="w", pady=(10, 3))
+        ttk.Combobox(data_tab, textvariable=self.source_role, values=["補充資料", "主要內容", "修改依據", "風格參考"], state="readonly").pack(fill="x")
         self.source_list = tk.Listbox(data_tab, height=10, activestyle="none")
         self.source_list.pack(fill="both", expand=True, pady=8)
         ttk.Label(data_tab, text="來源在本機解析；PPTX 文字與圖片素材可加入專案，DOCX／PDF／TXT 目前以文字為主。", wraplength=260).pack(anchor="w")
@@ -201,7 +204,7 @@ class PresentationMakerApp(tk.Tk):
             self.slide_list.selection_clear(0, "end"); self.slide_list.selection_set(0)
         self._refresh_annotations(); self.draw_slide(); self._select_slide(None)
         self.source_list.delete(0, "end")
-        for src in self.document.get("sources", []): self.source_list.insert("end", src["path"])
+        for src in self.document.get("sources", []): self.source_list.insert("end", f"[{src.get('role', 'supplement')}] {Path(src['path']).name}")
 
     def _current_slide(self):
         if not self.document or not self.document["slides"]: return None
@@ -312,6 +315,7 @@ class PresentationMakerApp(tk.Tk):
 
     def add_slide(self):
         if not self.document: self.start()
+        if not self.document or not self.current_project_id: return
         self._mutate()
         index = len(self.document["slides"])
         self.document["slides"].append({"id": str(uuid4()), "order": index, "title": f"新頁面 {index+1}", "elements": []})
@@ -357,14 +361,15 @@ class PresentationMakerApp(tk.Tk):
         path = filedialog.askopenfilename(filetypes=[("簡報與文件", "*.pptx *.pdf *.docx *.txt *.png *.jpg *.jpeg"), ("所有檔案", "*")])
         if not path: return
         if not self.document: self.start()
+        if not self.document or not self.current_project_id: return
         try:
             source_slides, source_record = import_source(path, asset_dir=self.app_support / "projects" / self.current_project_id / "assets")
         except (OSError, ValueError, RuntimeError) as exc:
             messagebox.showerror("無法加入參考資料", str(exc)); return
-        source_record["role"] = "supplement"
+        source_record["role"] = {"補充資料": "supplement", "主要內容": "primary", "修改依據": "edit_reference", "風格參考": "style_reference"}[self.source_role.get()]
         source_record["pages"] = source_slides
         self._mutate(); self.document.setdefault("sources", []).append(source_record)
-        self._persist(); self._refresh(); self.status_text.set("來源路徑已加入專案；目前原型尚未解析內容。")
+        self._persist(); self._refresh(); self.status_text.set("參考資料已在本機解析並保存；來源頁數與文字可追溯。")
 
     def show_settings(self):
         win = tk.Toplevel(self); win.title("模型與儲存設定"); win.geometry("560x320"); win.transient(self)
@@ -379,12 +384,16 @@ class PresentationMakerApp(tk.Tk):
 
     def export(self):
         if not self.document: self.start()
+        if not self.document or not self.current_project_id: return
         path = filedialog.asksaveasfilename(defaultextension=".pptx", filetypes=[("PowerPoint", "*.pptx")], initialfile="offline-presentation-example.pptx")
         if path:
             asset_root = self.app_support / "projects" / self.current_project_id / "assets"
-            export_project_pptx(path, self.document, self.style.get(), asset_root=asset_root)
-            self.status_text.set(f"已匯出可編輯 PPTX：{Path(path).name}；原圖尚未包含。")
-            messagebox.showinfo("已匯出可編輯 PPTX", "文字與頁面為可編輯物件。此版尚未輸出來源圖片，也未經模型生成。")
+            try:
+                export_project_pptx(path, self.document, self.style.get(), asset_root=asset_root)
+            except (OSError, ValueError) as exc:
+                messagebox.showerror("匯出失敗", str(exc)); self.status_text.set(f"匯出失敗：{exc}"); return
+            self.status_text.set(f"已匯出可編輯 PPTX：{Path(path).name}；文字及已匯入圖片為原生物件。")
+            messagebox.showinfo("已匯出可編輯 PPTX", "文字物件可直接編輯；已匯入圖片已嵌入簡報。尚未經模型生成，複雜母片／動畫不保證保留。")
 
 
 def main():
