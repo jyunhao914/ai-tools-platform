@@ -6,7 +6,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from uuid import uuid4
 
-from .export import export_demo_pptx
+from .export import export_project_pptx
 from .project_document import new_project_document
 from .source_import import import_source
 from .storage import discover_qwen38_mlx, qwen_image21_readiness
@@ -119,7 +119,7 @@ class PresentationMakerApp(tk.Tk):
         footer = ttk.Frame(self, padding=(14, 4, 14, 12))
         footer.pack(fill="x")
         ttk.Label(footer, textvariable=self.status_text).pack(side="left", fill="x", expand=True)
-        ttk.Button(footer, text="匯出示例 PPTX…", command=self.export).pack(side="right")
+        ttk.Button(footer, text="匯出可編輯 PPTX…", command=self.export).pack(side="right")
 
     def _sample(self):
         document = new_project_document(self.title_text.get().strip() or "我的離線簡報")
@@ -348,9 +348,9 @@ class PresentationMakerApp(tk.Tk):
         if not self.document: self.start()
         path = filedialog.asksaveasfilename(defaultextension=".pptx", filetypes=[("PowerPoint", "*.pptx")], initialfile="offline-presentation-example.pptx")
         if path:
-            export_demo_pptx(path, self.document["title"], [slide["title"] for slide in self.document["slides"]], self.style.get())
-            self.status_text.set(f"已匯出示例 PPTX：{Path(path).name}；輸出為示例內容。")
-            messagebox.showinfo("已匯出示例", "PPTX 可用 PowerPoint 或 Keynote 開啟。這是示例版型，不是模型生成內容。")
+            export_project_pptx(path, self.document, self.style.get())
+            self.status_text.set(f"已匯出可編輯 PPTX：{Path(path).name}；原圖尚未包含。")
+            messagebox.showinfo("已匯出可編輯 PPTX", "文字與頁面為可編輯物件。此版尚未輸出來源圖片，也未經模型生成。")
 
 
 def main():
