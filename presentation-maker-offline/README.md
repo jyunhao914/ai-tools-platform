@@ -4,7 +4,7 @@
 
 ## 桌面產品入口
 
-安裝依賴後執行 `presentation-maker-offline-app`，即可開啟 macOS 桌面 UI。第一階段 UI 已串起建立專案、匯入來源、五種處理入口、整份圖片策略、風格選擇、逐頁大綱／預覽與 PPTX 匯出。一般使用者不需要理解 checkpoint、manifest、VAE 或 backend；這些只屬於進階設定。
+安裝依賴後執行 `presentation-maker-offline-app`，即可開啟 macOS 互動原型。現階段可匯入 PPTX／DOCX／PDF／TXT 的文字骨架、建立可重開專案、編輯頁標題、畫矩形區域標記、保存標記留言、加入參考資料路徑、建立／比較／接受模擬候選及匯出示例 PPTX。候選修改與匯出仍是原型功能，不會呼叫 AI；PPTX 圖片抽取、OCR、完整版面保真及雙模式匯出尚未完成。
 
 ## 基準模型
 

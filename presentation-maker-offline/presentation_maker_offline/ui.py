@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from .export import export_demo_pptx
 from .project_document import new_project_document
+from .source_import import import_source
 from .storage import discover_qwen38_mlx, qwen_image21_readiness
 from .workflow import ProjectStore
 
@@ -129,13 +130,29 @@ class PresentationMakerApp(tk.Tk):
 
     def start(self):
         document = self._sample()
+        if self.source_path:
+            try:
+                imported_slides, source_record = import_source(self.source_path)
+            except (OSError, ValueError, RuntimeError) as exc:
+                messagebox.showerror("無法匯入來源", str(exc))
+                self.status_text.set(f"匯入失敗：{exc}")
+                return
+            document["title"] = Path(self.source_path).stem
+            document["slides"] = imported_slides
+            document["sources"] = [source_record]
         project_id = self.project_store.create(self.source_path or "example://interaction-prototype")
         document["project_id"] = project_id
         self.project_store.save_document(project_id, document, expected_revision=0)
         self.current_project_id, self.document, self.revision = project_id, document, 1
         self.undo_stack.clear()
         self._refresh()
-        self.status_text.set("示例專案已保存；此為 UI 模擬，不是模型生成或推論進度。")
+        warnings = document["sources"][0].get("warnings", []) if document.get("sources") else []
+        if warnings:
+            self.status_text.set(f"已匯入，但有解析提醒：{warnings[0]}")
+        elif self.source_path:
+            self.status_text.set("來源文字已匯入並保存；原圖與完整版面抽取尚未支援。")
+        else:
+            self.status_text.set("示例專案已保存；此為 UI 模擬，不是模型生成或推論進度。")
 
     def open_project(self):
         projects = self.project_store.list_projects()

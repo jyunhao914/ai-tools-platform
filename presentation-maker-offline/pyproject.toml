@@ -3,7 +3,7 @@ name = "presentation-maker-offline"
 version = "0.1.0"
 description = "Offline-first presentation workflow core"
 requires-python = ">=3.11"
-dependencies = ["python-pptx>=1.0.0"]
+dependencies = ["python-pptx>=1.0.0", "python-docx>=1.1.0", "pypdf>=5.0.0", "Pillow>=10.0.0"]
 
 [project.scripts]
 presentation-maker-offline = "presentation_maker_offline.cli:main"
