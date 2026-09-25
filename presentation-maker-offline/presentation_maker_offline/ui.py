@@ -252,8 +252,6 @@ class PresentationMakerApp(tk.Tk):
         dialog.title("貼上簡報大綱")
         dialog.geometry("760x680")
         dialog.minsize(620, 520)
-        dialog.transient(self)
-        dialog.grab_set()
 
         ttk.Label(
             dialog,
@@ -268,6 +266,16 @@ class PresentationMakerApp(tk.Tk):
         preview.pack(fill="x", padx=16, pady=(0, 10))
         parsed: dict = {}
         create_button = None
+
+        def paste_from_clipboard():
+            try:
+                content = dialog.clipboard_get()
+            except tk.TclError:
+                preview_label.set("剪貼簿沒有可貼上的文字；請先複製大綱文字，再按「從剪貼簿貼上」。")
+                return
+            outline_input.insert("insert", content)
+            outline_input.focus_set()
+            preview_label.set("已貼入剪貼簿文字；請按「預覽大綱」確認頁數，再建立專案。")
 
         def show_preview():
             try:
@@ -314,6 +322,7 @@ class PresentationMakerApp(tk.Tk):
 
         actions = ttk.Frame(dialog, padding=(16, 0, 16, 14))
         actions.pack(fill="x")
+        ttk.Button(actions, text="從剪貼簿貼上", command=paste_from_clipboard).pack(side="left", padx=(0, 8))
         preview_button = ttk.Button(actions, text="預覽大綱", command=show_preview)
         preview_button.pack(side="left")
         create_button = ttk.Button(actions, text="建立專案", command=create_project, state="disabled")
@@ -328,7 +337,13 @@ class PresentationMakerApp(tk.Tk):
                 create_button.configure(state="disabled")
         outline_input.bind("<<Modified>>", invalidate_preview)
         outline_input.edit_modified(False)
-        outline_input.focus_set()
+        # Keep this editor modeless: on macOS, a Tk grab on a newly-created
+        # Toplevel can disable the parent while leaving the dialog behind it.
+        # Raise it after mapping so the paste target is immediately visible.
+        dialog.deiconify()
+        dialog.lift(self)
+        dialog.after_idle(dialog.lift)
+        dialog.after_idle(outline_input.focus_set)
 
     def open_project(self):
         projects = self.project_store.list_projects()

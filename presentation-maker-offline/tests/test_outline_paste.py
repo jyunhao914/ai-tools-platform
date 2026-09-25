@@ -1,4 +1,6 @@
 import pytest
+import tkinter as tk
+from pathlib import Path
 
 from presentation_maker_offline.export import export_project_pptx
 from presentation_maker_offline.project_document import new_project_document
@@ -59,6 +61,49 @@ def test_pasted_outline_persists_and_exports_as_editable_pptx(tmp_path):
 
     output = export_project_pptx(tmp_path / "outline.pptx", loaded)
     assert output.is_file()
+
+
+def test_outline_paste_dialog_pastes_previews_and_creates_project(tmp_path, monkeypatch):
+    from presentation_maker_offline.ui import PresentationMakerApp
+
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    try:
+        app = PresentationMakerApp()
+    except tk.TclError as exc:
+        pytest.skip(f"Tk display is unavailable: {exc}")
+
+    try:
+        app.update()
+        app.paste_outline()
+        app.update()
+        dialog = next(widget for widget in app.winfo_children() if widget.winfo_class() == "Toplevel")
+        assert dialog.winfo_viewable()
+        assert app.grab_current() is None
+
+        def descendants(widget):
+            return [widget, *(child for item in widget.winfo_children() for child in descendants(item))]
+
+        widgets = descendants(dialog)
+        outline_input = next(widget for widget in widgets if widget.winfo_class() == "Text")
+        outline_input.focus_set()
+        dialog.clipboard_get = lambda: "# UI 貼上驗收\n## 第一頁\n- 重點甲\n## 第二頁\n- 重點乙"
+        buttons = {widget.cget("text"): widget for widget in widgets if widget.winfo_class() == "TButton"}
+
+        buttons["從剪貼簿貼上"].invoke()
+        app.update()
+        assert "## 第一頁" in outline_input.get("1.0", "end")
+
+        buttons["預覽大綱"].invoke()
+        app.update()
+        preview = next(widget for widget in widgets if widget.winfo_class() == "Listbox")
+        assert preview.get(0, "end") == ("01　第一頁", "02　第二頁")
+
+        buttons["建立專案"].invoke()
+        assert app.document["title"] == "UI 貼上驗收"
+        assert len(app.document["slides"]) == 2
+        assert len(app.project_store.list_projects()) == 1
+    finally:
+        app.destroy()
 
 
 @pytest.mark.parametrize("text", ["", "   \n  "])
