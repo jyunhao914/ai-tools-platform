@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from .export import export_project_pptx
 from .project_document import new_project_document
-from .source_import import import_source
+from .source_import import import_source, parse_outline_text
 from .storage import discover_qwen38_mlx, qwen_image21_readiness
 from .workflow import ProjectStore
 
@@ -63,6 +63,7 @@ class PresentationMakerApp(tk.Tk):
         ttk.Label(left, text="建立專案", font=("Arial", 13, "bold")).pack(anchor="w")
         ttk.Button(left, text="新建空白示例", command=self.new_sample).pack(fill="x", pady=(6, 3))
         ttk.Button(left, text="匯入主簡報／大綱…", command=self.pick_primary).pack(fill="x", pady=3)
+        ttk.Button(left, text="貼上大綱文字…", command=self.paste_outline).pack(fill="x", pady=3)
         ttk.Label(left, text="專案名稱").pack(anchor="w", pady=(8, 2))
         ttk.Entry(left, textvariable=self.title_text).pack(fill="x")
         ttk.Label(left, text="處理方式").pack(anchor="w", pady=(10, 2))
@@ -182,6 +183,7 @@ class PresentationMakerApp(tk.Tk):
             "intervention": self.intervention.get(),
         }
         project_id = str(uuid4())
+        was_imported = bool(self.source_path)
         asset_dir = self.app_support / "projects" / project_id / "assets"
         if self.source_path:
             try:
@@ -195,18 +197,108 @@ class PresentationMakerApp(tk.Tk):
             for slide in imported_slides:
                 slide["source_id"] = source_record["id"]
             document["sources"] = [source_record]
-        self.project_store.create(self.source_path or "example://interaction-prototype", project_id=project_id)
-        document["project_id"] = project_id
-        self.project_store.save_document(project_id, document, expected_revision=0)
-        self.current_project_id, self.document, self.revision = project_id, document, 1
-        self._refresh()
         warnings = document["sources"][0].get("warnings", []) if document.get("sources") else []
+        self._save_new_project(document, self.source_path or "example://interaction-prototype", project_id=project_id)
         if warnings:
             self.status_text.set(f"已匯入，但有解析提醒：{warnings[0]}")
-        elif self.source_path:
+        elif was_imported:
             self.status_text.set("本機來源內容已匯入；PPTX 文字／圖片可編輯與匯出，複雜圖層樣式仍有差異。")
         else:
             self.status_text.set("示例專案已保存；此為 UI 模擬，不是模型生成或推論進度。")
+
+    def _save_new_project(self, document: dict, source_reference: str, *, project_id: str | None = None) -> None:
+        project_id = project_id or str(uuid4())
+        document["project_id"] = project_id
+        for slide in document.get("slides", []):
+            slide.setdefault("source_id", document.get("sources", [{}])[0].get("id") if document.get("sources") else None)
+        self.project_store.create(source_reference, project_id=project_id)
+        self.project_store.save_document(project_id, document, expected_revision=0)
+        self.current_project_id, self.document, self.revision = project_id, document, 1
+        self.source_path = None
+        self._refresh()
+
+    def paste_outline(self):
+        dialog = tk.Toplevel(self)
+        dialog.title("貼上簡報大綱")
+        dialog.geometry("760x680")
+        dialog.minsize(620, 520)
+        dialog.transient(self)
+        dialog.grab_set()
+
+        ttk.Label(
+            dialog,
+            text="貼上大綱文字。建議每張投影片以「## 標題」開頭，內容可用條列；也可用空行分隔各頁。",
+            wraplength=710,
+        ).pack(anchor="w", padx=16, pady=(16, 8))
+        outline_input = tk.Text(dialog, height=18, wrap="word", undo=True)
+        outline_input.pack(fill="both", expand=True, padx=16, pady=(0, 10))
+        preview_label = tk.StringVar(value="貼上內容後按「預覽大綱」，確認頁數與標題再建立專案。")
+        ttk.Label(dialog, textvariable=preview_label).pack(anchor="w", padx=16, pady=(0, 4))
+        preview = tk.Listbox(dialog, height=7, activestyle="none", exportselection=False)
+        preview.pack(fill="x", padx=16, pady=(0, 10))
+        parsed: dict = {}
+        create_button = None
+
+        def show_preview():
+            try:
+                title, slides, source_record = parse_outline_text(outline_input.get("1.0", "end"))
+            except ValueError as exc:
+                parsed.clear()
+                preview.delete(0, "end")
+                preview_label.set(str(exc))
+                create_button.configure(state="disabled")
+                return
+            parsed.update(title=title, slides=slides, source=source_record)
+            create_button.configure(state="normal")
+            preview.delete(0, "end")
+            for index, slide in enumerate(slides, 1):
+                preview.insert("end", f"{index:02d}　{slide['title']}")
+            preview_label.set(f"辨識到 {len(slides)} 張投影片；原始大綱與解析結果會保存在本機，不會上傳。")
+
+        def create_project():
+            if not parsed:
+                show_preview()
+            if not parsed:
+                return
+            document = new_project_document(self.title_text.get().strip() or parsed["title"])
+            document["slides"] = parsed["slides"]
+            document["sources"] = [parsed["source"]]
+            document["outline"] = [
+                {"id": str(uuid4()), "slide_id": slide["id"], "title": slide["title"]}
+                for slide in parsed["slides"]
+            ]
+            document["settings"] = {
+                "operation": self.operation.get(),
+                "image_strategy": self.image_strategy.get(),
+                "style": self.style.get(),
+                "output_format": self.output.get(),
+                "target_pages": len(parsed["slides"]),
+                "intervention": self.intervention.get(),
+            }
+            for slide in document["slides"]:
+                slide["source_id"] = parsed["source"]["id"]
+            self.title_text.set(document["title"])
+            self._save_new_project(document, parsed["source"]["path"])
+            self.status_text.set(f"已從貼上的大綱建立並保存 {len(document['slides'])} 張投影片；目前不會呼叫 AI。")
+            dialog.destroy()
+
+        actions = ttk.Frame(dialog, padding=(16, 0, 16, 14))
+        actions.pack(fill="x")
+        preview_button = ttk.Button(actions, text="預覽大綱", command=show_preview)
+        preview_button.pack(side="left")
+        create_button = ttk.Button(actions, text="建立專案", command=create_project, state="disabled")
+        create_button.pack(side="right")
+        ttk.Button(actions, text="取消", command=dialog.destroy).pack(side="right", padx=(0, 8))
+        def invalidate_preview(_event=None):
+            if outline_input.edit_modified():
+                outline_input.edit_modified(False)
+                parsed.clear()
+                preview.delete(0, "end")
+                preview_label.set("大綱已更新；請重新預覽後建立專案。")
+                create_button.configure(state="disabled")
+        outline_input.bind("<<Modified>>", invalidate_preview)
+        outline_input.edit_modified(False)
+        outline_input.focus_set()
 
     def open_project(self):
         projects = self.project_store.list_projects()
@@ -276,7 +368,7 @@ class PresentationMakerApp(tk.Tk):
             self.slide_list.selection_clear(0, "end"); self.slide_list.selection_set(0)
         self._refresh_annotations(); self.draw_slide(); self._select_slide(None)
         self.source_list.delete(0, "end")
-        for src in self.document.get("sources", []): self.source_list.insert("end", f"[{src.get('role', 'supplement')}] {Path(src['path']).name}")
+        for src in self.document.get("sources", []): self.source_list.insert("end", f"[{src.get('role', 'supplement')}] {src.get('display_name') or Path(src.get('path', '來源資料')).name}")
 
     def _current_slide(self):
         if not self.document or not self.document["slides"]: return None
@@ -477,7 +569,7 @@ class PresentationMakerApp(tk.Tk):
         pages = source.get("pages")
         if pages is None:
             pages = [slide for slide in self.document.get("slides", []) if slide.get("source_id") == source["id"]]
-        summary = [f"來源：{Path(source['path']).name}", f"用途：{source.get('role', 'supplement')} · 範圍：{source.get('scope', 'project')} · 版本：{source.get('version', 1)}", f"頁數：{len(pages)}", ""]
+        summary = [f"來源：{source.get('display_name') or Path(source.get('path', '來源資料')).name}", f"用途：{source.get('role', 'supplement')} · 範圍：{source.get('scope', 'project')} · 版本：{source.get('version', 1)}", f"頁數：{len(pages)}", ""]
         for index, page in enumerate(pages, 1):
             summary.append(f"第 {index} 頁｜{page.get('title', '')}")
             for element in page.get("elements", []):

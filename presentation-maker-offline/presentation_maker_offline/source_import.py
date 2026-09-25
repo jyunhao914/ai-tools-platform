@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import re
 from pathlib import Path
 from uuid import uuid4
 
@@ -48,6 +50,99 @@ def import_source(path: str | Path, *, asset_dir: str | Path | None = None) -> t
     if warnings:
         record["warnings"] = warnings
     return slides, record
+
+
+def parse_outline_text(text: str) -> tuple[str, list[dict], dict]:
+    """Parse pasted Markdown or plain-text outline into editable slide records."""
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not normalized:
+        raise ValueError("請先貼上簡報大綱文字。")
+
+    lines = normalized.splitlines()
+    heading_rows = []
+    for index, line in enumerate(lines):
+        match = re.match(r"^\s*(#{1,6})\s+(.+?)\s*#*\s*$", line)
+        if match:
+            heading_rows.append((index, len(match.group(1)), match.group(2).strip()))
+
+    deck_title = ""
+    heading_preface: list[str] = []
+    slide_sections: list[tuple[str, list[str]]] = []
+    if heading_rows:
+        has_deck_heading = any(level == 1 for _, level, _ in heading_rows) and any(level >= 2 for _, level, _ in heading_rows)
+        if has_deck_heading:
+            deck_row = next((row for row in heading_rows if row[1] == 1), None)
+            deck_title = deck_row[2] if deck_row else ""
+            slide_rows = [(i, level, title) for i, level, title in heading_rows if level == 2]
+            if not slide_rows:
+                slide_rows = [(i, level, title) for i, level, title in heading_rows if level >= 2]
+            if deck_row and slide_rows:
+                heading_preface = lines[deck_row[0] + 1:slide_rows[0][0]]
+        else:
+            slide_rows = heading_rows
+            deck_title = heading_rows[0][2]
+        for row_index, (line_index, _level, title) in enumerate(slide_rows):
+            end = slide_rows[row_index + 1][0] if row_index + 1 < len(slide_rows) else len(lines)
+            body_lines = list(heading_preface) if row_index == 0 else []
+            for body_line in lines[line_index + 1:end]:
+                child_heading = re.match(r"^\s*#{1,6}\s+(.+?)\s*#*\s*$", body_line)
+                body_lines.append(child_heading.group(1) if child_heading else body_line)
+            slide_sections.append((title, body_lines))
+    else:
+        # Numbered page/slide headings are common in outlines pasted from notes.
+        numbered = re.compile(r"^\s*(?:第\s*\d+\s*[頁章節]\s*[、.．:：-]?\s*|\d+\s*[.、．:：]\s*)(.+?)\s*$")
+        numbered_rows = [(i, match.group(1)) for i, line in enumerate(lines) if (match := numbered.match(line))]
+        if len(numbered_rows) >= 2:
+            for row_index, (line_index, title) in enumerate(numbered_rows):
+                end = numbered_rows[row_index + 1][0] if row_index + 1 < len(numbered_rows) else len(lines)
+                slide_sections.append((title, lines[line_index + 1:end]))
+            deck_title = numbered_rows[0][1]
+        else:
+            # Blank-line-separated blocks become slides; a block's first line is its title.
+            blocks = [block.strip() for block in re.split(r"\n\s*\n|\n\s*---+\s*\n|\f", normalized) if block.strip()]
+            for block in blocks:
+                block_lines = [line.strip() for line in block.splitlines() if line.strip()]
+                if block_lines:
+                    slide_sections.append((block_lines[0], block_lines[1:]))
+            if len(slide_sections) == 1 and len([line for line in lines if line.strip()]) > 5:
+                # Retain the existing TXT importer behavior for long unstructured text.
+                slide_sections = []
+                paragraphs = [line.strip() for line in lines if line.strip()]
+                for offset in range(0, len(paragraphs), 5):
+                    slide_sections.append((paragraphs[offset], paragraphs[offset + 1:offset + 5]))
+            if slide_sections:
+                deck_title = slide_sections[0][0]
+
+    slide_sections = [(title.strip(), body) for title, body in slide_sections if title.strip()]
+    if not slide_sections:
+        raise ValueError("無法從文字辨識投影片；請用 Markdown 標題（## 標題）或空行分隔各頁。")
+    if len(slide_sections) > 100:
+        raise ValueError("一次最多貼入 100 張投影片的大綱。")
+
+    slides = []
+    for index, (title, body_lines) in enumerate(slide_sections):
+        cleaned_body = []
+        for line in body_lines:
+            line = line.strip()
+            line = re.sub(r"^\s*(?:[-*+]\s+|\d+[.)、．]\s*)", "• ", line)
+            if line:
+                cleaned_body.append(line)
+        slides.append(_slide_from_text("\n".join([title, *cleaned_body]), index))
+
+    record_id = str(uuid4())
+    record = {
+        "id": record_id,
+        "path": f"paste://{record_id}",
+        "display_name": "貼上的簡報大綱",
+        "origin": "pasted_text",
+        "text": normalized,
+        "content_sha256": hashlib.sha256(normalized.encode("utf-8")).hexdigest(),
+        "role": "primary",
+        "scope": "project",
+        "version": 1,
+        "format": "text",
+    }
+    return deck_title or slides[0]["title"], slides, record
 
 
 def _text_slides(text: str) -> list[dict]:
