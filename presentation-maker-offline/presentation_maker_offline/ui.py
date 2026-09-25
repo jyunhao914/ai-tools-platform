@@ -5,7 +5,9 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from uuid import uuid4
 
+from .backends import LocalQwenTextBackend
 from .export import export_project_pptx
+from .manifest import CheckpointManifest
 from .project_document import new_project_document, update_slide_text_element
 from .source_import import import_source, parse_outline_text
 from .storage import discover_qwen38_mlx, qwen_image21_readiness
@@ -831,7 +833,20 @@ class PresentationMakerApp(tk.Tk):
         win = tk.Toplevel(self); win.title("模型與儲存設定"); win.geometry("560x320"); win.transient(self)
         ttk.Label(win, text="本機引擎狀態", font=("Arial", 16, "bold")).pack(anchor="w", padx=20, pady=(18, 10))
         text_model = discover_qwen38_mlx(); image_model = qwen_image21_readiness()
-        text = f"Qwen 文字模型：已找到（{len(list(text_model.glob('*.safetensors')))} shards）；生成 runtime 狀態待安裝確認" if text_model else "Qwen 文字模型：尚未找到完整模型資料夾"
+        if text_model:
+            text_backend = LocalQwenTextBackend(CheckpointManifest(
+                "Qwen3.8-27B local", str(text_model), "0" * 64,
+                "local model directory", "local", "see checkpoint license", "mlx", format="mlx",
+            ))
+            health = text_backend.health()
+            shards = len(list(text_model.glob("*.safetensors")))
+            if health["ok"]:
+                text = f"Qwen 文字權重：已找到（{shards} shards）；模型文字品質尚未通過端到端驗收。"
+            else:
+                detail = "; ".join(health["errors"])
+                text = f"Qwen 文字權重：已找到（{shards} shards），但目前應用推論後端不可用：{detail}"
+        else:
+            text = "Qwen 文字模型：尚未找到完整模型資料夾或必要分片"
         image = f"Qwen-Image-2.1：權重完整、離線載入已驗證（{image_model['safetensors']} 檔）；圖片生成待驗收" if image_model["ready"] else f"Qwen-Image-2.1：尚未完整（缺 {len(image_model['missing'])} 項、暫存 {len(image_model['incomplete'])} 項）"
         ttk.Label(win, text=text, wraplength=510).pack(anchor="w", padx=20, pady=6)
         ttk.Label(win, text=image, wraplength=510).pack(anchor="w", padx=20, pady=6)

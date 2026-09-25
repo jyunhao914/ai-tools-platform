@@ -6,7 +6,7 @@ import pytest
 from PIL import Image
 
 from presentation_maker_offline.manifest import CheckpointManifest
-from presentation_maker_offline.backends import LocalQwenImageBackend
+from presentation_maker_offline.backends import LocalQwenImageBackend, LocalQwenTextBackend
 
 def test_manifest_hash_and_image_backend_fallback(tmp_path):
     model = tmp_path / "model.bin"; model.write_bytes(b"model")
@@ -19,6 +19,69 @@ def test_manifest_rejects_bad_hash(tmp_path):
     model = tmp_path / "model.bin"; model.write_bytes(b"model")
     m = CheckpointManifest("demo", str(model), "0" * 64, "local-import", "abc123", "license", "diffusers")
     assert any("mismatch" in e for e in m.validate())
+
+
+def test_mlx_text_backend_rejects_checkpoint_not_validated_for_mlx_lm(tmp_path, monkeypatch):
+    import builtins
+    import json
+    import presentation_maker_offline.backends as backends
+
+    model = tmp_path / "model"
+    model.mkdir()
+    (model / "config.json").write_text(json.dumps({"model_type": "qwen3_5"}))
+    (model / "model.safetensors.index.json").write_text(json.dumps({"weight_map": {"layer": "model-00001.safetensors"}}))
+    (model / "model-00001.safetensors").write_bytes(b"weights")
+    (model / "RUNTIME-REQUIREMENTS.json").write_text(json.dumps({
+        "inference": {"revision": "mlx-serve-26.8.7|mlx-0.32.0"},
+        "runtime_evidence_pending_at_packaging": True,
+    }))
+    monkeypatch.setattr(backends.importlib, "import_module", lambda _name: object())
+    original_import = builtins.__import__
+    monkeypatch.setattr(builtins, "__import__", lambda name, *args, **kwargs: object() if name == "mlx_lm" else original_import(name, *args, **kwargs))
+    backend = LocalQwenTextBackend(CheckpointManifest("demo", str(model), "0" * 64, "local", "rev", "license", "mlx"))
+
+    health = backend.health()
+    assert health["weights_ready"] is True
+    assert health["ok"] is False
+    assert any("does not validate the app's MLX-LM backend" in error for error in health["errors"])
+    with pytest.raises(RuntimeError, match="未通過執行環境檢查"):
+        backend.plan("請建立大綱")
+
+
+def test_mlx_text_backend_uses_chat_template_and_bounded_generation(tmp_path, monkeypatch):
+    import json
+    import sys
+    from types import SimpleNamespace
+    import presentation_maker_offline.backends as backends
+
+    model = tmp_path / "model"
+    model.mkdir()
+    (model / "config.json").write_text(json.dumps({"model_type": "qwen3_5"}))
+    (model / "model.safetensors.index.json").write_text(json.dumps({"weight_map": {"layer": "model-00001.safetensors"}}))
+    (model / "model-00001.safetensors").write_bytes(b"weights")
+    calls = {}
+
+    class Tokenizer:
+        def apply_chat_template(self, messages, **kwargs):
+            calls["messages"] = messages
+            calls["template_options"] = kwargs
+            return "formatted conversation"
+
+    runtime = SimpleNamespace(
+        load=lambda _path: (object(), Tokenizer()),
+        generate=lambda _model, _tokenizer, **kwargs: calls.update(kwargs) or "draft",
+    )
+    monkeypatch.setitem(sys.modules, "mlx_lm", runtime)
+    monkeypatch.setattr(backends.importlib, "import_module", lambda _name: object())
+    backend = LocalQwenTextBackend(CheckpointManifest("demo", str(model), "0" * 64, "local", "rev", "license", "mlx"))
+
+    result = backend.plan("請整理成三頁簡報")
+    assert result["text"] == "draft"
+    assert calls["messages"][-1] == {"role": "user", "content": "請整理成三頁簡報"}
+    assert calls["template_options"]["add_generation_prompt"] is True
+    assert calls["template_options"]["enable_thinking"] is False
+    assert calls["prompt"] == "formatted conversation"
+    assert calls["max_tokens"] == 2048
 
 
 def test_qwen_image_backend_uses_condition_image_with_same_local_pipeline(tmp_path, monkeypatch):

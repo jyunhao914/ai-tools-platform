@@ -1,5 +1,5 @@
 from __future__ import annotations
-import os, platform, tempfile
+import importlib, json, os, platform, tempfile
 from pathlib import Path
 from dataclasses import dataclass
 from PIL import Image
@@ -26,10 +26,40 @@ class LocalQwenTextBackend(TextBackend):
     def health(self) -> dict:
         errors = self.manifest.validate(verify_hash=False)
         if self.format not in {"mlx", "gguf"}: errors.append("text model format must be mlx or gguf")
-        if Path(self.manifest.path).is_dir() and not any(Path(self.manifest.path).iterdir()): errors.append("selected model folder is empty")
+        path = Path(self.manifest.path)
+        if path.is_dir() and not any(path.iterdir()): errors.append("selected model folder is empty")
         if self.format == "mlx":
-            shards = list(Path(self.manifest.path).glob("*.safetensors"))
-            if len(shards) < 1: errors.append("MLX model folder has no safetensors shards")
+            config_path = path / "config.json"
+            index_path = path / "model.safetensors.index.json"
+            try:
+                config = json.loads(config_path.read_text())
+                index = json.loads(index_path.read_text())
+                shards = set(index.get("weight_map", {}).values())
+                if not shards or any(not (path / shard).is_file() for shard in shards):
+                    errors.append("MLX model index references missing weight shards")
+                model_type = config.get("model_type")
+                if not model_type:
+                    errors.append("MLX model config does not declare model_type")
+                else:
+                    try:
+                        importlib.import_module(f"mlx_lm.models.{model_type}")
+                    except ImportError:
+                        errors.append(f"MLX-LM does not support model architecture: {model_type}")
+            except (OSError, ValueError, TypeError) as exc:
+                errors.append(f"MLX model metadata is unreadable: {type(exc).__name__}")
+
+            runtime_path = path / "RUNTIME-REQUIREMENTS.json"
+            if runtime_path.is_file():
+                try:
+                    runtime = json.loads(runtime_path.read_text())
+                    inference = runtime.get("inference", {})
+                    runtime_id = str(inference.get("revision", "") or inference.get("runtime", "")).lower()
+                    if "mlx-lm" not in runtime_id and "mlx_lm" not in runtime_id:
+                        errors.append("checkpoint runtime evidence does not validate the app's MLX-LM backend")
+                    if runtime.get("runtime_evidence_pending_at_packaging"):
+                        errors.append("checkpoint package records required runtime evidence as pending")
+                except (OSError, ValueError, TypeError) as exc:
+                    errors.append(f"checkpoint runtime requirements are unreadable: {type(exc).__name__}")
         runtime = "mlx_lm" if self.format == "mlx" else "llama_cpp"
         try:
             __import__(runtime)
@@ -37,6 +67,9 @@ class LocalQwenTextBackend(TextBackend):
             errors.append(f"local inference runtime unavailable: {runtime}")
         return {"ok": not errors, "weights_ready": not self.manifest.validate(verify_hash=False), "backend": self.name, "format": self.format, "runtime": runtime, "errors": errors}
     def plan(self, prompt: str) -> dict:
+        health = self.health()
+        if not health["ok"]:
+            raise RuntimeError("本機文字模型未通過執行環境檢查：" + "; ".join(health["errors"]))
         path = Path(self.manifest.path)
         if self.format == "mlx":
             try:
@@ -45,7 +78,19 @@ class LocalQwenTextBackend(TextBackend):
                 raise RuntimeError("請安裝 MLX-LM，才能在本機執行文字模型") from exc
             if self._model is None:
                 self._model, self._tokenizer = mlx_lm.load(str(path))
-            generated = mlx_lm.generate(self._model, self._tokenizer, prompt=prompt, max_tokens=2048, verbose=False)
+            messages = [
+                {"role": "system", "content": "你是繁體中文簡報助理。忠實保留來源內容，不添加無依據的事實。"},
+                {"role": "user", "content": prompt},
+            ]
+            try:
+                formatted_prompt = self._tokenizer.apply_chat_template(
+                    messages, tokenize=False, add_generation_prompt=True, enable_thinking=False,
+                )
+            except TypeError:
+                formatted_prompt = self._tokenizer.apply_chat_template(
+                    messages, tokenize=False, add_generation_prompt=True,
+                )
+            generated = mlx_lm.generate(self._model, self._tokenizer, prompt=formatted_prompt, max_tokens=2048, verbose=False)
             return {"text": generated, "backend": self.name, "model_path": str(path)}
         try:
             from llama_cpp import Llama
