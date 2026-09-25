@@ -149,8 +149,13 @@ def test_outline_paste_dialog_pastes_previews_and_creates_project(tmp_path, monk
         assert app.document["title"] == "UI 貼上驗收"
         assert len(app.document["slides"]) == 2
         assert len(app.project_store.list_projects()) == 1
+        app.update()
+        assert app.editor_frame.winfo_viewable()
         assert output_path.is_file()
         assert len(Presentation(output_path).slides) == 2
+        notebook = next(widget for widget in descendants(app.editor_frame) if widget.winfo_class() == "TNotebook")
+        assert len(notebook.tabs()) == 2
+        assert all("候選" not in widget.cget("text") for widget in descendants(app.editor_frame) if widget.winfo_class() == "TButton")
     finally:
         app.destroy()
 
@@ -190,6 +195,38 @@ def test_outline_text_supports_command_v_and_right_click_paste(tmp_path, monkeyp
         assert outline_input.bind("<Button-3>")
         assert outline_input.bind("<Button-2>")
         assert outline_input.bind("<Command-v>")
+    finally:
+        app.destroy()
+
+
+def test_home_is_first_screen_and_recent_project_reopens_in_editor(tmp_path, monkeypatch):
+    from presentation_maker_offline.ui import PresentationMakerApp
+
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    try:
+        app = PresentationMakerApp()
+    except tk.TclError as exc:
+        pytest.skip(f"Tk display is unavailable: {exc}")
+
+    try:
+        app.update()
+        assert app.home_frame.winfo_viewable()
+        assert not app.editor_frame.winfo_viewable()
+        app.title_text.set("最近專案測試")
+        app.new_sample()
+        app.update()
+        assert app.editor_frame.winfo_viewable()
+
+        project_id = app.current_project_id
+        app.show_home()
+        app.update()
+        assert app.recent_list.get(0) == "最近專案測試　·　3 頁"
+        app.recent_list.selection_set(0)
+        app._open_recent_project()
+        app.update()
+        assert app.current_project_id == project_id
+        assert app.document["title"] == "最近專案測試"
+        assert app.editor_frame.winfo_viewable()
     finally:
         app.destroy()
 

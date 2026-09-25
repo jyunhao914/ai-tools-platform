@@ -21,13 +21,13 @@ STYLE_PALETTES = {
 
 
 class PresentationMakerApp(tk.Tk):
-    """A clearly-labelled, locally persisted interaction prototype."""
+    """Offline outline-to-editable-PPTX app with an explicit project workflow."""
 
     def __init__(self):
         super().__init__()
         self.title("離線簡報工作室")
-        self.geometry("1360x850")
-        self.minsize(1050, 680)
+        self.geometry("1280x820")
+        self.minsize(900, 620)
         self.source_path: str | None = None
         self.current_project_id: str | None = None
         self.document: dict | None = None
@@ -43,7 +43,7 @@ class PresentationMakerApp(tk.Tk):
         self.image_strategy = tk.StringVar(value="沿用原圖")
         self.intervention = tk.StringVar(value="協助潤飾")
         self.target_pages = tk.IntVar(value=8)
-        self.status_text = tk.StringVar(value="互動原型：示範操作，不會呼叫 AI 模型。")
+        self.status_text = tk.StringVar(value="從大綱建立可編輯簡報；目前不含 AI 生成。")
         self._init_store()
         self._build()
 
@@ -57,33 +57,30 @@ class PresentationMakerApp(tk.Tk):
         header = ttk.Frame(self, padding=(18, 12))
         header.pack(fill="x")
         ttk.Label(header, text="離線簡報工作室", font=("Arial", 20, "bold")).pack(side="left")
-        ttk.Label(header, text="大綱可匯出可編輯 PPTX · AI 生成尚未接通", foreground="#9a5b00").pack(side="left", padx=18)
-        ttk.Button(header, text="模型與儲存設定", command=self.show_settings).pack(side="right")
+        ttk.Label(header, text="離線編輯 · 匯出可編輯 PPTX", foreground="#475569").pack(side="left", padx=18)
+        ttk.Button(header, text="狀態與資料位置", command=self.show_settings).pack(side="right")
+        self.home_button = ttk.Button(header, text="首頁", command=self.show_home)
+        self.home_button.pack(side="right", padx=8)
         ttk.Button(header, text="開啟專案", command=self.open_project).pack(side="right", padx=8)
 
-        shell = ttk.Panedwindow(self, orient="horizontal")
-        shell.pack(fill="both", expand=True, padx=14, pady=(0, 10))
+        self.home_frame = ttk.Frame(self, padding=(48, 34))
+        self.editor_frame = ttk.Frame(self, padding=(10, 4))
+        self.home_frame.pack(fill="both", expand=True)
+        self._build_home()
+
+        shell = ttk.Panedwindow(self.editor_frame, orient="horizontal")
+        shell.pack(fill="both", expand=True, padx=4, pady=(0, 8))
         left = ttk.Frame(shell, padding=10, width=205)
         center = ttk.Frame(shell, padding=10)
         right = ttk.Frame(shell, padding=10, width=310)
         shell.add(left, weight=1); shell.add(center, weight=5); shell.add(right, weight=2)
 
-        ttk.Label(left, text="建立專案", font=("Arial", 13, "bold")).pack(anchor="w")
-        ttk.Button(left, text="新建空白示例", command=self.new_sample).pack(fill="x", pady=(6, 3))
-        ttk.Button(left, text="匯入主簡報／大綱…", command=self.pick_primary).pack(fill="x", pady=3)
-        ttk.Button(left, text="貼上大綱文字…", command=self.paste_outline).pack(fill="x", pady=3)
-        ttk.Label(left, text="專案名稱").pack(anchor="w", pady=(8, 2))
+        ttk.Label(left, text="目前簡報", font=("Arial", 13, "bold")).pack(anchor="w")
+        ttk.Label(left, text="直接編輯大綱內容並匯出。AI 擴寫、圖片生成及對話修改尚未提供。", wraplength=205, foreground="#475569").pack(anchor="w", pady=(6, 10))
+        ttk.Label(left, text="簡報名稱").pack(anchor="w", pady=(4, 2))
         ttk.Entry(left, textvariable=self.title_text).pack(fill="x")
-        ttk.Label(left, text="處理方式").pack(anchor="w", pady=(10, 2))
-        ttk.Combobox(left, textvariable=self.operation, values=["保留內容", "縮減內容", "擴增內容", "還原大綱", "擷取風格"], state="readonly").pack(fill="x")
-        ttk.Label(left, text="全份圖片策略").pack(anchor="w", pady=(8, 2))
-        ttk.Combobox(left, textvariable=self.image_strategy, values=["不用圖片", "沿用原圖", "超擬真重繪", "自由配圖"], state="readonly").pack(fill="x")
-        ttk.Label(left, text="目標頁數").pack(anchor="w", pady=(8, 2))
-        ttk.Spinbox(left, from_=1, to=100, textvariable=self.target_pages).pack(fill="x")
-        ttk.Label(left, text="AI 介入程度").pack(anchor="w", pady=(8, 2))
-        ttk.Combobox(left, textvariable=self.intervention, values=["忠實整理", "協助潤飾", "自由提案"], state="readonly").pack(fill="x")
-        ttk.Label(left, text="輸出格式").pack(anchor="w", pady=(8, 2))
-        ttk.Combobox(left, textvariable=self.output, values=["可編輯式 PPTX", "圖像式 PPTX"], state="readonly").pack(fill="x")
+        ttk.Label(left, text="操作方式與 AI 介入程度尚未提供").pack(anchor="w", pady=(10, 2))
+        ttk.Label(left, text="目前匯出：可編輯式 PPTX", foreground="#475569").pack(anchor="w", pady=(8, 2))
         ttk.Separator(left).pack(fill="x", pady=12)
         ttk.Label(left, text="投影片", font=("Arial", 13, "bold")).pack(anchor="w")
         self.slide_list = tk.Listbox(left, activestyle="none", height=14, exportselection=False)
@@ -97,8 +94,7 @@ class PresentationMakerApp(tk.Tk):
 
         toolbar = ttk.Frame(center)
         toolbar.pack(fill="x", pady=(0, 8))
-        ttk.Label(toolbar, text="畫布 · 拖曳即可新增矩形標記").pack(side="left")
-        ttk.Button(toolbar, text="比較候選", command=self.compare_candidate).pack(side="right")
+        ttk.Label(toolbar, text="預覽投影片 · 拖曳可標記待修改區域（備註僅保存，尚未執行 AI 修改）").pack(side="left")
         self.canvas = tk.Canvas(center, bg="#dce2e8", highlightthickness=0, cursor="crosshair")
         self.canvas.pack(fill="both", expand=True)
         self.canvas.bind("<Configure>", lambda _event: self.draw_slide())
@@ -111,10 +107,8 @@ class PresentationMakerApp(tk.Tk):
         tabs = ttk.Notebook(right)
         tabs.pack(fill="both", expand=True)
         edit_tab = ttk.Frame(tabs, padding=10)
-        chat_tab = ttk.Frame(tabs, padding=10)
         data_tab = ttk.Frame(tabs, padding=10)
         tabs.add(edit_tab, text="內容／版面")
-        tabs.add(chat_tab, text="對話修改")
         tabs.add(data_tab, text="專案資料")
 
         ttk.Label(edit_tab, text="頁面標題").pack(anchor="w")
@@ -146,22 +140,14 @@ class PresentationMakerApp(tk.Tk):
         self.style_picker.columnconfigure(0, weight=1)
         self.style_picker.columnconfigure(1, weight=1)
         self._refresh_style_cards()
-        ttk.Label(edit_tab, text="修改留言").pack(anchor="w", pady=(12, 4))
+        ttk.Label(edit_tab, text="區域備註（只保存，不會自動修改投影片）").pack(anchor="w", pady=(12, 4))
         self.annotation_note = tk.Text(edit_tab, height=5, wrap="word")
         self.annotation_note.pack(fill="x")
-        ttk.Button(edit_tab, text="保存標記留言", command=self.save_annotation_note).pack(fill="x", pady=5)
+        ttk.Button(edit_tab, text="保存區域備註", command=self.save_annotation_note).pack(fill="x", pady=5)
         ttk.Button(edit_tab, text="復原上一項", command=self.undo).pack(fill="x", pady=(12, 0))
 
-        ttk.Label(chat_tab, text="輸入修改指示；原型只建立候選，不執行生成。", wraplength=260).pack(anchor="w")
-        self.chat_input = tk.Text(chat_tab, height=7, wrap="word")
-        self.chat_input.pack(fill="x", pady=8)
-        ttk.Button(chat_tab, text="建立模擬候選", command=self.create_candidate).pack(fill="x")
-        self.candidate_text = tk.StringVar(value="目前沒有候選版本")
-        ttk.Label(chat_tab, textvariable=self.candidate_text, wraplength=260).pack(anchor="w", pady=10)
-        ttk.Button(chat_tab, text="接受候選", command=self.accept_candidate).pack(fill="x")
-        ttk.Button(chat_tab, text="取消候選", command=self.cancel_candidate).pack(fill="x", pady=4)
-
-        ttk.Button(data_tab, text="加入參考資料…", command=self.add_source).pack(fill="x")
+        ttk.Label(data_tab, text="此區目前只在本機解析與保存來源，不會將資料套用至 AI 生成。", wraplength=260, foreground="#9a5b00").pack(anchor="w", pady=(0, 8))
+        ttk.Button(data_tab, text="加入並保存來源資料…", command=self.add_source).pack(fill="x")
         self.source_role = tk.StringVar(value="補充資料")
         ttk.Label(data_tab, text="資料用途").pack(anchor="w", pady=(10, 3))
         ttk.Combobox(data_tab, textvariable=self.source_role, values=["補充資料", "主要內容", "修改依據", "風格參考"], state="readonly").pack(fill="x")
@@ -173,12 +159,66 @@ class PresentationMakerApp(tk.Tk):
         self.source_list.bind("<<ListboxSelect>>", self._preview_source)
         self.source_preview = tk.Text(data_tab, height=7, wrap="word", state="disabled")
         self.source_preview.pack(fill="x", pady=(2, 8))
-        ttk.Label(data_tab, text="來源在本機解析；PPTX 文字與圖片素材可加入專案，DOCX／PDF／TXT 目前以文字為主。", wraplength=260).pack(anchor="w")
+        ttk.Label(data_tab, text="PPTX 文字與圖片素材可保存；DOCX／PDF／TXT 目前以文字為主。", wraplength=260).pack(anchor="w")
 
         footer = ttk.Frame(self, padding=(14, 4, 14, 12))
-        footer.pack(fill="x")
+        self.footer = footer
         ttk.Label(footer, textvariable=self.status_text).pack(side="left", fill="x", expand=True)
         ttk.Button(footer, text="匯出可編輯 PPTX…", command=self.export).pack(side="right")
+
+    def _build_home(self):
+        ttk.Label(self.home_frame, text="建立一份簡報", font=("Arial", 28, "bold")).pack(anchor="w", pady=(12, 4))
+        ttk.Label(self.home_frame, text="貼上已有大綱，檢查辨識出的投影片，再匯出可編輯的 PowerPoint。內容只在這台電腦處理。", wraplength=720, font=("Arial", 13), foreground="#475569").pack(anchor="w", pady=(0, 24))
+        actions = ttk.Frame(self.home_frame)
+        actions.pack(anchor="w", pady=(0, 28))
+        ttk.Button(actions, text="貼上簡報大綱…", command=self.paste_outline).pack(side="left", ipadx=18, ipady=10, padx=(0, 12))
+        ttk.Button(actions, text="匯入 PPTX／文件…", command=self.pick_primary).pack(side="left", ipadx=12, ipady=10)
+        ttk.Label(self.home_frame, text="最近專案", font=("Arial", 16, "bold")).pack(anchor="w", pady=(8, 8))
+        self.recent_list = tk.Listbox(self.home_frame, height=9, activestyle="none", exportselection=False)
+        self.recent_list.pack(fill="both", expand=True)
+        self.recent_list.bind("<Double-Button-1>", self._open_recent_project)
+        ttk.Label(self.home_frame, text="雙擊專案即可繼續編輯。新專案會自動保存在本機。", foreground="#64748b").pack(anchor="w", pady=(8, 0))
+        self._refresh_recent_projects()
+
+    def _refresh_recent_projects(self):
+        if not hasattr(self, "recent_list"):
+            return
+        self.recent_list.delete(0, "end")
+        self._recent_project_ids = []
+        for row in self.project_store.list_projects()[:12]:
+            project_id = row["id"]
+            loaded = self.project_store.load_document(project_id)
+            title = loaded[1].get("title", "未命名簡報") if loaded else "無法讀取的專案"
+            slide_count = len(loaded[1].get("slides", [])) if loaded else 0
+            self.recent_list.insert("end", f"{title}　·　{slide_count} 頁")
+            self._recent_project_ids.append(project_id)
+
+    def _open_recent_project(self, _event=None):
+        selection = self.recent_list.curselection()
+        if not selection:
+            return
+        project_id = self._recent_project_ids[selection[0]]
+        loaded = self.project_store.load_document(project_id)
+        if not loaded:
+            messagebox.showwarning("無法開啟專案", "此專案沒有可讀取的內容。")
+            return
+        self.revision, self.document = loaded
+        self.current_project_id = project_id
+        self._restore_controls()
+        self._show_editor()
+        self._refresh()
+        self.status_text.set("已開啟本機專案。")
+
+    def _show_editor(self):
+        self.home_frame.pack_forget()
+        self.editor_frame.pack(fill="both", expand=True)
+        self.footer.pack(fill="x")
+
+    def show_home(self):
+        self.editor_frame.pack_forget()
+        self.footer.pack_forget()
+        self.home_frame.pack(fill="both", expand=True)
+        self._refresh_recent_projects()
 
     def _sample(self):
         document = new_project_document(self.title_text.get().strip() or "我的離線簡報")
@@ -245,17 +285,19 @@ class PresentationMakerApp(tk.Tk):
         self.project_store.save_document(project_id, document, expected_revision=0)
         self.current_project_id, self.document, self.revision = project_id, document, 1
         self.source_path = None
+        self._show_editor()
         self._refresh()
+        self._refresh_recent_projects()
 
     def paste_outline(self):
         dialog = tk.Toplevel(self)
-        dialog.title("貼上簡報大綱")
+        dialog.title("步驟 1／2：貼上簡報大綱")
         dialog.geometry("760x680")
         dialog.minsize(620, 520)
 
         ttk.Label(
             dialog,
-            text="貼上大綱文字。可用 ⌘V 或按右鍵選「貼上」。建議每張投影片以「## 標題」開頭，內容可用條列；也可用空行分隔各頁。貼上後會自動預覽頁數。",
+            text="把大綱貼在下方，確認辨識頁數和標題後即可建立並匯出。每頁可用「## 標題」開頭或空行分隔。這裡只會依原文排版，不會呼叫 AI 擴寫或生成圖片。支援 ⌘V、右鍵貼上及下方貼上按鈕。",
             wraplength=710,
         ).pack(anchor="w", padx=16, pady=(16, 8))
         outline_input = tk.Text(dialog, height=18, wrap="word", undo=True)
@@ -438,7 +480,9 @@ class PresentationMakerApp(tk.Tk):
             self.current_project_id = project_id
             self._restore_controls()
             self.candidate = None
+            self._show_editor()
             self._refresh(); self.status_text.set("已從本機資料庫開啟專案。")
+            self._refresh_recent_projects()
             menu.destroy()
         ttk.Button(menu, text="開啟", command=load_selected).pack(pady=(0, 12))
 
@@ -651,7 +695,7 @@ class PresentationMakerApp(tk.Tk):
             self.draw_slide(); return
         self._mutate()
         self.document["annotations"].append({"id": str(uuid4()), "slide_id": self._current_slide()["id"], "object_id": None, "rect": rect, "comment": "", "base_revision": self.revision, "status": "待處理", "locked": False})
-        self._persist(); self._refresh(); self.status_text.set("區域標記已保存；可在右側加入修改留言。")
+        self._persist(); self._refresh(); self.status_text.set("區域標記已保存；AI 區域修改尚未提供。")
 
     def _select_annotation(self, _event):
         selected = self.annotation_list.curselection()
