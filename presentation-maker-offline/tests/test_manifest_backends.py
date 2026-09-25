@@ -113,6 +113,9 @@ def test_qwen_image_backend_uses_condition_image_with_same_local_pipeline(tmp_pa
         def to(self, device): self.vae.to(device); return self
         def __call__(self, **kwargs):
             calls.update(kwargs)
+            callback = kwargs.get("callback_on_step_end")
+            if callback:
+                callback(self, 3, None, {})
             generated = Image.new("RGB", (kwargs["width"], kwargs["height"]), "green")
             for x in range(8): generated.putpixel((x, 0), (x * 30, 0, 0))
             return SimpleNamespace(images=[generated])
@@ -121,11 +124,22 @@ def test_qwen_image_backend_uses_condition_image_with_same_local_pipeline(tmp_pa
     monkeypatch.setattr(Path, "home", classmethod(lambda _cls: tmp_path))
     manifest = CheckpointManifest("demo", str(model), "0"*64, "local", "rev", "license", "diffusers")
     backend = LocalQwenImageBackend(manifest, vae_device="mps")
-    result = backend.generate("改成森林背景", edit_image=str(source))
+    progress = []
+    result = backend.generate("改成森林背景", edit_image=str(source), progress_callback=lambda step, total: progress.append((step, total)))
     assert isinstance(calls["image"], Image.Image)
     assert calls["image"].size == (64, 48)
     assert calls["load_options"]["local_files_only"] is True
     assert Path(result["image_path"]).is_file()
+    assert progress == [(4, 40)]
+
+    import threading
+    cancel = threading.Event(); cancel.set()
+    with pytest.raises(InterruptedError, match="已取消"):
+        backend.generate("取消測試", cancel_event=cancel)
+    assert getattr(backend._pipeline, "_interrupt", False) is True
+    retry = backend.generate("取消後重試")
+    assert Path(retry["image_path"]).is_file()
+    assert backend._pipeline._interrupt is False
 
 
 def test_qwen_image_validates_component_indexes_before_loading(tmp_path):

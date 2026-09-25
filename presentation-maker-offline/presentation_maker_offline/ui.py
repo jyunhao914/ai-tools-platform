@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import tkinter as tk
+import queue
+import shutil
+import threading
+import platform
+from copy import deepcopy
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from uuid import uuid4
 
-from .backends import LocalQwenTextBackend
+from .backends import LocalQwenImageBackend, LocalQwenTextBackend
 from .export import export_project_pptx
 from .manifest import CheckpointManifest
 from .project_document import new_project_document, update_slide_text_element
@@ -22,6 +27,30 @@ STYLE_PALETTES = {
 }
 
 
+def _boxes_overlap(first: tuple[float, float, float, float], second: tuple[float, float, float, float]) -> bool:
+    ax, ay, aw, ah = first
+    bx, by, bw, bh = second
+    return ax < bx + bw and bx < ax + aw and ay < by + bh and by < ay + ah
+
+
+def _clipboard_text(widget) -> str:
+    try:
+        text = widget.clipboard_get()
+        if text:
+            return text
+    except tk.TclError:
+        pass
+    if platform.system() == "Darwin":
+        try:
+            import subprocess
+            return subprocess.run(
+                ["pbpaste"], capture_output=True, text=True, timeout=2, check=False,
+            ).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            return ""
+    return ""
+
+
 class PresentationMakerApp(tk.Tk):
     """Offline outline-to-editable-PPTX app with an explicit project workflow."""
 
@@ -35,6 +64,7 @@ class PresentationMakerApp(tk.Tk):
         self.document: dict | None = None
         self.revision = 0
         self._next_parent_revision: int | None = None
+        self._image_cancel: threading.Event | None = None
         self.candidate: dict | None = None
         self.mark_start: tuple[int, int] | None = None
         self.mark_rect: int | None = None
@@ -59,7 +89,7 @@ class PresentationMakerApp(tk.Tk):
         header = ttk.Frame(self, padding=(18, 12))
         header.pack(fill="x")
         ttk.Label(header, text="離線簡報工作室", font=("Arial", 20, "bold")).pack(side="left")
-        ttk.Label(header, text="離線編輯 · 匯出可編輯 PPTX", foreground="#475569").pack(side="left", padx=18)
+        ttk.Label(header, text="貼上大綱 → 編輯頁面 → 加入圖片 → 匯出 PPTX", foreground="#475569").pack(side="left", padx=18)
         ttk.Button(header, text="狀態與資料位置", command=self.show_settings).pack(side="right")
         self.home_button = ttk.Button(header, text="首頁", command=self.show_home)
         self.home_button.pack(side="right", padx=8)
@@ -78,11 +108,10 @@ class PresentationMakerApp(tk.Tk):
         shell.add(left, weight=1); shell.add(center, weight=5); shell.add(right, weight=2)
 
         ttk.Label(left, text="目前簡報", font=("Arial", 13, "bold")).pack(anchor="w")
-        ttk.Label(left, text="直接編輯大綱內容並匯出。AI 擴寫、圖片生成及對話修改尚未提供。", wraplength=205, foreground="#475569").pack(anchor="w", pady=(6, 10))
+        ttk.Label(left, text="選取頁面後可編輯文字；也可用本機模型為本頁生成插圖。", wraplength=205, foreground="#475569").pack(anchor="w", pady=(6, 10))
         ttk.Label(left, text="簡報名稱").pack(anchor="w", pady=(4, 2))
         ttk.Entry(left, textvariable=self.title_text).pack(fill="x")
-        ttk.Label(left, text="操作方式與 AI 介入程度尚未提供").pack(anchor="w", pady=(10, 2))
-        ttk.Label(left, text="目前匯出：可編輯式 PPTX", foreground="#475569").pack(anchor="w", pady=(8, 2))
+        ttk.Label(left, text="完成後按右下角匯出 PPTX。", foreground="#475569").pack(anchor="w", pady=(8, 2))
         ttk.Separator(left).pack(fill="x", pady=12)
         ttk.Label(left, text="投影片", font=("Arial", 13, "bold")).pack(anchor="w")
         self.slide_list = tk.Listbox(left, activestyle="none", height=14, exportselection=False)
@@ -96,7 +125,10 @@ class PresentationMakerApp(tk.Tk):
 
         toolbar = ttk.Frame(center)
         toolbar.pack(fill="x", pady=(0, 8))
-        ttk.Label(toolbar, text="預覽投影片 · 拖曳可標記待修改區域（備註僅保存，尚未執行 AI 修改）").pack(side="left")
+        ttk.Label(toolbar, text="目前頁面").pack(side="left")
+        self.generate_image_button = ttk.Button(toolbar, text="為本頁生成圖片", command=self.generate_slide_image)
+        self.generate_image_button.pack(side="right", padx=(8, 0))
+        ttk.Label(toolbar, text="生成的圖片會另存；不會改寫原文。拖曳可標記區域。", foreground="#475569").pack(side="right")
         self.canvas = tk.Canvas(center, bg="#dce2e8", highlightthickness=0, cursor="crosshair")
         self.canvas.pack(fill="both", expand=True)
         self.canvas.bind("<Configure>", lambda _event: self.draw_slide())
@@ -170,7 +202,7 @@ class PresentationMakerApp(tk.Tk):
 
     def _build_home(self):
         ttk.Label(self.home_frame, text="建立一份簡報", font=("Arial", 28, "bold")).pack(anchor="w", pady=(12, 4))
-        ttk.Label(self.home_frame, text="貼上已有大綱，檢查辨識出的投影片，再匯出可編輯的 PowerPoint。內容只在這台電腦處理。", wraplength=720, font=("Arial", 13), foreground="#475569").pack(anchor="w", pady=(0, 24))
+        ttk.Label(self.home_frame, text="貼上大綱並確認分頁 → 編輯文字與風格 → 可選擇為頁面生成離線插圖 → 匯出可編輯的 PowerPoint。內容只在這台電腦處理。", wraplength=820, font=("Arial", 13), foreground="#475569").pack(anchor="w", pady=(0, 24))
         actions = ttk.Frame(self.home_frame)
         actions.pack(anchor="w", pady=(0, 28))
         ttk.Button(actions, text="貼上簡報大綱…", command=self.paste_outline).pack(side="left", ipadx=18, ipady=10, padx=(0, 12))
@@ -314,13 +346,9 @@ class PresentationMakerApp(tk.Tk):
         preview_job = None
 
         def paste_from_clipboard(_event=None):
-            try:
-                content = dialog.clipboard_get()
-            except tk.TclError:
-                preview_label.set("剪貼簿沒有可貼上的文字；請先複製大綱文字，再按「從剪貼簿貼上」。")
-                return "break"
+            content = _clipboard_text(dialog)
             if not content:
-                preview_label.set("剪貼簿沒有可貼上的文字；請先複製大綱文字。")
+                preview_label.set("剪貼簿沒有可貼上的文字；請先複製大綱文字，再按「從剪貼簿貼上」。")
                 return "break"
             try:
                 if outline_input.tag_ranges("sel"):
@@ -441,7 +469,7 @@ class PresentationMakerApp(tk.Tk):
         paste_menu.add_command(label="貼上", command=paste_from_clipboard)
         paste_menu.add_command(label="全選", command=lambda: (outline_input.tag_add("sel", "1.0", "end-1c"), outline_input.focus_set()))
         outline_input.bind("<<Modified>>", preview_after_edit)
-        for sequence in ("<Command-v>", "<Command-V>", "<Control-v>", "<Control-V>", "<<Paste>>"):
+        for sequence in ("<Command-v>", "<Command-V>", "<Control-v>", "<Control-V>"):
             try:
                 outline_input.bind(sequence, paste_from_clipboard, add="+")
             except tk.TclError:
@@ -459,6 +487,166 @@ class PresentationMakerApp(tk.Tk):
         dialog.lift(self)
         dialog.after_idle(dialog.lift)
         dialog.after_idle(outline_input.focus_set)
+
+    def generate_slide_image(self) -> None:
+        slide = self._current_slide()
+        if not slide or not self.document or not self.current_project_id:
+            messagebox.showinfo("生成本頁圖片", "請先建立或開啟簡報，並選取要處理的頁面。")
+            return
+        if self._image_cancel is not None:
+            return
+        image_model = qwen_image21_readiness()
+        if not image_model["ready"]:
+            messagebox.showerror("圖片模型尚未就緒", "Qwen-Image-2.1 尚未通過完整性檢查，現在不會開始生成。\n\n請先確認模型完整下載。")
+            return
+
+        prompt_parts = [slide.get("title", "")]
+        for element in slide.get("elements", []):
+            if element.get("type", "text") == "text":
+                prompt_parts.append(element.get("text", ""))
+        default_prompt = "請為繁體中文簡報製作一張簡潔、清楚、無文字的插圖。主題：" + "\n".join(prompt_parts)
+        dialog = tk.Toplevel(self)
+        dialog.title("生成本頁圖片")
+        dialog.geometry("520x390")
+        dialog.transient(self)
+        ttk.Label(dialog, text=f"第 {slide['order'] + 1} 頁｜{slide['title']}", font=("Arial", 14, "bold")).pack(anchor="w", padx=16, pady=(16, 8))
+        ttk.Label(dialog, text="這會新增一張離線生成的插圖，不會改寫大綱文字。模型生成通常需要數十秒。", wraplength=480).pack(anchor="w", padx=16, pady=(0, 8))
+        prompt = tk.Text(dialog, height=8, wrap="word", undo=True)
+        prompt.pack(fill="both", expand=True, padx=16, pady=(0, 8))
+        prompt.insert("1.0", default_prompt[:1800])
+        progress_text = tk.StringVar(value="尚未開始")
+        ttk.Label(dialog, textvariable=progress_text).pack(anchor="w", padx=16, pady=(0, 8))
+        actions = ttk.Frame(dialog, padding=(16, 0, 16, 14))
+        actions.pack(fill="x")
+        result_queue: queue.Queue = queue.Queue()
+        cancel = threading.Event()
+        project_id, slide_id, base_revision = self.current_project_id, slide["id"], self.revision
+        worker_started = False
+
+        def close_dialog():
+            if not worker_started:
+                dialog.destroy()
+                return
+            if self._image_cancel is not None and not cancel.is_set():
+                cancel.set()
+                progress_text.set("正在停止生成；請稍候…")
+                cancel_button.configure(state="disabled")
+                return
+            if self._image_cancel is None:
+                dialog.destroy()
+
+        dialog.protocol("WM_DELETE_WINDOW", close_dialog)
+
+        def run_generation(text: str):
+            try:
+                model_path = Path("~/.cache/lm-studio/models/Qwen/Qwen-Image-2.1").expanduser()
+                backend = LocalQwenImageBackend(
+                    CheckpointManifest("Qwen-Image-2.1", str(model_path), "0" * 64,
+                                       "local checkpoint", "2.1", "see model license", "diffusers"),
+                    num_inference_steps=20, width=512, height=512,
+                )
+                health = backend.health()
+                if not health["ok"]:
+                    raise RuntimeError("本機圖片引擎未通過檢查：" + "; ".join(health["errors"]))
+                result = backend.generate(
+                    text,
+                    cancel_event=cancel,
+                    progress_callback=lambda step, total: result_queue.put(("progress", step, total)),
+                )
+                result_queue.put(("done", result["image_path"], text))
+            except InterruptedError:
+                result_queue.put(("cancelled",))
+            except Exception as exc:
+                result_queue.put(("error", str(exc)))
+
+        def start_generation():
+            nonlocal worker_started
+            text = prompt.get("1.0", "end").strip()
+            if not text:
+                messagebox.showwarning("需要圖片描述", "請輸入這張插圖要呈現的內容。", parent=dialog)
+                return
+            prompt.configure(state="disabled")
+            generate_button.configure(state="disabled")
+            progress_text.set("載入本機模型…首次載入約需數十秒")
+            worker_started = True
+            self._image_cancel = cancel
+            threading.Thread(target=run_generation, args=(text,), daemon=True).start()
+            poll_result()
+
+        def poll_result():
+            try:
+                while True:
+                    item = result_queue.get_nowait()
+                    if item[0] == "progress":
+                        progress_text.set(f"正在生成：第 {item[1]}／{item[2]} 步")
+                    elif item[0] == "done":
+                        self._image_cancel = None
+                        try:
+                            self._insert_generated_image(project_id, slide_id, base_revision, Path(item[1]), item[2])
+                            progress_text.set("圖片已加入本頁，原文已保留。")
+                            self.status_text.set("離線圖片已生成並加入目前頁面。")
+                            cancel_button.configure(text="完成", state="normal", command=dialog.destroy)
+                        except Exception as exc:
+                            progress_text.set("圖片已生成，但加入專案失敗。")
+                            messagebox.showerror("無法加入圖片", str(exc), parent=dialog)
+                            cancel_button.configure(text="關閉", state="normal", command=dialog.destroy)
+                    elif item[0] == "cancelled":
+                        self._image_cancel = None
+                        progress_text.set("已取消，原有頁面未變更。")
+                        cancel_button.configure(text="關閉", state="normal", command=dialog.destroy)
+                    elif item[0] == "error":
+                        self._image_cancel = None
+                        progress_text.set("生成失敗，原有頁面未變更。")
+                        messagebox.showerror("圖片生成失敗", item[1], parent=dialog)
+                        cancel_button.configure(text="關閉", state="normal", command=dialog.destroy)
+            except queue.Empty:
+                pass
+            if self._image_cancel is not None:
+                dialog.after(150, poll_result)
+
+        generate_button = ttk.Button(actions, text="開始生成", command=start_generation)
+        generate_button.pack(side="right")
+        cancel_button = ttk.Button(actions, text="取消", command=close_dialog)
+        cancel_button.pack(side="right", padx=(0, 8))
+
+    def _insert_generated_image(self, project_id: str, slide_id: str, base_revision: int, generated_path: Path, prompt: str) -> None:
+        if (self.current_project_id != project_id or self.revision != base_revision
+                or not self.document or not generated_path.is_file()):
+            raise RuntimeError("生成期間專案或頁面已變更，為避免覆蓋內容，圖片沒有自動插入。")
+        slide = next((item for item in self.document["slides"] if item["id"] == slide_id), None)
+        if slide is None:
+            raise RuntimeError("原頁面已不存在，圖片沒有插入。")
+        pasted_outline = any(source.get("origin") == "pasted_text" for source in self.document.get("sources", []))
+        text_elements = [element for element in slide.get("elements", []) if element.get("type", "text") == "text"]
+        if pasted_outline:
+            for element in text_elements:
+                element.update(x=.06, y=.22, width=.49, height=.68)
+            box = (.59, .22, .35, .60)
+        else:
+            box = next((candidate for candidate in ((.59, .22, .35, .60), (.59, .54, .35, .30), (.06, .58, .34, .28))
+                        if not any(_boxes_overlap(candidate, (float(e.get("x", .08)), float(e.get("y", .2)),
+                                                               float(e.get("width", .84)), float(e.get("height", .64))))
+                                   for e in slide.get("elements", [])))
+                       , None)
+            if box is None:
+                raise RuntimeError("本頁版面沒有不重疊的圖片位置；先調整元素位置再試一次。")
+        assets = self.app_support / "projects" / project_id / "assets"
+        assets.mkdir(parents=True, exist_ok=True)
+        asset_name = f"generated-{uuid4().hex}.png"
+        asset_path = assets / asset_name
+        shutil.copyfile(generated_path, asset_path)
+        original_elements = deepcopy(slide["elements"])
+        try:
+            slide["elements"].append({"id": str(uuid4()), "type": "image", "origin": "qwen_image21",
+                                      "asset_path": asset_name, "prompt": prompt,
+                                      "x": box[0], "y": box[1], "width": box[2], "height": box[3]})
+            self._persist()
+            self._refresh()
+        except Exception:
+            slide["elements"] = original_elements
+            asset_path.unlink(missing_ok=True)
+            raise
+        generated_path.unlink(missing_ok=True)
 
     def open_project(self):
         projects = self.project_store.list_projects()
@@ -847,7 +1035,7 @@ class PresentationMakerApp(tk.Tk):
                 text = f"Qwen 文字權重：已找到（{shards} shards），但目前應用推論後端不可用：{detail}"
         else:
             text = "Qwen 文字模型：尚未找到完整模型資料夾或必要分片"
-        image = f"Qwen-Image-2.1：權重完整、離線載入已驗證（{image_model['safetensors']} 檔）；圖片生成待驗收" if image_model["ready"] else f"Qwen-Image-2.1：尚未完整（缺 {len(image_model['missing'])} 項、暫存 {len(image_model['incomplete'])} 項）"
+        image = f"Qwen-Image-2.1：模型就緒（{image_model['safetensors']} 個權重檔）；可在投影片編輯器中生成圖片" if image_model["ready"] else f"Qwen-Image-2.1：尚未完整（缺 {len(image_model['missing'])} 項、暫存 {len(image_model['incomplete'])} 項），圖片生成暫不可用"
         ttk.Label(win, text=text, wraplength=510).pack(anchor="w", padx=20, pady=6)
         ttk.Label(win, text=image, wraplength=510).pack(anchor="w", padx=20, pady=6)
         ttk.Label(win, text=f"專案資料庫：{self.project_store.path}", wraplength=510).pack(anchor="w", padx=20, pady=6)

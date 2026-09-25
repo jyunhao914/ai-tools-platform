@@ -195,6 +195,13 @@ def test_outline_text_supports_command_v_and_right_click_paste(tmp_path, monkeyp
         assert outline_input.bind("<Button-3>")
         assert outline_input.bind("<Button-2>")
         assert outline_input.bind("<Command-v>")
+
+        from presentation_maker_offline import ui
+        dialog.clipboard_get = lambda: "## 滑鼠右鍵貼上\n- 內容四"
+        monkeypatch.setattr(tk.Menu, "tk_popup", lambda menu, *_args: menu.invoke(0))
+        outline_input.event_generate("<Button-3>", x=40, y=40)
+        app.update()
+        assert "## 滑鼠右鍵貼上" in outline_input.get("1.0", "end")
     finally:
         app.destroy()
 
@@ -227,6 +234,110 @@ def test_home_is_first_screen_and_recent_project_reopens_in_editor(tmp_path, mon
         assert app.current_project_id == project_id
         assert app.document["title"] == "最近專案測試"
         assert app.editor_frame.winfo_viewable()
+    finally:
+        app.destroy()
+
+
+def test_mac_clipboard_fallback_reads_system_text_when_tk_clipboard_fails(monkeypatch):
+    import subprocess
+    from types import SimpleNamespace
+    from presentation_maker_offline import ui
+
+    monkeypatch.setattr(ui.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: SimpleNamespace(stdout="## 系統剪貼簿\n- 文字"))
+    widget = SimpleNamespace(clipboard_get=lambda: (_ for _ in ()).throw(tk.TclError("empty clipboard")))
+    assert ui._clipboard_text(widget) == "## 系統剪貼簿\n- 文字"
+
+
+def test_generated_slide_image_preserves_text_and_exports_as_picture(tmp_path, monkeypatch):
+    from PIL import Image
+    from presentation_maker_offline.ui import PresentationMakerApp
+
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    try:
+        app = PresentationMakerApp()
+    except tk.TclError as exc:
+        pytest.skip(f"Tk display is unavailable: {exc}")
+    try:
+        title, slides, source = parse_outline_text("# 圖片測試\n## 腸道健康\n- 早期篩檢很重要")
+        document = new_project_document(title)
+        document["slides"], document["sources"] = slides, [source]
+        document["slides"][0]["source_id"] = source["id"]
+        app._save_new_project(document, source["path"], project_id="generated-image-project")
+        app.update()
+        text_before = slides[0]["elements"][0]["text"]
+        generated = tmp_path / "generated.png"
+        Image.new("RGB", (48, 48), "salmon").save(generated)
+        app._insert_generated_image("generated-image-project", slides[0]["id"], app.revision, generated, "腸道衛教插圖")
+        slide = app.document["slides"][0]
+        assert slide["elements"][0]["text"] == text_before
+        assert slide["elements"][0]["width"] < .6
+        image_element = next(element for element in slide["elements"] if element["type"] == "image")
+        assert image_element["prompt"] == "腸道衛教插圖"
+        output = export_project_pptx(tmp_path / "with-generated-image.pptx", app.document, asset_root=tmp_path / "Library/Application Support/PresentationMaker/projects/generated-image-project/assets")
+        exported = Presentation(output)
+        assert any(shape.shape_type == 13 for shape in exported.slides[0].shapes)
+        assert "早期篩檢很重要" in "\n".join(shape.text for shape in exported.slides[0].shapes if shape.has_text_frame)
+    finally:
+        app.destroy()
+
+
+def test_editor_image_generation_runs_async_and_saves_prompt_and_asset(tmp_path, monkeypatch):
+    import time
+    from types import SimpleNamespace
+    from PIL import Image
+    from presentation_maker_offline import ui
+    from presentation_maker_offline.ui import PresentationMakerApp
+
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(ui, "qwen_image21_readiness", lambda: {"ready": True})
+    calls = {}
+
+    class FakeImageBackend:
+        def __init__(self, *_args, **_kwargs):
+            pass
+        def health(self):
+            return {"ok": True, "errors": []}
+        def generate(self, prompt, *, cancel_event, progress_callback):
+            calls["prompt"] = prompt
+            progress_callback(1, 20)
+            path = tmp_path / "generated-from-ui.png"
+            Image.new("RGB", (32, 32), "seagreen").save(path)
+            return {"image_path": str(path)}
+
+    monkeypatch.setattr(ui, "LocalQwenImageBackend", FakeImageBackend)
+    try:
+        app = PresentationMakerApp()
+    except tk.TclError as exc:
+        pytest.skip(f"Tk display is unavailable: {exc}")
+    try:
+        _title, slides, source = parse_outline_text("# UI 圖片生成\n## 第一頁\n- 原始文字保留")
+        document = new_project_document("UI 圖片生成")
+        document["slides"], document["sources"] = slides, [source]
+        document["slides"][0]["source_id"] = source["id"]
+        app._save_new_project(document, source["path"], project_id="async-image-project")
+        app.update()
+        original_text = slides[0]["elements"][0]["text"]
+        app.generate_slide_image()
+        dialog = next(widget for widget in app.winfo_children() if widget.winfo_class() == "Toplevel")
+
+        def descendants(widget):
+            return [widget, *(child for item in widget.winfo_children() for child in descendants(item))]
+
+        buttons = {widget.cget("text"): widget for widget in descendants(dialog) if widget.winfo_class() == "TButton"}
+        buttons["開始生成"].invoke()
+        deadline = time.monotonic() + 4
+        while app._image_cancel is not None and time.monotonic() < deadline:
+            app.update()
+            time.sleep(.02)
+        app.update()
+        slide = app.document["slides"][0]
+        assert calls["prompt"]
+        assert slide["elements"][0]["text"] == original_text
+        image = next(element for element in slide["elements"] if element.get("type") == "image")
+        assert image["prompt"] == calls["prompt"]
+        assert (tmp_path / "Library/Application Support/PresentationMaker/projects/async-image-project/assets" / image["asset_path"]).is_file()
+        assert app.revision == 2
     finally:
         app.destroy()
 

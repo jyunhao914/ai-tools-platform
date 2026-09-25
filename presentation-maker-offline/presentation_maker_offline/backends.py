@@ -1,5 +1,5 @@
 from __future__ import annotations
-import importlib, json, os, platform, tempfile
+import importlib, json, os, platform, tempfile, threading
 from pathlib import Path
 from dataclasses import dataclass
 from PIL import Image
@@ -139,7 +139,14 @@ class LocalQwenImageBackend(ImageBackend):
             if platform.system() == "Darwin" and platform.machine() == "arm64" and not torch.backends.mps.is_available():
                 errors.append("PyTorch MPS is unavailable")
         return {"ok": not errors, "weights_ready": readiness["ready"], "backend": self.name, "runtime": self.runtime, "vae_device": self.selected_vae_device(False), "errors": errors}
-    def generate(self, prompt: str, *, edit_image: str | None = None) -> dict:
+    def generate(
+        self,
+        prompt: str,
+        *,
+        edit_image: str | None = None,
+        cancel_event: threading.Event | None = None,
+        progress_callback=None,
+    ) -> dict:
         if self.num_inference_steps < 2:
             raise ValueError("Qwen-Image generation requires at least 2 inference steps")
         if self.width < 16 or self.height < 16:
@@ -164,15 +171,29 @@ class LocalQwenImageBackend(ImageBackend):
             pipeline = self._pipeline
             if str(pipeline.vae.device) != device:
                 pipeline.vae.to(device)
+            if hasattr(pipeline, "_interrupt"):
+                pipeline._interrupt = False
             image_input = Image.open(edit_image).convert("RGB") if edit_image else None
             call = {"prompt": prompt, "num_inference_steps": self.num_inference_steps, "width": self.width, "height": self.height}
             if image_input is not None:
                 call["image"] = image_input
+            if cancel_event is not None or progress_callback is not None:
+                def on_step_end(pipe, step, _timestep, callback_kwargs):
+                    if progress_callback:
+                        progress_callback(step + 1, self.num_inference_steps)
+                    if cancel_event and cancel_event.is_set():
+                        # Diffusers checks this cooperative flag between denoising steps.
+                        pipe._interrupt = True
+                    return callback_kwargs
+
+                call["callback_on_step_end"] = on_step_end
             try:
                 result = pipeline(**call)
             except Exception:
                 self._pipeline = None
                 raise
+            if cancel_event and cancel_event.is_set():
+                raise InterruptedError("已取消本頁圖片生成；原有投影片內容未更動")
             images = result.images
             candidate = images[0].convert("RGB")
             extrema = candidate.getextrema()
