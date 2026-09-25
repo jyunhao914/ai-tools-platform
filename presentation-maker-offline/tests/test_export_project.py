@@ -1,8 +1,10 @@
 from pptx import Presentation
+from pptx.dml.color import RGBColor
 from PIL import Image
 
 from presentation_maker_offline.export import export_project_pptx
 from presentation_maker_offline.project_document import new_project_document
+from presentation_maker_offline.source_import import parse_outline_text
 
 
 def test_export_project_creates_editable_text_and_keeps_coordinates(tmp_path):
@@ -43,3 +45,27 @@ def test_export_project_embeds_project_images_and_rejects_path_escape(tmp_path):
     import pytest
     with pytest.raises(ValueError, match="inside the project asset folder"):
         export_project_pptx(tmp_path / "unsafe.pptx", document, asset_root=asset_root)
+
+
+def test_user_outline_exports_all_pages_with_selected_theme_and_readable_text(tmp_path):
+    chunks = ["**認識大腸癌**"]
+    for page in range(1, 22):
+        chunks.append(f"# 第{page}頁｜第{page}頁主題\n- 早期發現與健康管理重點\n- 定期篩檢及日常照護")
+    title, slides, source = parse_outline_text("\n\n".join(chunks))
+    document = new_project_document(title)
+    document["slides"] = slides
+    document["sources"] = [source]
+    for slide in slides:
+        slide["source_id"] = source["id"]
+
+    output = export_project_pptx(tmp_path / "colon-health.pptx", document, "自然療癒")
+    reopened = Presentation(output)
+    assert len(reopened.slides) == 21
+    first = reopened.slides[0]
+    assert first.background.fill.fore_color.rgb == RGBColor(0xF2, 0xF8, 0xF1)
+    first_text = "\n".join(shape.text for shape in first.shapes if shape.has_text_frame)
+    assert "第1頁主題" in first_text
+    assert "定期篩檢及日常照護" in first_text
+    last_text = "\n".join(shape.text for shape in reopened.slides[-1].shapes if shape.has_text_frame)
+    assert "第21頁主題" in last_text
+    assert "21 / 21" in last_text

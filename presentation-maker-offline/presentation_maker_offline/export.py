@@ -1,8 +1,26 @@
 from pathlib import Path
 from pptx import Presentation
 from pptx.dml.color import RGBColor
+from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Inches, Pt
 from .project_document import validate_project_document
+
+
+THEMES = {
+    "清爽藍": {"paper": "F8FAFC", "accent": "2459A6", "text": "172B4D", "rule": "CFE1FA", "muted": "64748B"},
+    "雜誌編輯": {"paper": "FFF9F2", "accent": "B45309", "text": "44403C", "rule": "F3D7B5", "muted": "78716C"},
+    "自然療癒": {"paper": "F2F8F1", "accent": "2F7658", "text": "34483C", "rule": "C8DDCB", "muted": "647568"},
+    "高科技": {"paper": "111827", "accent": "38BDF8", "text": "E2E8F0", "rule": "334155", "muted": "94A3B8"},
+}
+
+
+def _color(hex_color: str) -> RGBColor:
+    return RGBColor.from_string(hex_color)
+
+
+def _estimated_body_lines(text: str, *, characters_per_line: int = 44) -> int:
+    return sum(max(1, (len(line) + characters_per_line - 1) // characters_per_line) for line in text.splitlines() if line.strip())
 
 def export_demo_pptx(path: str | Path, title: str, outline: list[str], style: str = "清爽藍") -> Path:
     out = Path(path); out.parent.mkdir(parents=True, exist_ok=True)
@@ -19,30 +37,55 @@ def export_demo_pptx(path: str | Path, title: str, outline: list[str], style: st
 
 
 def export_project_pptx(path: str | Path, document: dict, style: str = "清爽藍", *, asset_root: str | Path | None = None) -> Path:
-    """Export project text and available image assets as PowerPoint objects."""
+    """Export editable slides using a readable, selected visual theme."""
     validate_project_document(document)
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
     presentation = Presentation()
     presentation.slide_width = Inches(13.333)
     presentation.slide_height = Inches(7.5)
-    accent = RGBColor(37, 87, 166) if style == "清爽藍" else RGBColor(47, 75, 93)
-    for slide_doc in document["slides"]:
+    theme = THEMES.get(style, THEMES["清爽藍"])
+    source_origins = {source.get("id"): source.get("origin") for source in document.get("sources", [])}
+    for slide_index, slide_doc in enumerate(document["slides"]):
         slide = presentation.slides.add_slide(presentation.slide_layouts[6])
         slide.background.fill.solid()
-        slide.background.fill.fore_color.rgb = RGBColor(250, 251, 253)
-        title_box = slide.shapes.add_textbox(Inches(.7), Inches(.45), Inches(11.9), Inches(.9))
-        title_box.text_frame.text = slide_doc.get("title", "")
-        if title_box.text_frame.paragraphs[0].runs:
-            title_run = title_box.text_frame.paragraphs[0].runs[0]
-            title_run.font.size = Pt(30)
-            title_run.font.bold = True
-            title_run.font.color.rgb = accent
+        slide.background.fill.fore_color.rgb = _color(theme["paper"])
+        brand_bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(.12), Inches(7.5))
+        brand_bar.fill.solid()
+        brand_bar.fill.fore_color.rgb = _color(theme["accent"])
+        brand_bar.line.fill.background()
+        is_cover = slide_index == 0
+        title_box = slide.shapes.add_textbox(
+            Inches(.95 if is_cover else .8), Inches(1.35 if is_cover else .55),
+            Inches(11.4 if is_cover else 11.7), Inches(1.45 if is_cover else 1.0),
+        )
+        title_frame = title_box.text_frame
+        title_frame.clear()
+        title_frame.word_wrap = True
+        title_frame.margin_left = 0
+        title_frame.margin_right = 0
+        title_frame.margin_top = 0
+        title_frame.margin_bottom = 0
+        title_run = title_frame.paragraphs[0].add_run()
+        title_run.text = slide_doc.get("title", "")
+        title_run.font.name = "Aptos Display"
+        title_run.font.size = Pt(38 if is_cover else (28 if len(title_run.text) < 28 else 24))
+        title_run.font.bold = True
+        title_run.font.color.rgb = _color(theme["accent"])
+        if not is_cover:
+            rule = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(.8), Inches(1.62), Inches(11.7), Inches(.035))
+            rule.fill.solid()
+            rule.fill.fore_color.rgb = _color(theme["rule"])
+            rule.line.fill.background()
         for element in slide_doc.get("elements", []):
-            x = max(0, min(.98, float(element.get("x", .08))))
-            y = max(0, min(.95, float(element.get("y", .24))))
-            width = max(.02, min(1-x, float(element.get("width", .84))))
-            height = max(.02, min(1-y, float(element.get("height", .58))))
+            generated_outline = source_origins.get(slide_doc.get("source_id")) in {"pasted_text", "model_generated_outline", "accepted_model_outline"}
+            if generated_outline:
+                x, y, width, height = (0.09, 0.40 if is_cover else 0.26, 0.82, 0.32 if is_cover else 0.60)
+            else:
+                x = max(0, min(.98, float(element.get("x", .08))))
+                y = max(0, min(.95, float(element.get("y", .24))))
+                width = max(.02, min(1-x, float(element.get("width", .84))))
+                height = max(.02, min(1-y, float(element.get("height", .58))))
             if element.get("type", "text") == "image":
                 relative_path = element.get("asset_path")
                 if not relative_path:
@@ -73,12 +116,32 @@ def export_project_pptx(path: str | Path, document: dict, style: str = "清爽�
             box = slide.shapes.add_textbox(
                 Inches(x * 13.333), Inches(y * 7.5), Inches(width * 13.333), Inches(height * 7.5),
             )
-            box.text_frame.text = element.get("text", "")
-            for paragraph in box.text_frame.paragraphs:
+            frame = box.text_frame
+            frame.clear()
+            frame.word_wrap = True
+            frame.vertical_anchor = MSO_ANCHOR.TOP
+            frame.margin_left = Inches(.03)
+            frame.margin_right = Inches(.03)
+            frame.margin_top = Inches(.02)
+            frame.margin_bottom = Inches(.02)
+            text = element.get("text", "").strip()
+            estimated_lines = _estimated_body_lines(text)
+            font_size = 24 if estimated_lines <= 6 else 21 if estimated_lines <= 9 else 18 if estimated_lines <= 13 else 16
+            for line_index, line in enumerate(text.splitlines() or [text]):
+                paragraph = frame.paragraphs[0] if line_index == 0 else frame.add_paragraph()
+                paragraph.text = line.strip()
+                paragraph.space_after = Pt(12 if font_size >= 20 else 8)
+                paragraph.line_spacing = 1.12
                 for run in paragraph.runs:
-                    run.font.size = Pt(20)
-        footer = slide.shapes.add_textbox(Inches(.7), Inches(7.02), Inches(11.9), Inches(.25))
-        footer.text_frame.text = f"{style} · {slide_doc.get('order', 0) + 1}/{len(document['slides'])}"
-        footer.text_frame.paragraphs[0].runs[0].font.size = Pt(9)
+                    run.font.name = "Aptos"
+                    run.font.size = Pt(font_size)
+                    run.font.color.rgb = _color(theme["text"])
+        footer = slide.shapes.add_textbox(Inches(.8), Inches(7.08), Inches(11.7), Inches(.22))
+        footer.text_frame.text = f"{style}　·　{slide_index + 1:02d} / {len(document['slides']):02d}"
+        footer.text_frame.paragraphs[0].alignment = PP_ALIGN.RIGHT
+        for run in footer.text_frame.paragraphs[0].runs:
+            run.font.name = "Aptos"
+            run.font.size = Pt(9)
+            run.font.color.rgb = _color(theme["muted"])
     presentation.save(out)
     return out

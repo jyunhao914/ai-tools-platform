@@ -1,21 +1,38 @@
 # Build with: python3 -m PyInstaller --noconfirm --clean --distpath <output> macos_app.spec
+import os
+from pathlib import Path
+
+runtime_root = Path(os.environ.get(
+    "PRESENTATION_MLX_SERVE_BUNDLE",
+    Path.home() / "Library/Application Support/PresentationMaker/runtime/mlx-serve-macos-arm64",
+)).expanduser().resolve()
+if not (runtime_root / "mlx-serve").is_file():
+    raise RuntimeError("Set PRESENTATION_MLX_SERVE_BUNDLE to a verified mlx-serve runtime folder")
+
 a = Analysis(
     ["app_launcher.py"],
     pathex=["."],
     binaries=[],
-    datas=[],
+    datas=[(str(runtime_root), "mlx-serve-macos-arm64")],
     hiddenimports=[
-        "diffusers.pipelines.qwenimage21.pipeline_qwenimage21",
-        "transformers",
-        "safetensors.torch",
         "pypdf",
         "docx",
         "pptx",
+        "PySide6.QtWidgets",
+        "PySide6.QtGui",
+        "PySide6.QtCore",
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=["offline_runtime_hook.py"],
-    excludes=["mlx", "mlx_lm", "pytest", "IPython", "jupyter"],
+    excludes=[
+        "mlx", "mlx_lm", "tkinter", "pytest", "IPython", "jupyter",
+        # The shipped Qt workflow does not expose image inference yet; keep its
+        # multi-gigabyte training/inference stack out of the desktop bundle.
+        "torch", "torchvision", "torchaudio", "diffusers", "transformers",
+        "safetensors", "accelerate", "scipy", "sklearn", "matplotlib",
+        "pandas", "onnxruntime", "cv2", "timm", "numba",
+    ],
     noarchive=False,
     optimize=1,
 )

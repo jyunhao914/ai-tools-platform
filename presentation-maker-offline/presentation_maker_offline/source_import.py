@@ -61,6 +61,8 @@ def parse_outline_text(text: str) -> tuple[str, list[dict], dict]:
     lines = []
     page_marker = re.compile(r"第\s*\d+\s*頁\s*[｜|:：]")
     page_heading = re.compile(r"^\s*#{1,6}\s*第\s*\d+\s*頁\s*[｜|:：]")
+    existing_page_heading = next((page_heading.match(line) for line in normalized.splitlines() if page_heading.match(line)), None)
+    page_level = len(re.match(r"^\s*(#+)", existing_page_heading.group(0)).group(1)) if existing_page_heading else 2
     for raw_line in normalized.splitlines():
         marker = page_marker.search(raw_line)
         if marker and marker.start() > 0 and not page_heading.match(raw_line):
@@ -68,7 +70,9 @@ def parse_outline_text(text: str) -> tuple[str, list[dict], dict]:
             after = raw_line[marker.start():].strip()
             if before:
                 lines.append(before)
-            lines.append(f"# {after}")
+            # A page marker embedded after body text keeps the document's slide-heading level.
+            # Otherwise it may become the deck title or be dropped from mixed-level headings.
+            lines.append(f"{'#' * page_level} {after}")
         else:
             lines.append(raw_line)
     heading_rows = []

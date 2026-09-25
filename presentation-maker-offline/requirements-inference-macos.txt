@@ -4,8 +4,7 @@ transformers>=5.17.0
 accelerate>=0.21.0
 safetensors>=0.8.0
 Pillow>=10.0.0
+PySide6-Essentials>=6.8,<7
 diffusers @ git+https://github.com/huggingface/diffusers.git@8b3c707ebd3ec4881f4190cf42931da07eaf3b65
 
-# Optional local text-model adapters:
-# mlx-lm
-# llama-cpp-python
+# Local text-model process (install the official mlx-serve binary separately).

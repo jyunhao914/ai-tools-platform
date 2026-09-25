@@ -21,8 +21,7 @@ def test_manifest_rejects_bad_hash(tmp_path):
     assert any("mismatch" in e for e in m.validate())
 
 
-def test_mlx_text_backend_rejects_checkpoint_not_validated_for_mlx_lm(tmp_path, monkeypatch):
-    import builtins
+def test_mlx_text_backend_checks_runtime_and_local_checkpoint(tmp_path, monkeypatch):
     import json
     import presentation_maker_offline.backends as backends
 
@@ -35,22 +34,36 @@ def test_mlx_text_backend_rejects_checkpoint_not_validated_for_mlx_lm(tmp_path, 
         "inference": {"revision": "mlx-serve-26.8.7|mlx-0.32.0"},
         "runtime_evidence_pending_at_packaging": True,
     }))
-    monkeypatch.setattr(backends.importlib, "import_module", lambda _name: object())
-    original_import = builtins.__import__
-    monkeypatch.setattr(builtins, "__import__", lambda name, *args, **kwargs: object() if name == "mlx_lm" else original_import(name, *args, **kwargs))
     backend = LocalQwenTextBackend(CheckpointManifest("demo", str(model), "0" * 64, "local", "rev", "license", "mlx"))
+    backend._runtime_path = lambda: None
 
     health = backend.health()
     assert health["weights_ready"] is True
     assert health["ok"] is False
-    assert any("does not validate the app's MLX-LM backend" in error for error in health["errors"])
-    with pytest.raises(RuntimeError, match="未通過執行環境檢查"):
-        backend.plan("請建立大綱")
+    assert any("找不到 mlx-serve" in error for error in health["errors"])
+    assert not health["inference_verified"]
 
 
-def test_mlx_text_backend_uses_chat_template_and_bounded_generation(tmp_path, monkeypatch):
+def test_mlx_text_backend_discovers_runtime_bundled_in_macos_app(tmp_path, monkeypatch):
+    from presentation_maker_offline import backends
+
+    executable = tmp_path / "OfflinePresentationStudio.app/Contents/MacOS/OfflinePresentationStudio"
+    executable.parent.mkdir(parents=True)
+    executable.touch()
+    bundled_runtime = tmp_path / "OfflinePresentationStudio.app/Contents/Resources/mlx-serve-macos-arm64/mlx-serve"
+    bundled_runtime.parent.mkdir(parents=True)
+    bundled_runtime.touch()
+    bundled_runtime.chmod(0o755)
+    monkeypatch.setattr(backends.sys, "executable", str(executable))
+    monkeypatch.setattr(backends.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(backends.Path, "home", lambda: tmp_path / "empty-home")
+
+    backend = LocalQwenTextBackend(CheckpointManifest("demo", str(tmp_path), "0" * 64, "local", "rev", "license", "mlx"))
+    assert backend._runtime_path() == str(bundled_runtime)
+
+
+def test_mlx_text_backend_uses_loopback_server_and_stops_after_generation(tmp_path, monkeypatch):
     import json
-    import sys
     from types import SimpleNamespace
     import presentation_maker_offline.backends as backends
 
@@ -59,29 +72,54 @@ def test_mlx_text_backend_uses_chat_template_and_bounded_generation(tmp_path, mo
     (model / "config.json").write_text(json.dumps({"model_type": "qwen3_5"}))
     (model / "model.safetensors.index.json").write_text(json.dumps({"weight_map": {"layer": "model-00001.safetensors"}}))
     (model / "model-00001.safetensors").write_bytes(b"weights")
-    calls = {}
+    calls = {"requests": []}
 
-    class Tokenizer:
-        def apply_chat_template(self, messages, **kwargs):
-            calls["messages"] = messages
-            calls["template_options"] = kwargs
-            return "formatted conversation"
+    class FakeProcess:
+        def __init__(self, command, **kwargs):
+            calls["command"] = command
+            calls["popen_options"] = kwargs
+            self.returncode = None
+        def poll(self): return self.returncode
+        def terminate(self): self.returncode = 0
+        def wait(self, timeout=None): return self.returncode
+        def kill(self): self.returncode = -9
 
-    runtime = SimpleNamespace(
-        load=lambda _path: (object(), Tokenizer()),
-        generate=lambda _model, _tokenizer, **kwargs: calls.update(kwargs) or "draft",
-    )
-    monkeypatch.setitem(sys.modules, "mlx_lm", runtime)
-    monkeypatch.setattr(backends.importlib, "import_module", lambda _name: object())
+    def fake_urlopen(request, timeout=None):
+        from contextlib import closing
+        calls["requests"].append((request.full_url, json.loads(request.data) if request.data else None))
+        payload = {"data": [{"id": "qwen-local"}]} if request.full_url.endswith("/v1/models") else {
+            "choices": [{"message": {"content": "# 健康衛教\n## 認識大腸癌\n說明篩檢方式"}}],
+        }
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *_args): return None
+            def read(self): return json.dumps(payload).encode()
+        return Response()
+
+    monkeypatch.setattr(backends.subprocess, "Popen", FakeProcess)
+    monkeypatch.setattr(backends, "urlopen", fake_urlopen)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
     backend = LocalQwenTextBackend(CheckpointManifest("demo", str(model), "0" * 64, "local", "rev", "license", "mlx"))
+    backend.health = lambda: {"ok": True, "runtime_version": "mlx-serve 26.9.2"}
+    backend._runtime_path = lambda: "/trusted/mlx-serve"
 
     result = backend.plan("請整理成三頁簡報")
-    assert result["text"] == "draft"
-    assert calls["messages"][-1] == {"role": "user", "content": "請整理成三頁簡報"}
-    assert calls["template_options"]["add_generation_prompt"] is True
-    assert calls["template_options"]["enable_thinking"] is False
-    assert calls["prompt"] == "formatted conversation"
-    assert calls["max_tokens"] == 2048
+    assert result["text"] == "# 健康衛教\n## 認識大腸癌\n說明篩檢方式"
+    assert result["runtime"] == "mlx-serve 26.9.2"
+    assert calls["command"][calls["command"].index("--host") + 1] == "127.0.0.1"
+    assert calls["command"][calls["command"].index("--model") + 1] == str(model)
+    assert "shell" not in calls["popen_options"]
+    api_calls = [item for item in calls["requests"] if item[0].endswith("/v1/chat/completions")]
+    assert api_calls[0][1]["model"] == "qwen-local"
+    assert api_calls[0][1]["messages"][-1]["content"] == "請整理成三頁簡報"
+    assert api_calls[0][1]["reasoning_budget"] == 0
+    assert api_calls[0][1]["max_tokens"] == 4096
+    evidence_path = tmp_path / "Library/Application Support/PresentationMaker/text-runtime-verification.json"
+    assert json.loads(evidence_path.read_text())["runtime_version"] == "mlx-serve 26.9.2"
+    monkeypatch.setattr(backends.subprocess, "run", lambda *_args, **_kwargs: SimpleNamespace(returncode=0, stdout="mlx-serve 26.9.2\n", stderr=""))
+    verified_backend = LocalQwenTextBackend(CheckpointManifest("demo", str(model), "0" * 64, "local", "rev", "license", "mlx"))
+    verified_backend._runtime_path = lambda: "/trusted/mlx-serve"
+    assert verified_backend.health()["inference_verified"] is True
 
 
 def test_qwen_image_backend_uses_condition_image_with_same_local_pipeline(tmp_path, monkeypatch):
