@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tkinter as tk
+import json
 import queue
 import shutil
 import threading
@@ -62,6 +63,7 @@ class PresentationMakerApp(tk.Tk):
         self.source_path: str | None = None
         self.current_project_id: str | None = None
         self.document: dict | None = None
+        self.image_model_path = tk.StringVar(value=str(Path.home() / ".cache/lm-studio/models/Qwen/Qwen-Image-2.1"))
         self.revision = 0
         self._next_parent_revision: int | None = None
         self._image_cancel: threading.Event | None = None
@@ -75,7 +77,7 @@ class PresentationMakerApp(tk.Tk):
         self.image_strategy = tk.StringVar(value="沿用原圖")
         self.intervention = tk.StringVar(value="協助潤飾")
         self.target_pages = tk.IntVar(value=8)
-        self.status_text = tk.StringVar(value="從大綱建立可編輯簡報；目前不含 AI 生成。")
+        self.status_text = tk.StringVar(value="貼上大綱、編輯投影片；可選擇離線生成圖片。")
         self._init_store()
         self._build()
 
@@ -83,6 +85,25 @@ class PresentationMakerApp(tk.Tk):
         self.app_support = Path.home() / "Library" / "Application Support" / "PresentationMaker"
         self.app_support.mkdir(parents=True, exist_ok=True)
         self.project_store = ProjectStore(self.app_support / "projects.sqlite3")
+        self._load_preferences()
+
+    def _load_preferences(self) -> None:
+        path = self.app_support / "settings.json"
+        try:
+            settings = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, TypeError):
+            return
+        if not isinstance(settings, dict):
+            return
+        model_path = settings.get("image_model_path")
+        if isinstance(model_path, str) and model_path.strip():
+            self.image_model_path.set(model_path)
+
+    def _save_preferences(self) -> None:
+        path = self.app_support / "settings.json"
+        temporary = path.with_suffix(".tmp")
+        temporary.write_text(json.dumps({"image_model_path": self.image_model_path.get()}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        temporary.replace(path)
 
     def _build(self):
         self.configure(bg="#f4f6f8")
@@ -325,15 +346,22 @@ class PresentationMakerApp(tk.Tk):
 
     def paste_outline(self):
         dialog = tk.Toplevel(self)
-        dialog.title("步驟 1／2：貼上簡報大綱")
+        dialog.title("貼上大綱並確認投影片")
         dialog.geometry("760x680")
         dialog.minsize(620, 520)
 
         ttk.Label(
             dialog,
-            text="把大綱貼在下方，確認辨識頁數和標題後即可建立並匯出。每頁可用「## 標題」開頭或空行分隔。這裡只會依原文排版，不會呼叫 AI 擴寫或生成圖片。支援 ⌘V、右鍵貼上及下方貼上按鈕。",
+            text="先點下方文字框，再按 ⌘V 貼上；也可按「從剪貼簿貼上」或按右鍵選「貼上」。確認簡報名稱、頁數與各頁標題後，按「建立並匯出 PPTX」直接完成；若要稍後再匯出，選「建立專案並編輯」。每頁可用「## 標題」開頭或空行分隔。此流程只依原文排版，不會呼叫 AI 擴寫。",
             wraplength=710,
         ).pack(anchor="w", padx=16, pady=(16, 8))
+        ttk.Label(dialog, text="簡報名稱").pack(anchor="w", padx=16, pady=(0, 3))
+        deck_title = tk.StringVar(value="")
+        title_entry = ttk.Entry(dialog, textvariable=deck_title)
+        title_entry.pack(fill="x", padx=16, pady=(0, 8))
+        title_edited = {"value": False}
+        title_entry.bind("<Key>", lambda _event: title_edited.update(value=True), add="+")
+        title_entry.bind("<<Paste>>", lambda _event: title_edited.update(value=True), add="+")
         outline_input = tk.Text(dialog, height=18, wrap="word", undo=True)
         outline_input.pack(fill="both", expand=True, padx=16, pady=(0, 10))
         preview_label = tk.StringVar(value="貼上內容後會自動預覽頁數；確認後即可建立專案。")
@@ -373,6 +401,8 @@ class PresentationMakerApp(tk.Tk):
                 export_button.configure(state="disabled")
                 return
             parsed.update(title=title, slides=slides, source=source_record)
+            if not title_edited["value"]:
+                deck_title.set(title)
             create_button.configure(state="normal")
             export_button.configure(state="normal")
             preview.delete(0, "end")
@@ -406,7 +436,7 @@ class PresentationMakerApp(tk.Tk):
                 show_preview()
             if not parsed:
                 return
-            document = new_project_document(self.title_text.get().strip() or parsed["title"])
+            document = new_project_document(deck_title.get().strip() or parsed["title"])
             document["slides"] = parsed["slides"]
             document["sources"] = [parsed["source"]]
             document["outline"] = [
@@ -433,7 +463,7 @@ class PresentationMakerApp(tk.Tk):
                 show_preview()
             if not parsed:
                 return
-            filename = f"{self.title_text.get().strip() or parsed['title']}.pptx"
+            filename = f"{deck_title.get().strip() or parsed['title']}.pptx"
             path = filedialog.asksaveasfilename(
                 defaultextension=".pptx",
                 filetypes=[("PowerPoint 簡報", "*.pptx")],
@@ -459,7 +489,7 @@ class PresentationMakerApp(tk.Tk):
         ttk.Button(actions, text="從剪貼簿貼上", command=paste_from_clipboard).pack(side="left", padx=(0, 8))
         preview_button = ttk.Button(actions, text="預覽大綱", command=show_preview)
         preview_button.pack(side="left")
-        create_button = ttk.Button(actions, text="建立專案", command=create_project, state="disabled")
+        create_button = ttk.Button(actions, text="建立專案並編輯", command=create_project, state="disabled")
         create_button.pack(side="right")
         export_button = ttk.Button(actions, text="建立並匯出 PPTX…", command=create_and_export, state="disabled")
         export_button.pack(side="right", padx=(0, 8))
@@ -469,11 +499,8 @@ class PresentationMakerApp(tk.Tk):
         paste_menu.add_command(label="貼上", command=paste_from_clipboard)
         paste_menu.add_command(label="全選", command=lambda: (outline_input.tag_add("sel", "1.0", "end-1c"), outline_input.focus_set()))
         outline_input.bind("<<Modified>>", preview_after_edit)
-        for sequence in ("<Command-v>", "<Command-V>", "<Control-v>", "<Control-V>"):
-            try:
-                outline_input.bind(sequence, paste_from_clipboard, add="+")
-            except tk.TclError:
-                continue
+        # Keep Tk's native Text bindings for Command-V / Control-V. Rebinding
+        # the shortcut here bypasses Tk's platform clipboard handling on macOS.
         for sequence in ("<Button-2>", "<Button-3>", "<Control-Button-1>"):
             try:
                 outline_input.bind(sequence, show_context_menu, add="+")
@@ -495,7 +522,7 @@ class PresentationMakerApp(tk.Tk):
             return
         if self._image_cancel is not None:
             return
-        image_model = qwen_image21_readiness()
+        image_model = qwen_image21_readiness(self.image_model_path.get())
         if not image_model["ready"]:
             messagebox.showerror("圖片模型尚未就緒", "Qwen-Image-2.1 尚未通過完整性檢查，現在不會開始生成。\n\n請先確認模型完整下載。")
             return
@@ -537,9 +564,9 @@ class PresentationMakerApp(tk.Tk):
 
         dialog.protocol("WM_DELETE_WINDOW", close_dialog)
 
-        def run_generation(text: str):
+        def run_generation(text: str, model_path: str):
             try:
-                model_path = Path("~/.cache/lm-studio/models/Qwen/Qwen-Image-2.1").expanduser()
+                model_path = Path(model_path).expanduser()
                 backend = LocalQwenImageBackend(
                     CheckpointManifest("Qwen-Image-2.1", str(model_path), "0" * 64,
                                        "local checkpoint", "2.1", "see model license", "diffusers"),
@@ -570,7 +597,8 @@ class PresentationMakerApp(tk.Tk):
             progress_text.set("載入本機模型…首次載入約需數十秒")
             worker_started = True
             self._image_cancel = cancel
-            threading.Thread(target=run_generation, args=(text,), daemon=True).start()
+            model_path = self.image_model_path.get()
+            threading.Thread(target=run_generation, args=(text, model_path), daemon=True).start()
             poll_result()
 
         def poll_result():
@@ -1018,9 +1046,9 @@ class PresentationMakerApp(tk.Tk):
         self.source_preview.configure(state="disabled")
 
     def show_settings(self):
-        win = tk.Toplevel(self); win.title("模型與儲存設定"); win.geometry("560x320"); win.transient(self)
+        win = tk.Toplevel(self); win.title("模型與儲存設定"); win.geometry("700x440"); win.transient(self)
         ttk.Label(win, text="本機引擎狀態", font=("Arial", 16, "bold")).pack(anchor="w", padx=20, pady=(18, 10))
-        text_model = discover_qwen38_mlx(); image_model = qwen_image21_readiness()
+        text_model = discover_qwen38_mlx(); image_model = qwen_image21_readiness(self.image_model_path.get())
         if text_model:
             text_backend = LocalQwenTextBackend(CheckpointManifest(
                 "Qwen3.8-27B local", str(text_model), "0" * 64,
@@ -1035,11 +1063,33 @@ class PresentationMakerApp(tk.Tk):
                 text = f"Qwen 文字權重：已找到（{shards} shards），但目前應用推論後端不可用：{detail}"
         else:
             text = "Qwen 文字模型：尚未找到完整模型資料夾或必要分片"
-        image = f"Qwen-Image-2.1：模型就緒（{image_model['safetensors']} 個權重檔）；可在投影片編輯器中生成圖片" if image_model["ready"] else f"Qwen-Image-2.1：尚未完整（缺 {len(image_model['missing'])} 項、暫存 {len(image_model['incomplete'])} 項），圖片生成暫不可用"
-        ttk.Label(win, text=text, wraplength=510).pack(anchor="w", padx=20, pady=6)
-        ttk.Label(win, text=image, wraplength=510).pack(anchor="w", padx=20, pady=6)
-        ttk.Label(win, text=f"專案資料庫：{self.project_store.path}", wraplength=510).pack(anchor="w", padx=20, pady=6)
+        image = f"模型就緒（{image_model['safetensors']} 個權重檔），可離線生成圖片" if image_model["ready"] else f"模型未完整（缺 {len(image_model['missing'])} 項、暫存 {len(image_model['incomplete'])} 項），目前無法生成"
+        ttk.Label(win, text=text, wraplength=640).pack(anchor="w", padx=20, pady=6)
+        ttk.Label(win, text="圖片模型位置", font=("Arial", 11, "bold")).pack(anchor="w", padx=20, pady=(14, 4))
+        path_row = ttk.Frame(win, padding=(20, 0))
+        path_row.pack(fill="x")
+        ttk.Entry(path_row, textvariable=self.image_model_path).pack(side="left", fill="x", expand=True)
+        ttk.Button(path_row, text="選擇資料夾…", command=self.select_image_model).pack(side="left", padx=(8, 0))
+        ttk.Label(win, text=image, wraplength=640).pack(anchor="w", padx=20, pady=6)
+        ttk.Label(win, text=f"專案資料庫：{self.project_store.path}", wraplength=640).pack(anchor="w", padx=20, pady=6)
+        ttk.Label(win, text="文字模型目前未通過推論驗收；大綱內容可貼入與編輯，但不會自動 AI 擴寫。", wraplength=640, foreground="#9a5b00").pack(anchor="w", padx=20, pady=6)
         ttk.Button(win, text="關閉", command=win.destroy).pack(anchor="e", padx=20, pady=18)
+
+    def select_image_model(self) -> None:
+        selected = filedialog.askdirectory(
+            title="選擇 Qwen-Image-2.1 模型資料夾",
+            initialdir=str(Path(self.image_model_path.get()).expanduser()),
+        )
+        if not selected:
+            return
+        readiness = qwen_image21_readiness(selected)
+        if not readiness["ready"]:
+            details = "\n".join((readiness["missing"] + readiness["incomplete"])[:8])
+            messagebox.showerror("模型資料夾尚未就緒", "選取的資料夾不是完整模型，設定未變更。\n\n" + details)
+            return
+        self.image_model_path.set(str(Path(selected).expanduser().resolve()))
+        self._save_preferences()
+        self.status_text.set("已更新並保存本機圖片模型位置。")
 
     def export(self):
         if not self.document: self.start()

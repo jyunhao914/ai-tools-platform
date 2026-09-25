@@ -80,6 +80,17 @@ def test_parse_outline_with_adjacent_page_marker_stray_slash_and_markdown_table(
     assert parsed_twenty_one[7]["title"] == "第8頁標題"
 
 
+def test_parse_user_style_page_outline_uses_bold_deck_title_and_strips_page_labels():
+    title, slides, _ = parse_outline_text(
+        "**認識大腸癌｜21頁簡報大綱**\n"
+        "# 第1頁｜封面：認識大腸癌\n- 早期發現\n"
+        "# 第2頁｜為什麼需要認識？\n- 早期可能沒有症狀\n"
+    )
+    assert title == "認識大腸癌｜21頁簡報大綱"
+    assert [slide["title"] for slide in slides] == ["封面：認識大腸癌", "為什麼需要認識？"]
+    assert "早期發現" in slides[0]["elements"][0]["text"]
+
+
 def test_pasted_outline_persists_and_exports_as_editable_pptx(tmp_path):
     title, slides, source = parse_outline_text("## 開場\n- 重點一\n## 結論\n- 重點二")
     document = new_project_document(title)
@@ -117,6 +128,7 @@ def test_outline_paste_dialog_pastes_previews_and_creates_project(tmp_path, monk
 
     try:
         app.update()
+        app.title_text.set("舊專案名稱不可沿用")
         app.paste_outline()
         app.update()
         dialog = next(widget for widget in app.winfo_children() if widget.winfo_class() == "Toplevel")
@@ -128,6 +140,7 @@ def test_outline_paste_dialog_pastes_previews_and_creates_project(tmp_path, monk
 
         widgets = descendants(dialog)
         outline_input = next(widget for widget in widgets if widget.winfo_class() == "Text")
+        title_input = next(widget for widget in widgets if widget.winfo_class() == "TEntry")
         outline_input.focus_set()
         dialog.clipboard_get = lambda: "# UI 貼上驗收\n## 第一頁\n- 重點甲\n## 第二頁\n- 重點乙"
         buttons = {widget.cget("text"): widget for widget in widgets if widget.winfo_class() == "TButton"}
@@ -138,6 +151,7 @@ def test_outline_paste_dialog_pastes_previews_and_creates_project(tmp_path, monk
 
         buttons["預覽大綱"].invoke()
         app.update()
+        assert title_input.get() == "UI 貼上驗收"
         preview = next(widget for widget in widgets if widget.winfo_class() == "Listbox")
         assert preview.get(0, "end") == ("01　第一頁", "02　第二頁")
 
@@ -160,7 +174,7 @@ def test_outline_paste_dialog_pastes_previews_and_creates_project(tmp_path, monk
         app.destroy()
 
 
-def test_outline_text_supports_command_v_and_right_click_paste(tmp_path, monkeypatch):
+def test_outline_text_keeps_native_command_v_and_right_click_fallback(tmp_path, monkeypatch):
     from presentation_maker_offline.ui import PresentationMakerApp
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -182,19 +196,24 @@ def test_outline_text_supports_command_v_and_right_click_paste(tmp_path, monkeyp
         outline_input = next(widget for widget in widgets if widget.winfo_class() == "Text")
         dialog.clipboard_get = lambda: "## 快捷鍵貼上\n- 內容一\n## 第二頁\n- 內容二"
         outline_input.focus_force()
-        outline_input.event_generate("<Command-v>")
+        # Do not intercept the platform shortcut at widget level: Tk's native
+        # Text binding must receive Command-V on macOS.
+        assert not outline_input.bind("<Command-v>")
+        assert not outline_input.bind("<Command-V>")
+        assert "tk_textPaste %W" in outline_input.bind_class("Text", "<<Paste>>")
+        buttons = {widget.cget("text"): widget for widget in widgets if widget.winfo_class() == "TButton"}
+        buttons["從剪貼簿貼上"].invoke()
         app.update()
         assert "## 快捷鍵貼上" in outline_input.get("1.0", "end")
         dialog.after(600, app.quit)
         app.mainloop()
-        create_button = next(widget for widget in widgets if widget.winfo_class() == "TButton" and widget.cget("text") == "建立專案")
+        create_button = next(widget for widget in widgets if widget.winfo_class() == "TButton" and widget.cget("text") == "建立專案並編輯")
         assert str(create_button.cget("state")) == "normal"
 
         outline_input.delete("1.0", "end")
         dialog.clipboard_get = lambda: "## 右鍵貼上\n- 內容三"
         assert outline_input.bind("<Button-3>")
         assert outline_input.bind("<Button-2>")
-        assert outline_input.bind("<Command-v>")
 
         from presentation_maker_offline import ui
         dialog.clipboard_get = lambda: "## 滑鼠右鍵貼上\n- 內容四"
@@ -290,7 +309,7 @@ def test_editor_image_generation_runs_async_and_saves_prompt_and_asset(tmp_path,
     from presentation_maker_offline.ui import PresentationMakerApp
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    monkeypatch.setattr(ui, "qwen_image21_readiness", lambda: {"ready": True})
+    monkeypatch.setattr(ui, "qwen_image21_readiness", lambda *_args: {"ready": True})
     calls = {}
 
     class FakeImageBackend:
