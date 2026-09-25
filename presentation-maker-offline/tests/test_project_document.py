@@ -1,7 +1,7 @@
 import pytest
 import json
 import sqlite3
-from presentation_maker_offline.project_document import new_project_document
+from presentation_maker_offline.project_document import new_project_document, update_slide_text_element
 from presentation_maker_offline.workflow import ImageStrategy, Operation, ProjectStore, Workflow
 
 def test_document_saves_and_reopens_with_revision_guard(tmp_path):
@@ -70,3 +70,22 @@ def test_existing_project_document_is_migrated_as_legacy_root_revision(tmp_path)
     assert migrated.load_document("legacy")[1]["title"] == "既有"
     assert migrated.revision_parent("legacy", 4) == 0
     assert migrated.load_revision("legacy", 4)[1]["title"] == "既有"
+
+
+def test_update_text_object_preserves_geometry_and_other_slide_objects():
+    slide = {"id": "slide-1", "elements": [
+        {"id": "text-1", "type": "text", "text": "舊內容", "x": .2, "y": .3, "width": .4, "height": .2},
+        {"id": "image-1", "type": "image", "asset_path": "image.png"},
+    ]}
+
+    assert update_slide_text_element(slide, "新內容\n第二行", "text-1") == "text-1"
+    assert slide["elements"][0] == {"id": "text-1", "type": "text", "text": "新內容\n第二行", "x": .2, "y": .3, "width": .4, "height": .2}
+    assert slide["elements"][1]["asset_path"] == "image.png"
+
+    created_id = update_slide_text_element(slide, "新增內容")
+    assert created_id == slide["elements"][2]["id"]
+    assert slide["elements"][2]["text"] == "新增內容"
+
+    with pytest.raises(ValueError, match="不可空白"):
+        update_slide_text_element(slide, " \n ", "text-1")
+    assert slide["elements"][0]["text"] == "新內容\n第二行"

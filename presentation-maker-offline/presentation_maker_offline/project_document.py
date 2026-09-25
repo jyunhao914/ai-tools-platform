@@ -22,6 +22,33 @@ def new_project_document(title: str) -> dict:
     }
 
 
+def update_slide_text_element(slide: dict, text: str, element_id: str | None = None) -> str:
+    """Update one editable text object, or add a new object without flattening its peers."""
+    content = text.rstrip()
+    if not content.strip():
+        raise ValueError("文字內容不可空白。")
+    elements = slide.setdefault("elements", [])
+    if element_id:
+        for element in elements:
+            if element.get("id") == element_id and element.get("type", "text") == "text":
+                element["text"] = content
+                return element_id
+        raise ValueError("找不到要修改的文字物件，內容未變更。")
+
+    text_count = sum(1 for element in elements if element.get("type", "text") == "text")
+    new_id = str(uuid4())
+    elements.append({
+        "id": new_id,
+        "type": "text",
+        "text": content,
+        "x": 0.08,
+        "y": min(0.24 + text_count * 0.14, 0.78),
+        "width": 0.84,
+        "height": 0.14,
+    })
+    return new_id
+
+
 def validate_project_document(document: dict) -> None:
     if document.get("format_version") != PROJECT_FORMAT_VERSION:
         raise ValueError("unsupported project format version")

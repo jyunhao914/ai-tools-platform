@@ -6,7 +6,7 @@ from tkinter import filedialog, messagebox, ttk
 from uuid import uuid4
 
 from .export import export_project_pptx
-from .project_document import new_project_document
+from .project_document import new_project_document, update_slide_text_element
 from .source_import import import_source, parse_outline_text
 from .storage import discover_qwen38_mlx, qwen_image21_readiness
 from .workflow import ProjectStore
@@ -122,6 +122,13 @@ class PresentationMakerApp(tk.Tk):
         title_entry = ttk.Entry(edit_tab, textvariable=self.slide_title)
         title_entry.pack(fill="x", pady=(4, 4))
         title_entry.bind("<FocusOut>", lambda _event: self.edit_slide_title())
+        ttk.Label(edit_tab, text="頁面文字物件（選取後編輯）").pack(anchor="w", pady=(8, 2))
+        self.text_element_list = tk.Listbox(edit_tab, height=3, activestyle="none", exportselection=False)
+        self.text_element_list.pack(fill="x")
+        self.text_element_list.bind("<<ListboxSelect>>", self._select_text_element)
+        self.slide_body = tk.Text(edit_tab, height=5, wrap="word", undo=True)
+        self.slide_body.pack(fill="x", pady=(4, 2))
+        ttk.Button(edit_tab, text="保存頁面文字（未選物件則新增）", command=self.save_slide_text).pack(fill="x")
         ttk.Label(edit_tab, text="風格預覽（選擇套用）").pack(anchor="w", pady=(10, 3))
         self.style_picker = ttk.Frame(edit_tab)
         self.style_picker.pack(fill="x", pady=(4, 0))
@@ -435,9 +442,58 @@ class PresentationMakerApp(tk.Tk):
         slide = self._current_slide()
         if not slide: return
         self.slide_title.set(slide["title"])
+        self._refresh_text_elements(slide)
         count = sum(1 for mark in self.document["annotations"] if mark["slide_id"] == slide["id"])
         self.slide_status.set(f"第 {slide['order'] + 1} 頁 · {slide['title']} · {count} 個區域標記")
         self.draw_slide(); self._refresh_annotations()
+
+    def _refresh_text_elements(self, slide: dict) -> None:
+        self._text_element_ids = [
+            element["id"] for element in slide.get("elements", [])
+            if element.get("type", "text") == "text"
+        ]
+        self.text_element_list.delete(0, "end")
+        elements_by_id = {element["id"]: element for element in slide.get("elements", [])}
+        for index, element_id in enumerate(self._text_element_ids, 1):
+            excerpt = " ".join(elements_by_id[element_id].get("text", "").split())[:34]
+            self.text_element_list.insert("end", f"文字區塊 {index}　{excerpt}")
+        self.slide_body.delete("1.0", "end")
+        if self._text_element_ids:
+            self.text_element_list.selection_set(0)
+            self._select_text_element(None)
+
+    def _select_text_element(self, _event) -> None:
+        selection = self.text_element_list.curselection()
+        slide = self._current_slide()
+        if not slide or not selection or selection[0] >= len(self._text_element_ids):
+            return
+        element_id = self._text_element_ids[selection[0]]
+        element = next((item for item in slide["elements"] if item.get("id") == element_id), None)
+        if element:
+            self.slide_body.delete("1.0", "end")
+            self.slide_body.insert("1.0", element.get("text", ""))
+
+    def save_slide_text(self) -> None:
+        slide = self._current_slide()
+        if not slide or not self.document:
+            messagebox.showinfo("頁面文字", "請先建立或開啟專案。")
+            return
+        selection = self.text_element_list.curselection()
+        element_id = self._text_element_ids[selection[0]] if selection and selection[0] < len(self._text_element_ids) else None
+        try:
+            update_slide_text_element(slide, self.slide_body.get("1.0", "end"), element_id)
+        except ValueError as exc:
+            messagebox.showwarning("無法保存頁面文字", str(exc))
+            return
+        self._mutate()
+        self._persist()
+        selected_slide = self.slide_list.curselection()
+        slide_index = selected_slide[0] if selected_slide else 0
+        self._refresh()
+        self.slide_list.selection_clear(0, "end")
+        self.slide_list.selection_set(slide_index)
+        self._select_slide(None)
+        self.status_text.set("頁面文字已保存為可編輯物件；其他文字與圖片物件保持分開。")
 
     def draw_slide(self):
         self.canvas.delete("all")
