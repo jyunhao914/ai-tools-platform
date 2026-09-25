@@ -155,6 +155,45 @@ def test_outline_paste_dialog_pastes_previews_and_creates_project(tmp_path, monk
         app.destroy()
 
 
+def test_outline_text_supports_command_v_and_right_click_paste(tmp_path, monkeypatch):
+    from presentation_maker_offline.ui import PresentationMakerApp
+
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    try:
+        app = PresentationMakerApp()
+    except tk.TclError as exc:
+        pytest.skip(f"Tk display is unavailable: {exc}")
+
+    try:
+        app.update()
+        app.paste_outline()
+        app.update()
+        dialog = next(widget for widget in app.winfo_children() if widget.winfo_class() == "Toplevel")
+
+        def descendants(widget):
+            return [widget, *(child for item in widget.winfo_children() for child in descendants(item))]
+
+        widgets = descendants(dialog)
+        outline_input = next(widget for widget in widgets if widget.winfo_class() == "Text")
+        dialog.clipboard_get = lambda: "## 快捷鍵貼上\n- 內容一\n## 第二頁\n- 內容二"
+        outline_input.focus_force()
+        outline_input.event_generate("<Command-v>")
+        app.update()
+        assert "## 快捷鍵貼上" in outline_input.get("1.0", "end")
+        dialog.after(600, app.quit)
+        app.mainloop()
+        create_button = next(widget for widget in widgets if widget.winfo_class() == "TButton" and widget.cget("text") == "建立專案")
+        assert str(create_button.cget("state")) == "normal"
+
+        outline_input.delete("1.0", "end")
+        dialog.clipboard_get = lambda: "## 右鍵貼上\n- 內容三"
+        assert outline_input.bind("<Button-3>")
+        assert outline_input.bind("<Button-2>")
+        assert outline_input.bind("<Command-v>")
+    finally:
+        app.destroy()
+
+
 @pytest.mark.parametrize("text", ["", "   \n  "])
 def test_parse_rejects_empty_outline(text):
     with pytest.raises(ValueError, match="貼上簡報大綱"):

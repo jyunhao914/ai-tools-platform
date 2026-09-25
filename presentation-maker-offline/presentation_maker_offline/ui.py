@@ -255,29 +255,42 @@ class PresentationMakerApp(tk.Tk):
 
         ttk.Label(
             dialog,
-            text="貼上大綱文字。建議每張投影片以「## 標題」開頭，內容可用條列；也可用空行分隔各頁。",
+            text="貼上大綱文字。可用 ⌘V 或按右鍵選「貼上」。建議每張投影片以「## 標題」開頭，內容可用條列；也可用空行分隔各頁。貼上後會自動預覽頁數。",
             wraplength=710,
         ).pack(anchor="w", padx=16, pady=(16, 8))
         outline_input = tk.Text(dialog, height=18, wrap="word", undo=True)
         outline_input.pack(fill="both", expand=True, padx=16, pady=(0, 10))
-        preview_label = tk.StringVar(value="貼上內容後按「預覽大綱」，確認頁數與標題再建立專案。")
+        preview_label = tk.StringVar(value="貼上內容後會自動預覽頁數；確認後即可建立專案。")
         ttk.Label(dialog, textvariable=preview_label).pack(anchor="w", padx=16, pady=(0, 4))
         preview = tk.Listbox(dialog, height=7, activestyle="none", exportselection=False)
         preview.pack(fill="x", padx=16, pady=(0, 10))
         parsed: dict = {}
         create_button = None
 
-        def paste_from_clipboard():
+        preview_job = None
+
+        def paste_from_clipboard(_event=None):
             try:
                 content = dialog.clipboard_get()
             except tk.TclError:
                 preview_label.set("剪貼簿沒有可貼上的文字；請先複製大綱文字，再按「從剪貼簿貼上」。")
-                return
+                return "break"
+            if not content:
+                preview_label.set("剪貼簿沒有可貼上的文字；請先複製大綱文字。")
+                return "break"
+            try:
+                if outline_input.tag_ranges("sel"):
+                    outline_input.delete("sel.first", "sel.last")
+            except tk.TclError:
+                pass
             outline_input.insert("insert", content)
             outline_input.focus_set()
-            preview_label.set("已貼入剪貼簿文字；請按「預覽大綱」確認頁數，再建立專案。")
+            preview_label.set("已貼入剪貼簿文字，正在辨識投影片頁數…")
+            return "break"
 
         def show_preview():
+            nonlocal preview_job
+            preview_job = None
             try:
                 title, slides, source_record = parse_outline_text(outline_input.get("1.0", "end"))
             except ValueError as exc:
@@ -294,6 +307,27 @@ class PresentationMakerApp(tk.Tk):
             for index, slide in enumerate(slides, 1):
                 preview.insert("end", f"{index:02d}　{slide['title']}")
             preview_label.set(f"辨識到 {len(slides)} 張投影片；原始大綱與解析結果會保存在本機，不會上傳。")
+
+        def preview_after_edit(_event=None):
+            nonlocal preview_job
+            if outline_input.edit_modified():
+                outline_input.edit_modified(False)
+                parsed.clear()
+                preview.delete(0, "end")
+                preview_label.set("大綱已更新，正在重新辨識頁數…")
+                create_button.configure(state="disabled")
+                export_button.configure(state="disabled")
+                if preview_job:
+                    dialog.after_cancel(preview_job)
+                preview_job = dialog.after(450, show_preview)
+
+        def show_context_menu(event):
+            outline_input.focus_set()
+            try:
+                paste_menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                paste_menu.grab_release()
+            return "break"
 
         def create_project():
             if not parsed:
@@ -358,15 +392,21 @@ class PresentationMakerApp(tk.Tk):
         export_button = ttk.Button(actions, text="建立並匯出 PPTX…", command=create_and_export, state="disabled")
         export_button.pack(side="right", padx=(0, 8))
         ttk.Button(actions, text="取消", command=dialog.destroy).pack(side="right", padx=(0, 8))
-        def invalidate_preview(_event=None):
-            if outline_input.edit_modified():
-                outline_input.edit_modified(False)
-                parsed.clear()
-                preview.delete(0, "end")
-                preview_label.set("大綱已更新；請重新預覽後建立專案。")
-                create_button.configure(state="disabled")
-                export_button.configure(state="disabled")
-        outline_input.bind("<<Modified>>", invalidate_preview)
+
+        paste_menu = tk.Menu(dialog, tearoff=0)
+        paste_menu.add_command(label="貼上", command=paste_from_clipboard)
+        paste_menu.add_command(label="全選", command=lambda: (outline_input.tag_add("sel", "1.0", "end-1c"), outline_input.focus_set()))
+        outline_input.bind("<<Modified>>", preview_after_edit)
+        for sequence in ("<Command-v>", "<Command-V>", "<Control-v>", "<Control-V>", "<<Paste>>"):
+            try:
+                outline_input.bind(sequence, paste_from_clipboard, add="+")
+            except tk.TclError:
+                continue
+        for sequence in ("<Button-2>", "<Button-3>", "<Control-Button-1>"):
+            try:
+                outline_input.bind(sequence, show_context_menu, add="+")
+            except tk.TclError:
+                continue
         outline_input.edit_modified(False)
         # Keep this editor modeless: on macOS, a Tk grab on a newly-created
         # Toplevel can disable the parent while leaving the dialog behind it.
