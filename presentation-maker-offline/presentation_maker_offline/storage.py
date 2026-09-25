@@ -76,24 +76,72 @@ def qwen_image21_readiness(path: str | Path = "~/.cache/lm-studio/models/Qwen/Qw
         model_index = json.loads((root / "model_index.json").read_text())
         if model_index.get("_class_name") != "QwenImage21Pipeline":
             missing.append("model_index.json (_class_name=QwenImage21Pipeline)")
-        for component in ("text_encoder", "transformer"):
-            indexes = list((root / component).glob("*.index.json"))
-            if not indexes:
-                missing.append(f"{component}/*.index.json")
-            for index_path in indexes:
-                index_data = json.loads(index_path.read_text())
-                shards = set(index_data.get("weight_map", {}).values())
-                if not shards:
-                    missing.append(str(index_path.relative_to(root)) + " (empty weight_map)")
-                for shard in shards:
-                    expected_shards.add(str((index_path.parent / shard).relative_to(root)))
-                    if not (index_path.parent / shard).is_file():
-                        missing.append(str((index_path.parent / shard).relative_to(root)))
-        for component, filename in (("transformer", "config.json"), ("text_encoder", "config.json"), ("vae", "config.json"), ("processor", "tokenizer.json")):
-            if not (root / component / filename).is_file():
-                missing.append(f"{component}/{filename}")
-        if not list((root / "vae").glob("*.safetensors")):
-            missing.append("vae/*.safetensors")
+        components = model_index.get("components", {})
+        if not components:
+            components = {
+                name: tuple(spec)
+                for name, spec in model_index.items()
+                if isinstance(spec, list) and len(spec) == 2 and isinstance(spec[1], str)
+            }
+        if components:
+            for component, entry in components.items():
+                component_path = root / component
+                if not component_path.is_dir():
+                    missing.append(f"{component}/")
+                    continue
+                subfolder = entry.get("subfolder", "") if isinstance(entry, dict) else ""
+                component_root = component_path / subfolder
+                if isinstance(entry, dict):
+                    config_name = entry.get("config", "config.json")
+                    index_name = entry.get("index", "model.safetensors.index.json")
+                    weight_glob = entry.get("weights", "*.safetensors")
+                elif isinstance(entry, tuple):
+                    config_name = "tokenizer.json" if component == "processor" else "scheduler_config.json" if component == "scheduler" else "config.json"
+                    index_name = "model.safetensors.index.json"
+                    weight_glob = "*.json" if component in {"processor", "scheduler"} else "*.safetensors"
+                else:
+                    config_name = "tokenizer.json" if component == "processor" else "scheduler_config.json" if component == "scheduler" else "config.json"
+                    index_name = "model.safetensors.index.json"
+                    weight_glob = "*.safetensors"
+                if not (component_root / config_name).is_file():
+                    missing.append(str((component_root / config_name).relative_to(root)))
+                index_paths = [component_root / index_name] if isinstance(entry, dict) else list(component_root.glob("*.index.json"))
+                index_paths = [index_path for index_path in index_paths if index_path.is_file()]
+                if index_paths:
+                    for index_path in index_paths:
+                        try:
+                            index_data = json.loads(index_path.read_text())
+                            shards = set(index_data.get("weight_map", {}).values())
+                            if not shards:
+                                missing.append(str(index_path.relative_to(root)) + " (empty weight_map)")
+                            for shard in shards:
+                                expected_shards.add(str((component_root / shard).relative_to(root)))
+                                if not (component_root / shard).is_file():
+                                    missing.append(str((component_root / shard).relative_to(root)))
+                        except (OSError, ValueError, TypeError):
+                            missing.append(str(index_path.relative_to(root)) + " (unreadable)")
+                else:
+                    if not list(component_root.glob(weight_glob)):
+                        missing.append(str(component_root.relative_to(root) / weight_glob))
+        else:
+            for component in ("text_encoder", "transformer"):
+                indexes = list((root / component).glob("*.index.json"))
+                if not indexes:
+                    missing.append(f"{component}/*.index.json")
+                for index_path in indexes:
+                    index_data = json.loads(index_path.read_text())
+                    shards = set(index_data.get("weight_map", {}).values())
+                    if not shards:
+                        missing.append(str(index_path.relative_to(root)) + " (empty weight_map)")
+                    for shard in shards:
+                        expected_shards.add(str((index_path.parent / shard).relative_to(root)))
+                        if not (index_path.parent / shard).is_file():
+                            missing.append(str((index_path.parent / shard).relative_to(root)))
+            for component, filename in (("transformer", "config.json"), ("text_encoder", "config.json"), ("vae", "config.json"), ("processor", "tokenizer.json")):
+                if not (root / component / filename).is_file():
+                    missing.append(f"{component}/{filename}")
+            if not list((root / "vae").glob("*.safetensors")):
+                missing.append("vae/*.safetensors")
     except (OSError, ValueError, TypeError) as exc:
         missing.append(f"model metadata unreadable: {type(exc).__name__}")
     if not expected_shards and not safetensors:
