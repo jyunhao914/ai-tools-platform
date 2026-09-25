@@ -25,7 +25,7 @@ class PresentationMakerApp(tk.Tk):
 
     def __init__(self):
         super().__init__()
-        self.title("離線簡報工作室 · 互動原型")
+        self.title("離線簡報工作室")
         self.geometry("1360x850")
         self.minsize(1050, 680)
         self.source_path: str | None = None
@@ -57,7 +57,7 @@ class PresentationMakerApp(tk.Tk):
         header = ttk.Frame(self, padding=(18, 12))
         header.pack(fill="x")
         ttk.Label(header, text="離線簡報工作室", font=("Arial", 20, "bold")).pack(side="left")
-        ttk.Label(header, text="互動原型 · 示例修改為模擬，尚未連接模型", foreground="#9a5b00").pack(side="left", padx=18)
+        ttk.Label(header, text="大綱可匯出可編輯 PPTX · AI 生成尚未接通", foreground="#9a5b00").pack(side="left", padx=18)
         ttk.Button(header, text="模型與儲存設定", command=self.show_settings).pack(side="right")
         ttk.Button(header, text="開啟專案", command=self.open_project).pack(side="right", padx=8)
 
@@ -285,9 +285,11 @@ class PresentationMakerApp(tk.Tk):
                 preview.delete(0, "end")
                 preview_label.set(str(exc))
                 create_button.configure(state="disabled")
+                export_button.configure(state="disabled")
                 return
             parsed.update(title=title, slides=slides, source=source_record)
             create_button.configure(state="normal")
+            export_button.configure(state="normal")
             preview.delete(0, "end")
             for index, slide in enumerate(slides, 1):
                 preview.insert("end", f"{index:02d}　{slide['title']}")
@@ -320,6 +322,32 @@ class PresentationMakerApp(tk.Tk):
             self.status_text.set(f"已從貼上的大綱建立並保存 {len(document['slides'])} 張投影片；目前不會呼叫 AI。")
             dialog.destroy()
 
+        def create_and_export():
+            if not parsed:
+                show_preview()
+            if not parsed:
+                return
+            filename = f"{self.title_text.get().strip() or parsed['title']}.pptx"
+            path = filedialog.asksaveasfilename(
+                defaultextension=".pptx",
+                filetypes=[("PowerPoint 簡報", "*.pptx")],
+                initialfile=filename,
+            )
+            if not path:
+                return
+            create_project()
+            if not self.document or not self.current_project_id:
+                return
+            asset_root = self.app_support / "projects" / self.current_project_id / "assets"
+            try:
+                export_project_pptx(path, self.document, self.style.get(), asset_root=asset_root)
+            except (OSError, ValueError) as exc:
+                self.status_text.set(f"PPTX 匯出失敗：{exc}")
+                messagebox.showerror("匯出失敗", str(exc))
+                return
+            self.status_text.set(f"已保存大綱專案並產生可編輯 PPTX：{Path(path).name}。此流程未呼叫 AI。")
+            messagebox.showinfo("簡報已產生", f"已建立 {len(self.document['slides'])} 張可編輯投影片：\n{path}\n\n這是依貼上大綱排版的 PPTX，尚未經 AI 擴寫或生成圖片。")
+
         actions = ttk.Frame(dialog, padding=(16, 0, 16, 14))
         actions.pack(fill="x")
         ttk.Button(actions, text="從剪貼簿貼上", command=paste_from_clipboard).pack(side="left", padx=(0, 8))
@@ -327,6 +355,8 @@ class PresentationMakerApp(tk.Tk):
         preview_button.pack(side="left")
         create_button = ttk.Button(actions, text="建立專案", command=create_project, state="disabled")
         create_button.pack(side="right")
+        export_button = ttk.Button(actions, text="建立並匯出 PPTX…", command=create_and_export, state="disabled")
+        export_button.pack(side="right", padx=(0, 8))
         ttk.Button(actions, text="取消", command=dialog.destroy).pack(side="right", padx=(0, 8))
         def invalidate_preview(_event=None):
             if outline_input.edit_modified():
@@ -335,6 +365,7 @@ class PresentationMakerApp(tk.Tk):
                 preview.delete(0, "end")
                 preview_label.set("大綱已更新；請重新預覽後建立專案。")
                 create_button.configure(state="disabled")
+                export_button.configure(state="disabled")
         outline_input.bind("<<Modified>>", invalidate_preview)
         outline_input.edit_modified(False)
         # Keep this editor modeless: on macOS, a Tk grab on a newly-created
@@ -729,7 +760,7 @@ class PresentationMakerApp(tk.Tk):
         if self.output.get() == "圖像式 PPTX":
             messagebox.showinfo("此格式尚未提供", "目前只支援可編輯式 PPTX；圖像式匯出尚未實作，沒有產生降級替代檔。")
             return
-        path = filedialog.asksaveasfilename(defaultextension=".pptx", filetypes=[("PowerPoint", "*.pptx")], initialfile="offline-presentation-example.pptx")
+        path = filedialog.asksaveasfilename(defaultextension=".pptx", filetypes=[("PowerPoint", "*.pptx")], initialfile=f"{self.document.get('title') or '我的簡報'}.pptx")
         if path:
             asset_root = self.app_support / "projects" / self.current_project_id / "assets"
             try:

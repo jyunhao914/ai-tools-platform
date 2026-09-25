@@ -1,6 +1,7 @@
 import pytest
 import tkinter as tk
 from pathlib import Path
+from pptx import Presentation
 
 from presentation_maker_offline.export import export_project_pptx
 from presentation_maker_offline.project_document import new_project_document
@@ -61,6 +62,11 @@ def test_pasted_outline_persists_and_exports_as_editable_pptx(tmp_path):
 
     output = export_project_pptx(tmp_path / "outline.pptx", loaded)
     assert output.is_file()
+    reopened = Presentation(output)
+    assert len(reopened.slides) == 2
+    slide_text = ["\n".join(shape.text for shape in slide.shapes if shape.has_text_frame) for slide in reopened.slides]
+    assert "開場" in slide_text[0] and "重點一" in slide_text[0]
+    assert "結論" in slide_text[1] and "重點二" in slide_text[1]
 
 
 def test_outline_paste_dialog_pastes_previews_and_creates_project(tmp_path, monkeypatch):
@@ -98,10 +104,16 @@ def test_outline_paste_dialog_pastes_previews_and_creates_project(tmp_path, monk
         preview = next(widget for widget in widgets if widget.winfo_class() == "Listbox")
         assert preview.get(0, "end") == ("01　第一頁", "02　第二頁")
 
-        buttons["建立專案"].invoke()
+        from presentation_maker_offline import ui
+        output_path = tmp_path / "ui-outline.pptx"
+        monkeypatch.setattr(ui.filedialog, "asksaveasfilename", lambda **_kwargs: str(output_path))
+        monkeypatch.setattr(ui.messagebox, "showinfo", lambda *_args, **_kwargs: None)
+        buttons["建立並匯出 PPTX…"].invoke()
         assert app.document["title"] == "UI 貼上驗收"
         assert len(app.document["slides"]) == 2
         assert len(app.project_store.list_projects()) == 1
+        assert output_path.is_file()
+        assert len(Presentation(output_path).slides) == 2
     finally:
         app.destroy()
 
