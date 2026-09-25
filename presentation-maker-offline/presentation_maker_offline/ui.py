@@ -12,6 +12,14 @@ from .storage import discover_qwen38_mlx, qwen_image21_readiness
 from .workflow import ProjectStore
 
 
+STYLE_PALETTES = {
+    "清爽藍": {"paper": "#F8FAFC", "accent": "#2563EB", "text": "#334155", "rule": "#BFDBFE"},
+    "雜誌編輯": {"paper": "#FFF9F2", "accent": "#B45309", "text": "#44403C", "rule": "#F3D7B5"},
+    "自然療癒": {"paper": "#F2F8F1", "accent": "#2F7658", "text": "#34483C", "rule": "#C8DDCB"},
+    "高科技": {"paper": "#111827", "accent": "#38BDF8", "text": "#E2E8F0", "rule": "#334155"},
+}
+
+
 class PresentationMakerApp(tk.Tk):
     """A clearly-labelled, locally persisted interaction prototype."""
 
@@ -114,8 +122,23 @@ class PresentationMakerApp(tk.Tk):
         title_entry = ttk.Entry(edit_tab, textvariable=self.slide_title)
         title_entry.pack(fill="x", pady=(4, 4))
         title_entry.bind("<FocusOut>", lambda _event: self.edit_slide_title())
-        ttk.Label(edit_tab, text="風格（原型選項）").pack(anchor="w", pady=(10, 3))
-        ttk.Combobox(edit_tab, textvariable=self.style, values=["清爽藍", "雜誌編輯", "自然療癒", "高科技"], state="readonly").pack(fill="x")
+        ttk.Label(edit_tab, text="風格預覽（選擇套用）").pack(anchor="w", pady=(10, 3))
+        self.style_picker = ttk.Frame(edit_tab)
+        self.style_picker.pack(fill="x", pady=(4, 0))
+        self.style_card_canvases = {}
+        for index, name in enumerate(STYLE_PALETTES):
+            card = ttk.Frame(self.style_picker, padding=3, relief="solid")
+            card.grid(row=index // 2, column=index % 2, sticky="nsew", padx=2, pady=2)
+            sample = tk.Canvas(card, height=54, bg=STYLE_PALETTES[name]["paper"], highlightthickness=0, cursor="hand2")
+            sample.pack(fill="x")
+            sample.bind("<Configure>", lambda event, style_name=name: self._draw_style_card(style_name, event.width, event.height))
+            sample.bind("<Button-1>", lambda _event, style_name=name: self._choose_style(style_name))
+            ttk.Radiobutton(card, text=name, variable=self.style, value=name, command=self._style_changed).pack(anchor="w")
+            card.bind("<Button-1>", lambda _event, style_name=name: self._choose_style(style_name))
+            self.style_card_canvases[name] = sample
+        self.style_picker.columnconfigure(0, weight=1)
+        self.style_picker.columnconfigure(1, weight=1)
+        self._refresh_style_cards()
         ttk.Label(edit_tab, text="修改留言").pack(anchor="w", pady=(12, 4))
         self.annotation_note = tk.Text(edit_tab, height=5, wrap="word")
         self.annotation_note.pack(fill="x")
@@ -355,6 +378,39 @@ class PresentationMakerApp(tk.Tk):
         self.output.set(settings.get("output_format", "可編輯式 PPTX"))
         self.intervention.set(settings.get("intervention", "協助潤飾"))
         self.target_pages.set(settings.get("target_pages", len(self.document.get("slides", [])) or 8))
+        self._refresh_style_cards()
+
+    def _draw_style_card(self, name: str, width: int, height: int) -> None:
+        canvas = self.style_card_canvases.get(name)
+        if canvas is None:
+            return
+        palette = STYLE_PALETTES[name]
+        canvas.delete("all")
+        canvas.configure(background=palette["paper"])
+        canvas.create_rectangle(10, 9, max(14, width - 10), 20, fill=palette["accent"], outline="")
+        canvas.create_rectangle(10, 27, max(14, width - 34), 31, fill=palette["text"], outline="")
+        canvas.create_rectangle(10, 36, max(14, width - 22), 39, fill=palette["rule"], outline="")
+        canvas.create_rectangle(10, 44, max(14, width - 48), 47, fill=palette["rule"], outline="")
+
+    def _refresh_style_cards(self) -> None:
+        if not hasattr(self, "style_card_canvases"):
+            return
+        for name, canvas in self.style_card_canvases.items():
+            palette = STYLE_PALETTES[name]
+            selected = name == self.style.get()
+            canvas.master.configure(relief="solid" if selected else "flat", borderwidth=2 if selected else 1)
+            self._draw_style_card(name, max(canvas.winfo_width(), 120), max(canvas.winfo_height(), 54))
+
+    def _choose_style(self, name: str) -> None:
+        self.style.set(name)
+        self._style_changed()
+
+    def _style_changed(self) -> None:
+        self._refresh_style_cards()
+        if self.document:
+            self._mutate()
+            self._persist()
+            self.draw_slide()
 
     def _mutate(self):
         if self.document is None: self.start()
@@ -390,9 +446,10 @@ class PresentationMakerApp(tk.Tk):
         if not slide: return
         width, height = max(self.canvas.winfo_width(), 500), max(self.canvas.winfo_height(), 360)
         margin = 34
-        self.canvas.create_rectangle(margin, margin, width-margin, height-margin, fill="white", outline="#cbd5e1")
-        self.canvas.create_text(margin+28, margin+42, text=slide["title"], anchor="w", fill="#18324b", font=("Arial", 22, "bold"))
-        self.canvas.create_line(margin+28, margin+70, width-margin-28, margin+70, fill="#dbeafe", width=3)
+        palette = STYLE_PALETTES.get(self.style.get(), STYLE_PALETTES["清爽藍"])
+        self.canvas.create_rectangle(margin, margin, width-margin, height-margin, fill=palette["paper"], outline="#cbd5e1")
+        self.canvas.create_text(margin+28, margin+42, text=slide["title"], anchor="w", fill=palette["accent"], font=("Arial", 22, "bold"))
+        self.canvas.create_line(margin+28, margin+70, width-margin-28, margin+70, fill=palette["rule"], width=3)
         content_drawn = False
         for element in slide.get("elements", []):
             x = margin + float(element.get("x", .08)) * (width-2*margin)
@@ -412,7 +469,7 @@ class PresentationMakerApp(tk.Tk):
                 except (OSError, ImportError):
                     self.canvas.create_text(x, y, text="圖片素材無法預覽", anchor="nw", fill="#b42318")
             elif element.get("type", "text") == "text" and element.get("text"):
-                self.canvas.create_text(x, y, width=box_width, text=element["text"], anchor="nw", justify="left", fill="#334155", font=("Arial", 13))
+                self.canvas.create_text(x, y, width=box_width, text=element["text"], anchor="nw", justify="left", fill=palette["text"], font=("Arial", 13))
                 content_drawn = True
         if not content_drawn:
             self.canvas.create_text(margin+32, margin+112, text="在畫布拖曳，新增可保存的區域標記", anchor="w", fill="#64748b", font=("Arial", 13))
