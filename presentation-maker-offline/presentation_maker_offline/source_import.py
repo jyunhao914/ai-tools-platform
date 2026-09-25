@@ -58,7 +58,19 @@ def parse_outline_text(text: str) -> tuple[str, list[dict], dict]:
     if not normalized:
         raise ValueError("請先貼上簡報大綱文字。")
 
-    lines = normalized.splitlines()
+    lines = []
+    page_marker = re.compile(r"第\s*\d+\s*頁\s*[｜|:：]")
+    page_heading = re.compile(r"^\s*#{1,6}\s*第\s*\d+\s*頁\s*[｜|:：]")
+    for raw_line in normalized.splitlines():
+        marker = page_marker.search(raw_line)
+        if marker and marker.start() > 0 and not page_heading.match(raw_line):
+            before = raw_line[:marker.start()].rstrip()
+            after = raw_line[marker.start():].strip()
+            if before:
+                lines.append(before)
+            lines.append(f"# {after}")
+        else:
+            lines.append(raw_line)
     heading_rows = []
     for index, line in enumerate(lines):
         match = re.match(r"^\s*(#{1,6})\s+(.+?)\s*#*\s*$", line)
@@ -80,7 +92,8 @@ def parse_outline_text(text: str) -> tuple[str, list[dict], dict]:
                 heading_preface = lines[deck_row[0] + 1:slide_rows[0][0]]
         else:
             slide_rows = heading_rows
-            deck_title = heading_rows[0][2]
+            preface_title = re.match(r"^\*\*(.+?)\*\*\s*$", lines[0].strip()) if lines else None
+            deck_title = preface_title.group(1).strip() if preface_title else heading_rows[0][2]
         for row_index, (line_index, _level, title) in enumerate(slide_rows):
             end = slide_rows[row_index + 1][0] if row_index + 1 < len(slide_rows) else len(lines)
             body_lines = list(heading_preface) if row_index == 0 else []
@@ -124,10 +137,26 @@ def parse_outline_text(text: str) -> tuple[str, list[dict], dict]:
         cleaned_body = []
         for line in body_lines:
             line = line.strip()
+            if re.fullmatch(r"[-*+]\s*\\", line):
+                continue
+            if line.startswith("|") and re.fullmatch(r"\|?[\s:|\-]+\|?", line):
+                continue
+            if line.startswith("|") and line.endswith("|"):
+                cells = [cell.strip() for cell in line.strip("|").split("|")]
+                cells = [re.sub(r"\*\*(.+?)\*\*", r"\1", cell).strip() for cell in cells]
+                cells = [cell for cell in cells if cell]
+                if len(cells) >= 2:
+                    cleaned_body.extend((f"迷思：{cells[0]}", f"正確觀念：{cells[1]}"))
+                    continue
+                if cells:
+                    cleaned_body.append(cells[0])
+                    continue
+            line = re.sub(r"\*\*(.+?)\*\*", r"\1", line)
             line = re.sub(r"^\s*(?:[-*+]\s+|\d+[.)、．]\s*)", "• ", line)
             if line:
                 cleaned_body.append(line)
-        slides.append(_slide_from_text("\n".join([title, *cleaned_body]), index))
+        clean_title = re.sub(r"^第\s*\d+\s*頁\s*[｜|:：]\s*", "", title).strip()
+        slides.append(_slide_from_text("\n".join([clean_title, *cleaned_body]), index))
 
     record_id = str(uuid4())
     record = {

@@ -43,6 +43,43 @@ def test_parse_plain_text_outline_by_blank_lines_and_numbered_pages():
     assert numbered_slides[0]["elements"][0]["text"] == "需求成長"
 
 
+def test_parse_outline_with_adjacent_page_marker_stray_slash_and_markdown_table():
+    text = (
+        "**認識大腸癌｜21頁簡報大綱**\n\n"
+        "# 第1頁｜封面：認識大腸癌\n- 副標題：守護腸道健康\n\n"
+        "# 第7頁｜瘜肉不等於大腸癌\n- 大腸鏡可切除或取樣第8頁｜無法改變的危險因子\n- 年齡增加\n\n"
+        "# 第20頁｜破解常見迷思\n"
+        "| **常見迷思正確觀念** |                    |\n"
+        "| ------------ | ------------------ |\n"
+        "| 沒有症狀就不用檢查 | 早期大腸癌可能沒有症狀 |\n"
+        "# 第21頁｜守護腸道健康\n"
+        "- \\\n"
+    )
+
+    title, slides, _ = parse_outline_text(text)
+    assert title == "認識大腸癌｜21頁簡報大綱"
+    assert [slide["title"] for slide in slides] == [
+        "封面：認識大腸癌", "瘜肉不等於大腸癌", "無法改變的危險因子",
+        "破解常見迷思", "守護腸道健康",
+    ]
+    assert "第8頁" not in slides[1]["elements"][0]["text"]
+    assert "正確觀念：早期大腸癌可能沒有症狀" in slides[3]["elements"][0]["text"]
+    assert not slides[4]["elements"]
+
+    twenty_one_pages = ["**認識大腸癌｜21頁簡報大綱**"]
+    for page in range(1, 22):
+        if page == 8:
+            continue
+        twenty_one_pages.append(f"# 第{page}頁｜第{page}頁標題")
+        if page == 7:
+            twenty_one_pages.append("- 最後一點第8頁｜第8頁標題\n- 第8頁內容")
+        else:
+            twenty_one_pages.append("- 頁面內容")
+    _, parsed_twenty_one, _ = parse_outline_text("\n\n".join(twenty_one_pages))
+    assert len(parsed_twenty_one) == 21
+    assert parsed_twenty_one[7]["title"] == "第8頁標題"
+
+
 def test_pasted_outline_persists_and_exports_as_editable_pptx(tmp_path):
     title, slides, source = parse_outline_text("## 開場\n- 重點一\n## 結論\n- 重點二")
     document = new_project_document(title)
