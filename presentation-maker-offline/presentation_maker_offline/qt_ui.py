@@ -24,6 +24,7 @@ from .layout_design import DEFAULT_LAYOUT, LAYOUT_NAMES, apply_slide_layout, fit
 from .manifest import CheckpointManifest
 from .project_document import new_project_document, update_slide_text_element
 from .source_import import import_source, parse_outline_text
+from .source_library import SOURCE_ROLES, add_file_source, add_text_source, append_fragment_to_slide, source_preview
 from .storage import discover_qwen38_mlx, qwen_image21_readiness
 from .workflow import ProjectStore
 
@@ -620,6 +621,39 @@ class PresentationStudio(QMainWindow):
         self.annotation_status.setWordWrap(True)
         annotation_layout.addWidget(self.annotation_status)
         self.editor_tabs.addTab(annotation_page, "標記與留言")
+
+        sources_page = QWidget()
+        sources_layout = QVBoxLayout(sources_page)
+        sources_layout.addWidget(QLabel("專案資料（加入後不會自動改寫投影片）"))
+        self.source_list = QListWidget()
+        self.source_list.currentRowChanged.connect(self._select_library_source)
+        sources_layout.addWidget(self.source_list, 1)
+        source_actions = QHBoxLayout()
+        add_file = self._button("加入檔案…")
+        add_file.clicked.connect(self._add_reference_file)
+        add_text = self._button("貼上文字…")
+        add_text.clicked.connect(self._add_reference_text)
+        source_actions.addWidget(add_file)
+        source_actions.addWidget(add_text)
+        sources_layout.addLayout(source_actions)
+        sources_layout.addWidget(QLabel("資料用途"))
+        self.source_role = QComboBox()
+        self.source_role.addItems(SOURCE_ROLES)
+        sources_layout.addWidget(self.source_role)
+        sources_layout.addWidget(QLabel("使用範圍（整份、頁碼或標記區域）"))
+        self.source_scope = QLineEdit()
+        self.source_scope.setPlaceholderText("例如：整份簡報、頁 3–5、標記 ①")
+        sources_layout.addWidget(self.source_scope)
+        save_source = self._button("保存資料用途與範圍")
+        save_source.clicked.connect(self._save_source_settings)
+        sources_layout.addWidget(save_source)
+        self.source_preview = QPlainTextEdit()
+        self.source_preview.setReadOnly(True)
+        sources_layout.addWidget(self.source_preview, 2)
+        cite_button = self._button("選擇內容加入目前頁面…", primary=True)
+        cite_button.clicked.connect(self._insert_selected_source_fragment)
+        sources_layout.addWidget(cite_button)
+        self.editor_tabs.addTab(sources_page, "資料")
         columns.addWidget(self.editor_tabs)
         columns.setStretchFactor(0, 0)
         columns.setStretchFactor(1, 1)
@@ -794,6 +828,7 @@ class PresentationStudio(QMainWindow):
         self.slide_list.clear()
         for index, slide in enumerate(self.document.get("slides", []), 1):
             self.slide_list.addItem(f"{index:02d}　{slide['title']}")
+        self._refresh_library_sources()
         self.stack.setCurrentWidget(self.editor_page)
         if self.slide_list.count():
             self.slide_list.setCurrentRow(0)
@@ -1246,6 +1281,148 @@ class PresentationStudio(QMainWindow):
             return
         self._refresh_recent()
         self.stack.setCurrentWidget(self.home_page)
+
+    def _refresh_library_sources(self, selected_id: str | None = None) -> None:
+        self.source_list.clear()
+        self._library_source_ids = []
+        if not self.document:
+            return
+        for source in self.document.get("sources", []):
+            if not source.get("library_source"):
+                continue
+            self._library_source_ids.append(source["id"])
+            self.source_list.addItem(f"{source['display_name']} · v{source['version']} · {source['role']}")
+        if self._library_source_ids:
+            row = self._library_source_ids.index(selected_id) if selected_id in self._library_source_ids else 0
+            self.source_list.setCurrentRow(row)
+        else:
+            self.source_preview.setPlainText("尚無補充資料。可加入 PPTX、PDF、Word、TXT、圖片，或貼上文字。")
+
+    def _select_library_source(self, row: int) -> None:
+        if not self.document or not 0 <= row < len(getattr(self, "_library_source_ids", [])):
+            return
+        source_id = self._library_source_ids[row]
+        source = next(item for item in self.document["sources"] if item["id"] == source_id)
+        self.source_role.setCurrentText(source.get("role", "補充資料"))
+        self.source_scope.setText(source.get("scope", "整份簡報"))
+        self.source_preview.setPlainText(source_preview(source))
+
+    def _append_library_source(self, source: dict) -> bool:
+        if not self.document:
+            return False
+        self.document.setdefault("sources", []).append(source)
+        if not self.save_project():
+            self.document["sources"].remove(source)
+            return False
+        self._refresh_library_sources(source["id"])
+        self.editor_tabs.setCurrentIndex(3)
+        self.editor_status.setText(f"已保存資料「{source['display_name']}」；投影片未更動。")
+        return True
+
+    def _add_reference_file(self) -> None:
+        if not self.document or not self.project_id:
+            return
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, "加入專案資料", "", "支援的資料 (*.pptx *.pdf *.docx *.txt *.png *.jpg *.jpeg *.webp)")
+        for path in paths:
+            try:
+                source = add_file_source(path, self.app_support / "projects" / self.project_id,
+                                         self.document.get("sources", []))
+                if not self._append_library_source(source):
+                    (self.app_support / "projects" / self.project_id / "sources" / source["managed_path"]).unlink(missing_ok=True)
+            except (OSError, UnicodeError, RuntimeError, ValueError) as exc:
+                QMessageBox.warning(self, "資料未加入", f"{Path(path).name}：{exc}")
+
+    def _add_reference_text(self) -> None:
+        if not self.document:
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle("貼上專案資料")
+        dialog.resize(620, 460)
+        layout = QVBoxLayout(dialog)
+        name = QLineEdit("貼上的補充資料")
+        layout.addWidget(QLabel("資料名稱"))
+        layout.addWidget(name)
+        editor = QPlainTextEdit()
+        editor.setPlaceholderText("在此貼上資料；⌘V 與右鍵貼上都可使用。")
+        layout.addWidget(editor, 1)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            source = add_text_source(editor.toPlainText(), self.document.get("sources", []),
+                                     name=name.text().strip() or "貼上的補充資料")
+            self._append_library_source(source)
+        except ValueError as exc:
+            QMessageBox.warning(self, "資料未加入", str(exc))
+
+    def _save_source_settings(self) -> None:
+        row = self.source_list.currentRow()
+        if not self.document or not 0 <= row < len(getattr(self, "_library_source_ids", [])):
+            return
+        scope = self.source_scope.text().strip()
+        if not scope:
+            QMessageBox.warning(self, "請指定範圍", "請填寫整份簡報、頁碼或標記區域。")
+            return
+        source = next(item for item in self.document["sources"] if item["id"] == self._library_source_ids[row])
+        old_role, old_scope = source["role"], source["scope"]
+        source["role"], source["scope"] = self.source_role.currentText(), scope
+        if not self.save_project():
+            source["role"], source["scope"] = old_role, old_scope
+            return
+        self._refresh_library_sources(source["id"])
+        self.editor_status.setText("資料用途與範圍已保存；投影片未更動。")
+
+    def _insert_selected_source_fragment(self) -> None:
+        source_row, slide_row = self.source_list.currentRow(), self.slide_list.currentRow()
+        if (not self.document or not 0 <= source_row < len(getattr(self, "_library_source_ids", []))
+                or not 0 <= slide_row < len(self.document["slides"])):
+            QMessageBox.information(self, "先選擇資料與頁面", "請選擇一份資料和一張投影片。")
+            return
+        source = next(item for item in self.document["sources"] if item["id"] == self._library_source_ids[source_row])
+        if source.get("role") == "風格參考":
+            QMessageBox.warning(self, "用途不符", "風格參考不會自動納入文字。請先改變資料用途。")
+            return
+        fragments = [item for item in source.get("fragments", []) if item.get("text", "").strip()]
+        if not fragments:
+            QMessageBox.warning(self, "沒有可加入的文字", "此資料目前沒有可擷取的文字，請檢查預覽或先進行 OCR。")
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle("確認要加入的來源內容")
+        dialog.resize(700, 560)
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(QLabel(f"資料：{source['display_name']} v{source['version']}｜目標：第 {slide_row + 1} 頁。確認前不修改投影片。"))
+        choices = QComboBox()
+        for fragment in fragments:
+            choices.addItem(f"第 {fragment['page']} 頁｜{fragment.get('title', '')}", fragment["id"])
+        layout.addWidget(choices)
+        preview = QPlainTextEdit()
+        preview.setReadOnly(True)
+        layout.addWidget(preview, 1)
+        def refresh_preview(index):
+            preview.setPlainText(fragments[index]["text"] if index >= 0 else "")
+        choices.currentIndexChanged.connect(refresh_preview)
+        refresh_preview(0)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        slide = self.document["slides"][slide_row]
+        try:
+            element = append_fragment_to_slide(slide, source, choices.currentData())
+        except ValueError as exc:
+            QMessageBox.warning(self, "無法加入", str(exc))
+            return
+        if not self.save_project():
+            slide["elements"].remove(element)
+            return
+        self._refresh_slide_canvas(slide_row)
+        self.editor_status.setText(f"已將「{source['display_name']}」第 {element['source_ref']['page']} 頁內容加入第 {slide_row + 1} 頁，並保存來源關聯。")
 
     def export_project(self) -> None:
         if not self.document:

@@ -83,8 +83,8 @@ app = BUNDLE(
     info_plist={
         "CFBundleName": "離線簡報工作室",
         "CFBundleDisplayName": "離線簡報工作室",
-        "CFBundleShortVersionString": "0.3.1",
-        "CFBundleVersion": "4",
+        "CFBundleShortVersionString": "0.4.0",
+        "CFBundleVersion": "5",
         "LSMinimumSystemVersion": "13.0",
         "NSHighResolutionCapable": True,
     },

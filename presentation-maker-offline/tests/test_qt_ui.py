@@ -312,3 +312,48 @@ def test_editor_columns_resize_and_large_preview_contains_current_slide(studio, 
     window.zoom_preview_button.click()
     assert "第 1 頁" in captured["title"]
     assert any("健康生活" in text for text in captured["preview_text"])
+
+
+def test_reference_files_are_visible_persisted_and_do_not_change_slides(studio, tmp_path, monkeypatch):
+    app, window = studio
+    _create_one_slide_project(app, window)
+    reference = tmp_path / "衛教參考.txt"
+    reference.write_text("篩檢資訊\n請由醫師評估", encoding="utf-8")
+    from presentation_maker_offline import qt_ui
+    monkeypatch.setattr(qt_ui.QFileDialog, "getOpenFileNames", lambda *_a, **_kw: ([str(reference)], ""))
+    original_slides = window.store.load_document(window.project_id)[1]["slides"]
+
+    window._add_reference_file()
+    assert window.source_list.count() == 1
+    assert "請由醫師評估" in window.source_preview.toPlainText()
+    window.source_role.setCurrentText("修改依據")
+    window.source_scope.setText("頁 1")
+    window._save_source_settings()
+    saved = window.store.load_document(window.project_id)[1]
+    assert saved["slides"] == original_slides
+    assert saved["sources"][-1]["role"] == "修改依據"
+    assert saved["sources"][-1]["scope"] == "頁 1"
+
+    window._return_home()
+    window._open_recent(window.recent_list.item(0))
+    assert window.source_list.count() == 1
+    assert window.source_role.currentText() == "修改依據"
+    assert "請由醫師評估" in window.source_preview.toPlainText()
+
+
+def test_source_content_requires_confirm_and_keeps_citation(studio, monkeypatch):
+    app, window = studio
+    _create_one_slide_project(app, window)
+    from presentation_maker_offline import qt_ui
+    from presentation_maker_offline.source_library import add_text_source
+    source = add_text_source("可供引用的內容", window.document["sources"], name="衛教指南")
+    assert window._append_library_source(source)
+    before = len(window.document["slides"][0]["elements"])
+    monkeypatch.setattr(qt_ui.QDialog, "exec", lambda _dialog: qt_ui.QDialog.DialogCode.Rejected)
+    window._insert_selected_source_fragment()
+    assert len(window.document["slides"][0]["elements"]) == before
+    monkeypatch.setattr(qt_ui.QDialog, "exec", lambda _dialog: qt_ui.QDialog.DialogCode.Accepted)
+    window._insert_selected_source_fragment()
+    saved = window.store.load_document(window.project_id)[1]
+    assert len(saved["slides"][0]["elements"]) == before + 1
+    assert saved["slides"][0]["elements"][-1]["source_ref"]["source_id"] == source["id"]

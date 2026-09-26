@@ -66,6 +66,19 @@ def validate_project_document(document: dict) -> None:
         element_ids = [element.get("id") for element in elements]
         if any(not element_id for element_id in element_ids) or len(set(element_ids)) != len(element_ids):
             raise ValueError(f"slide {slide['id']} has missing or duplicate element ids")
+    source_by_id = {source.get("id"): source for source in document.get("sources", [])}
+    for slide in slides:
+        for element in slide.get("elements", []):
+            reference = element.get("source_ref")
+            if reference is None:
+                continue
+            source = source_by_id.get(reference.get("source_id"))
+            if (not source or source.get("version") != reference.get("version")
+                    or source.get("content_sha256") != reference.get("content_sha256")
+                    or not any(fragment.get("id") == reference.get("fragment_id")
+                               and fragment.get("page") == reference.get("page")
+                               for fragment in source.get("fragments", []))):
+                raise ValueError("投影片的資料引用未能對應到保存的來源版本與段落")
     annotations = document.get("annotations", [])
     if not isinstance(annotations, list):
         raise ValueError("annotations must be a list")
