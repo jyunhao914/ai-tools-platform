@@ -288,3 +288,27 @@ def test_layout_design_and_per_slide_image_prompt_survive_reopen(studio):
     assert window.layout_choice.currentText() == "左圖右文"
     assert window.image_prompt.toPlainText() == "綠色植物與日常運動，無字插圖"
     assert window.document["slides"][0]["layout"] == "左圖右文"
+
+
+def test_editor_columns_resize_and_large_preview_contains_current_slide(studio, monkeypatch):
+    app, window = studio
+    _create_one_slide_project(app, window)
+    from presentation_maker_offline import qt_ui
+
+    captured = {}
+    def inspect_dialog(dialog):
+        captured["title"] = dialog.windowTitle()
+        previews = dialog.findChildren(qt_ui.SlidePreview)
+        captured["preview_text"] = [item.toPlainText() for item in previews[0].scene.items()
+                                    if hasattr(item, "toPlainText")]
+        return qt_ui.QDialog.DialogCode.Accepted
+
+    monkeypatch.setattr(qt_ui.QDialog, "exec", inspect_dialog)
+    window.resize(900, 620)
+    window.show()
+    app.processEvents()
+    assert window.zoom_preview_button.isVisible()
+    assert window.export_button.isVisible()
+    window.zoom_preview_button.click()
+    assert "第 1 頁" in captured["title"]
+    assert any("健康生活" in text for text in captured["preview_text"])

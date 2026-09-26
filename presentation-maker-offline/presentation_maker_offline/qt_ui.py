@@ -14,7 +14,7 @@ from PySide6.QtGui import QAction, QBrush, QColor, QFont, QIcon, QImage, QKeySeq
 from PySide6.QtWidgets import (
     QApplication, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFrame,
     QGraphicsScene, QGraphicsView, QHBoxLayout, QLabel, QLineEdit, QListWidget,
-    QMainWindow, QMessageBox, QPushButton, QPlainTextEdit, QStackedWidget,
+    QMainWindow, QMessageBox, QPushButton, QPlainTextEdit, QSplitter, QStackedWidget,
     QTabWidget, QVBoxLayout, QWidget,
 )
 
@@ -537,14 +537,26 @@ class PresentationStudio(QMainWindow):
         header.addWidget(self.output_mode_choice)
         header.addWidget(self.export_button)
         layout.addLayout(header)
-        columns = QHBoxLayout()
+        columns = QSplitter(Qt.Orientation.Horizontal)
+        columns.setChildrenCollapsible(False)
         self.slide_list = QListWidget()
         self.slide_list.currentRowChanged.connect(self._select_slide)
-        columns.addWidget(self.slide_list, 1)
+        columns.addWidget(self.slide_list)
+        center = QWidget()
+        center_layout = QVBoxLayout(center)
+        center_layout.setContentsMargins(0, 0, 0, 0)
+        center_header = QHBoxLayout()
+        center_header.addWidget(QLabel("投影片預覽"))
+        center_header.addStretch(1)
+        self.zoom_preview_button = self._button("放大預覽")
+        self.zoom_preview_button.clicked.connect(self.show_large_preview)
+        center_header.addWidget(self.zoom_preview_button)
+        center_layout.addLayout(center_header)
         self.slide_canvas = SlidePreview()
-        self.slide_canvas.setMinimumSize(480, 300)
+        self.slide_canvas.setMinimumSize(320, 240)
         self.slide_canvas.area_selected.connect(self._area_selected)
-        columns.addWidget(self.slide_canvas, 3)
+        center_layout.addWidget(self.slide_canvas, 1)
+        columns.addWidget(center)
         self.editor_tabs = QTabWidget()
         content_page = QWidget()
         editor = QVBoxLayout(content_page)
@@ -608,8 +620,12 @@ class PresentationStudio(QMainWindow):
         self.annotation_status.setWordWrap(True)
         annotation_layout.addWidget(self.annotation_status)
         self.editor_tabs.addTab(annotation_page, "標記與留言")
-        columns.addWidget(self.editor_tabs, 2)
-        layout.addLayout(columns, 1)
+        columns.addWidget(self.editor_tabs)
+        columns.setStretchFactor(0, 0)
+        columns.setStretchFactor(1, 1)
+        columns.setStretchFactor(2, 0)
+        columns.setSizes([175, 620, 350])
+        layout.addWidget(columns, 1)
         self.editor_status = QLabel("專案會自動保存到本機資料庫。")
         layout.addWidget(self.editor_status)
         return page
@@ -849,6 +865,23 @@ class PresentationStudio(QMainWindow):
         assets = self.app_support / "projects" / self.project_id / "assets"
         payload = slide_preview_payload(self.document, row, assets, include_annotations=True)
         self.slide_canvas.set_slide(**payload)
+
+    def show_large_preview(self) -> None:
+        row = self.slide_list.currentRow()
+        if not self.document or not 0 <= row < len(self.document["slides"]):
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"第 {row + 1} 頁｜放大預覽")
+        dialog.resize(1200, 760)
+        layout = QVBoxLayout(dialog)
+        canvas = SlidePreview(dialog)
+        assets = self.app_support / "projects" / self.project_id / "assets"
+        canvas.set_slide(**slide_preview_payload(self.document, row, assets, include_annotations=True))
+        layout.addWidget(canvas, 1)
+        close_button = self._button("關閉預覽")
+        close_button.clicked.connect(dialog.accept)
+        layout.addWidget(close_button)
+        dialog.exec()
 
     @staticmethod
     def _default_image_prompt(slide: dict, style: str = "") -> str:
