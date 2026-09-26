@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 
 from .backends import LocalQwenImageBackend, LocalQwenTextBackend
 from .export import THEMES, export_project_pptx
+from .edit_candidates import accept_text_candidate, reject_candidate, stage_text_candidate
 from .layout_design import DEFAULT_LAYOUT, LAYOUT_NAMES, apply_slide_layout, auto_design_slide, fit_body_font, layout_rects, render_text_blocks
 from .manifest import CheckpointManifest
 from .project_document import new_project_document, update_slide_text_element
@@ -96,6 +97,39 @@ class TextPlanningWorker(QThread):
             title, slides, source = parse_outline_text(result["text"])
             source.update({"display_name": "本機 AI 大綱候選稿", "origin": "model_generated_outline", "runtime": result.get("runtime")})
             self.completed.emit({"title": title, "slides": slides, "source": source, "runtime": result.get("runtime")})
+        except InterruptedError:
+            return
+        except Exception as exc:
+            self.failed.emit(str(exc))
+
+
+class TextEditWorker(QThread):
+    completed = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, prompt: str, model_path: Path, target: dict):
+        super().__init__()
+        self.prompt, self.model_path, self.target = prompt, model_path, target
+        self.backend: LocalQwenTextBackend | None = None
+
+    def cancel(self) -> None:
+        if self.backend:
+            self.backend.cancel()
+
+    def run(self) -> None:
+        try:
+            self.backend = LocalQwenTextBackend(CheckpointManifest(
+                "Qwen3.8-27B local", str(self.model_path), "0" * 64,
+                "local model directory", "local", "see checkpoint license", "mlx", format="mlx",
+            ))
+            result = self.backend.plan(self.prompt, system_prompt=(
+                "你是繁體中文簡報編輯。只回傳修改後的單一文字物件內容，保留原有事實與數字。"
+                "不要輸出投影片大綱、前言、Markdown 標題或解釋。"
+            ))
+            proposed = result.get("text", "").strip()
+            if not proposed:
+                raise ValueError("本機模型沒有產生可檢視的候選文字")
+            self.completed.emit({**self.target, "proposed_text": proposed, "runtime": result.get("runtime")})
         except InterruptedError:
             return
         except Exception as exc:
@@ -367,6 +401,7 @@ class PresentationStudio(QMainWindow):
         self.model_outline_source: dict | None = None
         self._adopting_ai_candidate = False
         self._plan_worker: TextPlanningWorker | None = None
+        self._edit_worker: TextEditWorker | None = None
         self._image_worker: ImageGenerationWorker | None = None
         self._image_dialog: QDialog | None = None
         self._image_cancel_button: QPushButton | None = None
@@ -678,6 +713,35 @@ class PresentationStudio(QMainWindow):
         cite_button.clicked.connect(self._insert_selected_source_fragment)
         sources_layout.addWidget(cite_button)
         self.editor_tabs.addTab(sources_page, "資料")
+        edit_page = QWidget()
+        edit_layout = QVBoxLayout(edit_page)
+        edit_layout.addWidget(QLabel("本機 AI 修改目前頁面的文字；接受前不會改動投影片。"))
+        self.edit_instruction = QPlainTextEdit()
+        self.edit_instruction.setPlaceholderText("例如：把這頁改得更易懂，但保留所有事實與數字。")
+        self.edit_instruction.setMaximumHeight(100)
+        edit_layout.addWidget(self.edit_instruction)
+        self.propose_edit_button = self._button("產生文字修改候選稿", primary=True)
+        self.propose_edit_button.clicked.connect(self.generate_text_edit_candidate)
+        edit_layout.addWidget(self.propose_edit_button)
+        edit_layout.addWidget(QLabel("此頁候選稿"))
+        self.edit_candidate_list = QListWidget()
+        self.edit_candidate_list.currentRowChanged.connect(self._select_edit_candidate)
+        edit_layout.addWidget(self.edit_candidate_list, 1)
+        self.edit_comparison = QPlainTextEdit()
+        self.edit_comparison.setReadOnly(True)
+        edit_layout.addWidget(self.edit_comparison, 2)
+        edit_actions = QHBoxLayout()
+        self.accept_edit_button = self._button("接受候選稿", primary=True)
+        self.accept_edit_button.clicked.connect(self.accept_selected_text_edit)
+        self.reject_edit_button = self._button("取消候選稿")
+        self.reject_edit_button.clicked.connect(self.reject_selected_text_edit)
+        edit_actions.addWidget(self.accept_edit_button)
+        edit_actions.addWidget(self.reject_edit_button)
+        edit_layout.addLayout(edit_actions)
+        self.edit_status = QLabel("只修改目前頁面的第一個文字物件；尚未支援標記區域的精準改圖。")
+        self.edit_status.setWordWrap(True)
+        edit_layout.addWidget(self.edit_status)
+        self.editor_tabs.addTab(edit_page, "對話修改")
         columns.addWidget(self.editor_tabs)
         columns.setStretchFactor(0, 0)
         columns.setStretchFactor(1, 1)
@@ -874,7 +938,150 @@ class PresentationStudio(QMainWindow):
             slide, self.document.get("settings", {}).get("style", "")))
         self.image_prompt.blockSignals(False)
         self._refresh_annotations(slide["id"])
+        self._refresh_edit_candidates(slide["id"])
         self._refresh_slide_canvas(row)
+
+    def _refresh_edit_candidates(self, slide_id: str) -> None:
+        self.edit_candidate_list.clear()
+        self._visible_edit_candidate_ids = []
+        if not self.document:
+            return
+        for candidate in self.document.get("edit_candidates", []):
+            if candidate.get("slide_id") == slide_id:
+                self._visible_edit_candidate_ids.append(candidate["id"])
+                self.edit_candidate_list.addItem(f"{candidate['status']} · {candidate['instruction'][:42]}")
+        if self._visible_edit_candidate_ids:
+            self.edit_candidate_list.setCurrentRow(len(self._visible_edit_candidate_ids) - 1)
+        else:
+            self.edit_comparison.clear()
+
+    def _selected_edit_candidate(self) -> dict | None:
+        row = self.edit_candidate_list.currentRow()
+        if not self.document or not 0 <= row < len(getattr(self, "_visible_edit_candidate_ids", [])):
+            return None
+        candidate_id = self._visible_edit_candidate_ids[row]
+        return next((item for item in self.document.get("edit_candidates", []) if item["id"] == candidate_id), None)
+
+    def _select_edit_candidate(self, _row: int) -> None:
+        candidate = self._selected_edit_candidate()
+        if candidate:
+            self.edit_comparison.setPlainText(
+                f"目前／原始文字：\n{candidate['original_text']}\n\n候選文字：\n{candidate['proposed_text']}"
+            )
+        else:
+            self.edit_comparison.clear()
+
+    def generate_text_edit_candidate(self) -> None:
+        row = self.slide_list.currentRow()
+        if not self.document or not 0 <= row < len(self.document["slides"]):
+            return
+        if self._edit_worker and self._edit_worker.isRunning():
+            QMessageBox.information(self, "文字修改中", "請先等待目前的候選稿完成。")
+            return
+        instruction = self.edit_instruction.toPlainText().strip()
+        if not instruction:
+            QMessageBox.information(self, "請輸入修改要求", "請先說明這頁文字要怎麼修改。")
+            return
+        slide = self.document["slides"][row]
+        element = next((item for item in slide.get("elements", []) if item.get("id") == self._text_element_id), None)
+        if (self.slide_heading.text().strip() != slide["title"]
+                or self.slide_text.toPlainText().strip() != (element.get("text", "").strip() if element else "")):
+            QMessageBox.information(self, "先套用目前文字", "內容分頁有尚未套用的文字或標題。請先按「套用到這一頁」，再產生修改候選稿。")
+            return
+        if not element:
+            QMessageBox.warning(self, "沒有可修改的文字", "目前頁面沒有文字物件；請先在內容分頁加入文字。")
+            return
+        if not self.save_project():
+            return
+        model_path = discover_qwen38_mlx()
+        if not model_path:
+            QMessageBox.warning(self, "文字模型未就緒", "找不到本機 Qwen3.8-27B MLX 模型；未送出任何修改。")
+            return
+        backend = LocalQwenTextBackend(CheckpointManifest(
+            "Qwen3.8-27B local", str(model_path), "0" * 64,
+            "local model directory", "local", "see checkpoint license", "mlx", format="mlx",
+        ))
+        health = backend.health()
+        if not health["ok"]:
+            QMessageBox.warning(self, "文字模型未就緒", "\n".join(health["errors"]))
+            return
+        prompt = (
+            "你正在修改繁體中文簡報的單一文字物件。只輸出修改後的文字，不要前言、Markdown 程式區塊或解釋。"
+            "保留原文的可驗證事實、數字與來源；不可修改其他頁、標題或圖片。若要求需要新資料但未提供，保留原文並明說無法補入，勿捏造。\n"
+            f"投影片標題：{slide['title']}\n修改要求：{instruction}\n原始文字：\n{element.get('text', '')}"
+        )
+        target = {"slide_id": slide["id"], "element_id": element["id"],
+                  "base_revision": self.revision, "instruction": instruction,
+                  "original_text": element.get("text", "")}
+        self.propose_edit_button.setEnabled(False)
+        self.edit_status.setText("本機文字模型正在提出候選稿；原稿保持不變。")
+        self._edit_worker = TextEditWorker(prompt, Path(model_path), target)
+        self._edit_worker.completed.connect(self._receive_text_edit_candidate)
+        self._edit_worker.failed.connect(self._text_edit_failed)
+        self._edit_worker.finished.connect(lambda: self.propose_edit_button.setEnabled(True))
+        self._edit_worker.start()
+
+    def _receive_text_edit_candidate(self, result: dict) -> None:
+        if not self.document or not self.project_id:
+            return
+        slide = next((item for item in self.document["slides"] if item["id"] == result["slide_id"]), None)
+        element = next((item for item in slide.get("elements", []) if item.get("id") == result["element_id"]), None) if slide else None
+        if not element or element.get("text", "") != result["original_text"]:
+            self.edit_status.setText("模型執行期間原文已變更；候選稿未套用，請重新提出修改。")
+            return
+        candidate = stage_text_candidate(
+            self.document, result["slide_id"], result["element_id"], result["proposed_text"],
+            result["instruction"], result["base_revision"],
+        )
+        candidate["runtime"] = result.get("runtime")
+        if not self.save_project():
+            self.document["edit_candidates"].remove(candidate)
+            return
+        self.store.record_attempt(self.project_id, slide.get("order", -1), "text_edit_candidate",
+                                  {"instruction": result["instruction"], "slide_id": slide["id"],
+                                   "element_id": element["id"], "base_revision": result["base_revision"]},
+                                  {"status": "candidate", "candidate_id": candidate["id"],
+                                   "runtime": result.get("runtime")})
+        self._refresh_edit_candidates(slide["id"])
+        self.edit_status.setText("候選稿已保存；請先比較，再決定接受或取消。")
+
+    def _text_edit_failed(self, message: str) -> None:
+        self.edit_status.setText("候選稿未完成，原稿未變更：" + message)
+
+    def accept_selected_text_edit(self) -> None:
+        candidate = self._selected_edit_candidate()
+        if not candidate or not self.document:
+            return
+        before = deepcopy(self.document)
+        try:
+            accept_text_candidate(self.document, candidate["id"], current_revision=self.revision)
+        except (RuntimeError, ValueError) as exc:
+            QMessageBox.warning(self, "候選稿無法套用", str(exc))
+            return
+        row = self.slide_list.currentRow()
+        if 0 <= row < len(self.document["slides"]) and self.document["slides"][row].get("auto_layout"):
+            auto_design_slide(self.document["slides"][row], row)
+        if not self.save_project():
+            self.document = before
+            return
+        self._select_slide(row)
+        self.edit_status.setText("已接受候選稿並建立新版本；可從版本比較還原。")
+
+    def reject_selected_text_edit(self) -> None:
+        candidate = self._selected_edit_candidate()
+        if not candidate or not self.document:
+            return
+        before = deepcopy(self.document)
+        try:
+            reject_candidate(self.document, candidate["id"])
+        except ValueError as exc:
+            QMessageBox.warning(self, "無法取消", str(exc))
+            return
+        if not self.save_project():
+            self.document = before
+            return
+        self._refresh_edit_candidates(candidate["slide_id"])
+        self.edit_status.setText("候選稿已取消；投影片原文沒有變動。")
 
     def _apply_slide_text(self) -> None:
         row = self.slide_list.currentRow()
@@ -1663,7 +1870,7 @@ class PresentationStudio(QMainWindow):
             self._show_editor()
 
     def closeEvent(self, event) -> None:
-        workers = [worker for worker in (self._plan_worker, self._image_worker) if worker and worker.isRunning()]
+        workers = [worker for worker in (self._plan_worker, self._image_worker, self._edit_worker) if worker and worker.isRunning()]
         for worker in workers:
             worker.cancel()
         if any(not worker.wait(15_000) for worker in workers):

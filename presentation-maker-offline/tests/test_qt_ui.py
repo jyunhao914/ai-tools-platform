@@ -393,3 +393,55 @@ def test_revision_restore_creates_new_revision_without_erasing_history(studio):
     assert window.document["slides"][0]["title"] == "健康生活"
     assert window.store.load_revision(window.project_id, changed_revision)[1]["slides"][0]["title"] == "更改後標題"
     assert window.store.revision_parent(window.project_id, window.revision) == original_revision
+
+
+def test_text_edit_candidate_ui_accepts_only_after_review_and_preserves_history(studio):
+    app, window = studio
+    _create_one_slide_project(app, window)
+    slide = window.document["slides"][0]
+    element = next(item for item in slide["elements"] if item["type"] == "text")
+    original = element["text"]
+    window._receive_text_edit_candidate({
+        "slide_id": slide["id"], "element_id": element["id"], "base_revision": window.revision,
+        "instruction": "改得更易懂", "original_text": original,
+        "proposed_text": "• 均衡飲食與規律運動", "runtime": "test-local",
+    })
+    assert element["text"] == original
+    assert window.edit_candidate_list.count() == 1
+    assert "均衡飲食與規律運動" in window.edit_comparison.toPlainText()
+    window.accept_selected_text_edit()
+    saved = window.store.load_document(window.project_id)[1]
+    assert saved["slides"][0]["elements"][0]["text"] == "• 均衡飲食與規律運動"
+    assert saved["edit_candidates"][0]["status"] == "accepted"
+    assert window.store.load_revision(window.project_id, 1)[1]["slides"][0]["elements"][0]["text"] == original
+
+
+def test_text_edit_candidate_ui_rejects_without_changing_slide(studio):
+    app, window = studio
+    _create_one_slide_project(app, window)
+    slide = window.document["slides"][0]
+    element = slide["elements"][0]
+    original = element["text"]
+    window._receive_text_edit_candidate({
+        "slide_id": slide["id"], "element_id": element["id"], "base_revision": window.revision,
+        "instruction": "縮短", "original_text": original, "proposed_text": "簡短版", "runtime": "test-local",
+    })
+    window.reject_selected_text_edit()
+    saved = window.store.load_document(window.project_id)[1]
+    assert saved["slides"][0]["elements"][0]["text"] == original
+    assert saved["edit_candidates"][0]["status"] == "rejected"
+
+
+def test_text_edit_refuses_unsaved_slide_text(studio, monkeypatch):
+    app, window = studio
+    _create_one_slide_project(app, window)
+    from presentation_maker_offline import qt_ui
+    messages = []
+    monkeypatch.setattr(qt_ui.QMessageBox, "information", lambda *args: messages.append(args[-1]))
+    window.slide_text.setPlainText("尚未套用的新內容")
+    window.edit_instruction.setPlainText("縮短這一頁")
+    revision = window.revision
+    window.generate_text_edit_candidate()
+    assert window._edit_worker is None
+    assert window.revision == revision
+    assert "先按" in messages[0]

@@ -165,7 +165,7 @@ class LocalQwenTextBackend(TextBackend):
             "errors": errors,
         }
 
-    def plan(self, prompt: str) -> dict:
+    def plan(self, prompt: str, *, system_prompt: str | None = None) -> dict:
         health = self.health()
         if self._cancel_requested:
             raise InterruptedError("已取消本機文字模型工作")
@@ -222,7 +222,7 @@ class LocalQwenTextBackend(TextBackend):
                     body={
                         "model": models[0].get("id", "mlx-serve"),
                         "messages": [
-                            {"role": "system", "content": "你是繁體中文簡報助理。先忠實保留來源內容；不可捏造未提供的事實。請以可編輯的 Markdown 投影片大綱回覆，每頁以 ## 開頭。"},
+                            {"role": "system", "content": system_prompt or "你是繁體中文簡報助理。先忠實保留來源內容；不可捏造未提供的事實。請以可編輯的 Markdown 投影片大綱回覆，每頁以 ## 開頭。"},
                             {"role": "user", "content": prompt},
                         ],
                         "max_tokens": self.max_tokens,
