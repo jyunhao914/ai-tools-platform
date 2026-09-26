@@ -1,8 +1,23 @@
 """Exact-text editorial canvas prototype, independent of image model spelling."""
 from pathlib import Path
+import hashlib
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QFontMetricsF, QImage, QPainter
 from PySide6.QtWidgets import QApplication
+
+
+def checked_visual(item: dict) -> QImage:
+    """Require explicit review of the exact bytes before composing a final page."""
+    path = Path(item['path'])
+    review = item.get('review', {})
+    if review.get('verdict') != 'accepted':
+        raise ValueError('Visual asset has not been accepted')
+    if hashlib.sha256(path.read_bytes()).hexdigest() != review.get('image_sha256'):
+        raise ValueError('Visual asset changed after review')
+    image = QImage(str(path))
+    if image.isNull():
+        raise ValueError('Visual asset is unreadable')
+    return image
 
 
 def render_scene(scene: dict, output: Path, *, width=1920, height=1080):
@@ -13,6 +28,15 @@ def render_scene(scene: dict, output: Path, *, width=1920, height=1080):
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     painter.scale(width / 1920, height / 1080)
     try:
+        for item in scene.get('images', []):
+            visual = checked_visual(item)
+            area = QRectF(*item['rect'])
+            if area.width() <= 0 or area.height() <= 0 or not QRectF(0, 0, 1920, 1080).contains(area):
+                raise ValueError('Visual outside canvas')
+            scale = min(area.width() / visual.width(), area.height() / visual.height())
+            target = QRectF(0, 0, visual.width() * scale, visual.height() * scale)
+            target.moveCenter(area.center())
+            painter.drawImage(target, visual)
         for item in scene['texts']:
             rect = QRectF(*item['rect'])
             if not QRectF(0, 0, 1920, 1080).contains(rect):
