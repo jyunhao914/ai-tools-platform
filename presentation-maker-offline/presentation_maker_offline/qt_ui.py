@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import sys
 import threading
@@ -27,6 +28,7 @@ from .project_document import new_project_document, update_slide_text_element
 from .revision_compare import compare_documents
 from .source_import import import_source, parse_outline_text
 from .source_library import SOURCE_ROLES, add_file_source, add_text_source, append_fragment_to_slide, source_preview
+from .source_recognition import recognize_image_source, accept_recognition
 from .storage import discover_qwen38_mlx, qwen_image21_readiness
 from .workflow import ProjectStore
 
@@ -67,6 +69,29 @@ def _design_icon(layout_name: str, theme_name: str = "清爽藍") -> QIcon:
     finally:
         painter.end()
     return QIcon(pixmap)
+
+
+class SourceRecognitionWorker(QThread):
+    completed = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, source, root, python, model, parent=None):
+        super().__init__(parent)
+        self.source, self.root = deepcopy(source), root
+        self.python, self.model = python, model
+
+    def cancel(self):
+        # Suppress late UI updates; the bounded child process may finish first.
+        self.requestInterruption()
+
+    def run(self):
+        try:
+            result = recognize_image_source(self.source, self.root, python=self.python, model=self.model)
+            if not self.isInterruptionRequested():
+                self.completed.emit(result)
+        except Exception as exc:
+            if not self.isInterruptionRequested():
+                self.failed.emit(str(exc))
 
 
 class TextPlanningWorker(QThread):
@@ -709,6 +734,9 @@ class PresentationStudio(QMainWindow):
         add_text.clicked.connect(self._add_reference_text)
         source_actions.addWidget(add_file)
         source_actions.addWidget(add_text)
+        self.recognize_source_button = self._button("辨識圖片文字")
+        self.recognize_source_button.clicked.connect(self._recognize_library_image)
+        source_actions.addWidget(self.recognize_source_button)
         sources_layout.addLayout(source_actions)
         sources_layout.addWidget(QLabel("資料用途"))
         self.source_role = QComboBox()
@@ -1703,6 +1731,65 @@ class PresentationStudio(QMainWindow):
         self.source_scope.setText(source.get("scope", "整份簡報"))
         self.source_preview.setPlainText(source_preview(source))
 
+    def _recognize_library_image(self):
+        row = self.source_list.currentRow()
+        if not self.document or not 0 <= row < len(getattr(self, '_library_source_ids', [])):
+            return
+        worker = getattr(self, '_recognition_worker', None)
+        if worker and worker.isRunning():
+            return
+        source = next(s for s in self.document['sources'] if s['id'] == self._library_source_ids[row])
+        if source.get('format') not in {'png', 'jpg', 'jpeg', 'webp'}:
+            QMessageBox.information(self, '請選圖片來源', '此入口目前支援圖片；掃描 PDF 尚未接入。')
+            return
+        python = os.environ.get('PRESENTATION_VISION_PYTHON', '')
+        if not python:
+            python, _ = QFileDialog.getOpenFileName(self, '選擇本機視覺環境的 Python 執行檔')
+        if not python:
+            return
+        model = os.environ.get('VISION_MODEL_HOME', str(Path.home() / '.cache/lm-studio/models/mlx-community/Qwen3-VL-8B-Instruct-4bit'))
+        project_id = self.project_id
+        worker = SourceRecognitionWorker(source, self.app_support / 'projects' / project_id, python, model, self)
+        self._recognition_worker = worker
+        self.recognize_source_button.setEnabled(False)
+        self.editor_status.setText('正在本機辨識圖片文字；原資料與投影片不會自動更動。')
+        worker.completed.connect(lambda result: self._review_source_recognition(project_id, result))
+        worker.failed.connect(lambda message: QMessageBox.warning(self, '辨識未完成', message))
+        worker.finished.connect(lambda: self.recognize_source_button.setEnabled(True))
+        worker.start()
+
+    def _review_source_recognition(self, project_id, candidate):
+        if self.project_id != project_id or not self.document:
+            return
+        source = next((s for s in self.document['sources'] if s['id'] == candidate['source_id']), None)
+        if source is None:
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle('核對辨識文字（接受後保存為資料新版本）')
+        dialog.resize(680, 500)
+        layout = QVBoxLayout(dialog)
+        preview = QPlainTextEdit(candidate['text'])
+        preview.setReadOnly(True)
+        layout.addWidget(preview)
+        layout.addWidget(QLabel('請核對原圖；這次辨識不包含文字座標或圖表結構。'))
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            updated = accept_recognition(source, candidate)
+            index = self.document['sources'].index(source)
+            self.document['sources'][index] = updated
+            if not self.save_project():
+                self.document['sources'][index] = source
+                return
+            self._refresh_library_sources(updated['id'])
+            self.editor_status.setText('辨識文字已保存；可選擇內容加入頁面，投影片尚未更動。')
+        except ValueError as exc:
+            QMessageBox.warning(self, '辨識結果未套用', str(exc))
+
     def _append_library_source(self, source: dict) -> bool:
         if not self.document:
             return False
@@ -1922,7 +2009,7 @@ class PresentationStudio(QMainWindow):
             self._show_editor()
 
     def closeEvent(self, event) -> None:
-        workers = [worker for worker in (self._plan_worker, self._image_worker, self._edit_worker) if worker and worker.isRunning()]
+        workers = [worker for worker in (self._plan_worker, self._image_worker, self._edit_worker, getattr(self, '_recognition_worker', None)) if worker and worker.isRunning()]
         for worker in workers:
             worker.cancel()
         if any(not worker.wait(15_000) for worker in workers):
