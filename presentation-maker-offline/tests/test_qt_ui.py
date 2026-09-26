@@ -15,6 +15,60 @@ from PySide6.QtTest import QTest
 from presentation_maker_offline.qt_ui import PresentationStudio
 
 
+def test_user_21_page_outline_survives_both_exports_and_reopening(studio, tmp_path, monkeypatch):
+    """Full user input, including the joined page-8 marker and malformed table heading."""
+    from copy import deepcopy
+    import re
+    from presentation_maker_offline import qt_ui
+
+    app, window = studio
+    original = (Path(__file__).parent / "fixtures" / "colorectal_21_user_outline.md").read_text()
+    window._start_outline()
+    app.clipboard().setText(original)
+    window._paste_clipboard()
+    assert window.slide_preview.count() == 21
+    window._continue_settings()
+    window._create_project()
+    slides = window.document["slides"]
+    assert len(slides) == 21
+    assert slides[7]["title"] == "無法改變的危險因子"
+    assert "年齡增加" not in slides[6]["elements"][0]["text"]
+    assert "切除或取樣" in slides[6]["elements"][0]["text"]
+    assert "\\" not in slides[2]["elements"][0]["text"]
+    assert slides[19]["content_layout"] == "迷思對照"
+    assert window.document["sources"][0]["text"] == original.strip()
+    before = deepcopy(slides)
+    failures = []
+    monkeypatch.setattr(qt_ui.QMessageBox, "critical", lambda *args: failures.append(args[-1]))
+    monkeypatch.setattr(qt_ui.QMessageBox, "information", lambda *_args: None)
+    monkeypatch.setattr(qt_ui.QMessageBox, "question", lambda *_args: qt_ui.QMessageBox.StandardButton.Yes)
+    normalize = lambda value: re.sub(r"[\s•]", "", value)
+    for mode in ("可編輯式 PPTX", "圖像式 PPTX"):
+        window.output_mode_choice.setCurrentText(mode)
+        output = tmp_path / f"{mode}.pptx"
+        monkeypatch.setattr(qt_ui.QFileDialog, "getSaveFileName", lambda *_args, **_kwargs: (str(output), ""))
+        window.export_project()
+        assert not failures
+        deck = Presentation(output)
+        assert len(deck.slides) == 21
+        if mode == "圖像式 PPTX":
+            assert all(len(page.shapes) == 1 and page.shapes[0].shape_type == 13 for page in deck.slides)
+            assert len({page.shapes[0].image.sha1 for page in deck.slides}) == 21
+        else:
+            for source_slide, page in zip(before, deck.slides):
+                exported = normalize("\n".join(shape.text for shape in page.shapes if shape.has_text_frame))
+                assert normalize(source_slide["title"]) in exported
+                for element in source_slide["elements"]:
+                    for line in element["text"].splitlines():
+                        for part in line.split("→"):
+                            assert normalize(part) in exported
+        assert window.document["slides"] == before
+    window._return_home()
+    window._open_recent(window.recent_list.item(0))
+    assert window.document["slides"] == before
+    assert window.slide_list.count() == 21
+
+
 @pytest.fixture
 def studio(tmp_path):
     app = QApplication.instance() or QApplication([])
