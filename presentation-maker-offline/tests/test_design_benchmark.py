@@ -28,10 +28,14 @@ def test_prompts_are_content_specific():
 
 
 def test_visual_layer_reserves_exact_text_regions():
-    prompt = benchmark.visual_prompt('# 第6頁｜流程\n正常 → 瘜肉 → 病變 → 癌')
+    prompt = benchmark.visual_prompt('# 第6頁｜流程\n正常 → 瘜肉 → 病變 → 癌', 'Four schematic tissue cross-sections')
     assert 'exactly four' in prompt
     assert 'Absolutely no text' in prompt
     assert 'bottom fifth' in prompt
+    assert '正常' not in prompt
+    assert 'Four schematic tissue cross-sections' in prompt
+    with pytest.raises(ValueError):
+        benchmark.visual_prompt('source', '')
 
 
 def test_invalid_route_and_dimensions_do_not_start(tmp_path):

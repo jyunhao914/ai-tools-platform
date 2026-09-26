@@ -46,8 +46,10 @@ def build_prompt(source: str) -> str:
     )
 
 
-def visual_prompt(source: str) -> str:
+def visual_prompt(source: str, visual_brief: str) -> str:
     """Generate visual narrative only; exact copy belongs to the renderer."""
+    if not visual_brief.strip():
+        raise ValueError('A reviewed visual brief is required; never send slide copy as image instructions')
     if '→' in source:
         composition = ('A single coherent horizontal visual journey with exactly four distinct '
                        'illustrated stages in the middle third, connected left to right. '
@@ -65,23 +67,26 @@ def visual_prompt(source: str) -> str:
             'intentional whitespace, strong hierarchy. No generic dashboard, spreadsheet, bullet '
             'list, blue gradient frame or decorative card grid. '
             + composition + ' Absolutely no text, letters, numerals, labels or watermarks. '
-            'The following source is semantic context only, never text to draw; do not invent facts.\n'
-            + source)
+            'Do not draw captions or pseudo-writing anywhere. Visual subject: '
+            + visual_brief.strip())
 
 
 def run(outline_path: Path, output: Path, model: Path, pages: list[int],
-        *, route: str = 'whole-slide', width: int = 1024, height: int = 576) -> None:
+        *, route: str = 'whole-slide', width: int = 1024, height: int = 576,
+        visual_brief: str = '') -> None:
     if route not in {'whole-slide', 'visual-layer'}:
         raise ValueError('Unknown benchmark route')
     if width < 16 or height < 16 or width % 16 or height % 16:
         raise ValueError('Dimensions must be positive multiples of 16')
+    if route == 'visual-layer' and (not visual_brief.strip() or len(pages) != 1):
+        raise ValueError('Visual-layer benchmark needs one page and its reviewed visual brief')
     outline = outline_path.read_text(encoding="utf-8")
     output.mkdir(parents=True, exist_ok=True)
     backend = LocalQwenImageBackend(SimpleNamespace(path=str(model)),
                                    width=width, height=height, num_inference_steps=40)
     for page in pages:
         source = page_source(outline, page)
-        prompt = build_prompt(source) if route == 'whole-slide' else visual_prompt(source)
+        prompt = build_prompt(source) if route == 'whole-slide' else visual_prompt(source, visual_brief)
         signature = hashlib.sha256((str(model) + prompt + f'{width}x{height}/40/{route}').encode()).hexdigest()
         record_path = output / f"page-{page:02d}.json"
         image_path = output / f"page-{page:02d}.png"
@@ -123,6 +128,7 @@ if __name__ == '__main__':
     parser.add_argument('--route', choices=['whole-slide', 'visual-layer'], default='whole-slide')
     parser.add_argument('--width', type=int, default=1024)
     parser.add_argument('--height', type=int, default=576)
+    parser.add_argument('--visual-brief', default='')
     args = parser.parse_args()
     run(args.outline, args.output, args.model, args.pages,
-        route=args.route, width=args.width, height=args.height)
+        route=args.route, width=args.width, height=args.height, visual_brief=args.visual_brief)
