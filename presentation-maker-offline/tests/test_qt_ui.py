@@ -77,6 +77,21 @@ def studio(tmp_path):
     window.close()
 
 
+def test_stale_editorial_preview_does_not_prevent_saving_source_edits(studio):
+    from presentation_maker_offline.editorial_scene import attach_scene
+    app, window = studio
+    _create_one_slide_project(app, window)
+    slide = window.document['slides'][0]
+    attach_scene(slide, dict(background='#FFFFFF', texts=[
+        dict(text=slide['title'], rect=[100,100,1000,150], size=60)]))
+    window.slide_heading.setText('新標題')
+    window._apply_slide_text()
+    assert window.store.load_document(window.project_id)[1]['slides'][0]['title'] == '新標題'
+    assert '內容已變更' in window.editor_status.text()
+    assert any('內容已變更' in item.toPlainText() for item in window.slide_canvas.scene.items()
+               if hasattr(item, 'toPlainText'))
+
+
 def test_qt_outline_clipboard_preview_edit_save_reopen_and_export(studio, tmp_path, monkeypatch):
     app, window = studio
     app.clipboard().setText("# 衛教簡報\n## 認識疾病\n- 早期發現\n## 預防行動\n- 定期篩檢")

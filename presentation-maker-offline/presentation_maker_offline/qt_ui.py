@@ -231,11 +231,13 @@ class SlidePreview(QGraphicsView):
 
     def set_slide(self, title: str, body: str, number: int, total: int, theme_name: str, *, cover: bool = False,
                   images: list[dict] | None = None, annotations: list[dict] | None = None,
-                  layout_name: str = DEFAULT_LAYOUT, text_blocks: list[dict] | None = None):
+                  layout_name: str = DEFAULT_LAYOUT, text_blocks: list[dict] | None = None,
+                  editorial_scene: dict | None = None):
         self._slide = (title, body, number, total, theme_name, cover, layout_name)
         self._images = images or []
         self._annotations = annotations or []
         self._text_blocks = text_blocks
+        self._editorial_scene = editorial_scene
         self._draw_slide()
 
     def set_mark_mode(self, enabled: bool) -> None:
@@ -251,6 +253,17 @@ class SlidePreview(QGraphicsView):
         theme = THEMES.get(theme_name, THEMES["清爽藍"])
         positions = layout_rects(layout_name, cover=cover, has_image=bool(self._images))
         self.scene.clear()
+        if getattr(self, '_editorial_scene', None):
+            from .editorial_scene import scene_image
+            self.scene.addPixmap(QPixmap.fromImage(scene_image(self._editorial_scene, width=1280, height=720)))
+            for mark_number, mark in enumerate(self._annotations, 1):
+                x1, y1, x2, y2 = mark['rect']
+                rect = QRectF(min(x1,x2)*1280, min(y1,y2)*720, abs(x2-x1)*1280, abs(y2-y1)*720)
+                self.scene.addRect(rect, QPen(QColor('#e05252'), 3), QBrush(Qt.BrushStyle.NoBrush))
+                label = self.scene.addText(str(mark_number))
+                label.setPos(rect.topLeft())
+            self.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+            return
         self.scene.addRect(0, 0, 1280, 720, QPen(Qt.PenStyle.NoPen), QBrush(QColor("#" + theme["paper"])))
         self.scene.addRect(0, 0, 12, 720, QPen(Qt.PenStyle.NoPen), QBrush(QColor("#" + theme["accent"])))
         title_item = self.scene.addText(title, QFont("Arial", 43 if cover else 31, QFont.Weight.Bold))
@@ -368,6 +381,7 @@ class SlidePreview(QGraphicsView):
 
 def slide_preview_payload(document: dict, index: int, asset_root: str | Path, *,
                           include_annotations: bool = False, strict_assets: bool = False) -> dict:
+    from .editorial_scene import current_scene
     slide = document["slides"][index]
     root = Path(asset_root).resolve()
     images = []
@@ -403,6 +417,7 @@ def slide_preview_payload(document: dict, index: int, asset_root: str | Path, *,
         "cover": index == 0, "images": images,
         "layout_name": slide.get("layout", DEFAULT_LAYOUT),
         "text_blocks": render_text_blocks(slide, cover=index == 0),
+        "editorial_scene": current_scene(slide),
         "annotations": ([mark for mark in document.get("annotations", [])
                          if mark.get("slide_id") == slide["id"]] if include_annotations else []),
     }
@@ -1160,13 +1175,13 @@ class PresentationStudio(QMainWindow):
         if slide.get("auto_layout"):
             auto_design_slide(slide, row)
         self.slide_list.item(row).setText(f"{row + 1:02d}　{slide['title']}")
-        self._refresh_slide_canvas(row)
         if not self.save_project():
             self.document["slides"][row] = original_slide
             self._select_slide(row)
             self.slide_list.item(row).setText(f"{row + 1:02d}　{original_slide['title']}")
         elif slide.get("auto_layout"):
             self.auto_layout_status.setText(f"自動設計：{slide['content_layout']} · {slide['layout']}")
+        self._refresh_slide_canvas(row)
 
     def _apply_current_layout(self) -> None:
         row = self.slide_list.currentRow()
@@ -1212,8 +1227,15 @@ class PresentationStudio(QMainWindow):
         if not self.document or not 0 <= row < len(self.document["slides"]):
             return
         assets = self.app_support / "projects" / self.project_id / "assets"
-        payload = slide_preview_payload(self.document, row, assets, include_annotations=True)
-        self.slide_canvas.set_slide(**payload)
+        try:
+            payload = slide_preview_payload(self.document, row, assets, include_annotations=True)
+            self.slide_canvas.set_slide(**payload)
+        except (ValueError, OSError) as exc:
+            # Saving source edits must still work if a derived design becomes stale.
+            # Never leave the previous page visible as though it were the new content.
+            self.slide_canvas.scene.clear()
+            self.slide_canvas.scene.addText(str(exc))
+            self.editor_status.setText(str(exc))
 
     def show_large_preview(self) -> None:
         row = self.slide_list.currentRow()

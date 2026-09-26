@@ -45,6 +45,10 @@ def export_project_pptx(path: str | Path, document: dict, style: str = "清爽�
     presentation.slide_height = Inches(7.5)
     theme = THEMES.get(style, THEMES["清爽藍"])
     for slide_index, slide_doc in enumerate(document["slides"]):
+        if slide_doc.get('editorial_scene'):
+            from .editorial_scene import export_scene_slide, current_scene
+            export_scene_slide(presentation, current_scene(slide_doc))
+            continue
         slide = presentation.slides.add_slide(presentation.slide_layouts[6])
         slide.background.fill.solid()
         slide.background.fill.fore_color.rgb = _color(theme["paper"])

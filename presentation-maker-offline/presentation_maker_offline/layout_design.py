@@ -81,6 +81,8 @@ def content_layout_kind(slide: dict, *, cover: bool = False, has_image: bool = F
 
 def auto_design_slide(slide: dict, index: int) -> str:
     """Apply a repeatable content-aware layout; manual overrides remain possible."""
+    if slide.get('editorial_scene', {}).get('generated_by') == 'semantic-comparison':
+        slide.pop('editorial_scene')
     name = suggest_slide_layout(slide, index)
     apply_slide_layout(slide, name, cover=index == 0)
     slide["auto_layout"] = True
@@ -88,6 +90,24 @@ def auto_design_slide(slide: dict, index: int) -> str:
         slide, cover=index == 0,
         has_image=any(item.get("type") == "image" for item in slide.get("elements", [])),
     )
+    if slide['content_layout'] == '迷思對照':
+        from .editorial_scene import attach_scene, comparison_scene, scene_image
+        lines = [line.strip() for item in slide.get('elements', [])
+                 if item.get('type', 'text') == 'text'
+                 for line in item.get('text', '').splitlines() if line.strip()]
+        paired = [line for line in lines if line.startswith(('迷思：', '正確觀念：'))]
+        other = [line for line in lines if not line.startswith(('迷思：', '正確觀念：'))]
+        if (2 <= len(paired) <= 10 and len(paired) % 2 == 0
+                and all(line.startswith('迷思：' if i % 2 == 0 else '正確觀念：')
+                        for i, line in enumerate(paired))):
+            scene = comparison_scene(slide['title'], '\n'.join(other), list(zip(paired[::2], paired[1::2])))
+            try:
+                scene_image(scene)
+            except ValueError:
+                pass  # Longer content remains on the existing adaptive text path.
+            else:
+                scene['generated_by'] = 'semantic-comparison'
+                attach_scene(slide, scene)
     return slide["content_layout"]
 
 
@@ -152,6 +172,8 @@ def fit_body_font(text: str, rect: tuple[float, float, float, float], *, cover: 
 
 def apply_slide_layout(slide: dict, name: str, *, cover: bool) -> None:
     """Reflow existing editable objects after the user selects a design."""
+    if slide.get('editorial_scene', {}).get('generated_by') == 'semantic-comparison':
+        slide.pop('editorial_scene')
     images = [item for item in slide.get("elements", []) if item.get("type") == "image"]
     texts = [item for item in slide.get("elements", []) if item.get("type", "text") == "text"]
     rects = layout_rects(name, cover=cover, has_image=bool(images))

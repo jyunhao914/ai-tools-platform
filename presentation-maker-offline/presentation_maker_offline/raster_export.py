@@ -28,9 +28,14 @@ def export_project_image_pptx(path: str | Path, document: dict, *, asset_root: s
         with TemporaryDirectory(prefix="presentation-image-export-", dir=out.parent) as temporary:
             staging = Path(temporary)
             for index in range(len(document["slides"])):
-                canvas.set_slide(**slide_preview_payload(document, index, asset_root, strict_assets=True))
                 image = staging / f"slide-{index + 1:04d}.png"
-                canvas.save_slide_image(image)
+                editorial = document['slides'][index].get('editorial_scene')
+                if editorial:
+                    from .editorial_scene import render_scene, current_scene
+                    render_scene(current_scene(document['slides'][index]), image)
+                else:
+                    canvas.set_slide(**slide_preview_payload(document, index, asset_root, strict_assets=True))
+                    canvas.save_slide_image(image)
                 page = presentation.slides.add_slide(presentation.slide_layouts[6])
                 page.shapes.add_picture(str(image), 0, 0, presentation.slide_width, presentation.slide_height)
             staged_pptx = staging / "presentation.pptx"
