@@ -1,0 +1,45 @@
+"""Isolated offline Qwen vision reader; does not rewrite source documents."""
+from __future__ import annotations
+
+import os
+from pathlib import Path
+import subprocess
+
+from .content_fidelity import compare_copy
+
+
+def read_slide_text(image: str | Path, *, python: str | Path, model: str | Path,
+                    expected: str | None = None, timeout: float = 180) -> dict:
+    image, model = (Path(p).expanduser().resolve() for p in (image, model))
+    # Resolving a venv executable symlink bypasses its pyvenv.cfg and packages.
+    python = Path(python).expanduser().absolute()
+    if not image.is_file():
+        raise FileNotFoundError(image)
+    if not python.is_file():
+        raise FileNotFoundError(python)
+    if not model.is_dir():
+        raise FileNotFoundError(model)
+    if timeout <= 0:
+        raise ValueError('timeout must be positive')
+    from PIL import Image
+    with Image.open(image) as candidate:
+        candidate.verify()
+    env = dict(os.environ, HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1',
+               HF_HUB_DISABLE_TELEMETRY='1', TOKENIZERS_PARALLELISM='false')
+    command = [str(python), '-m', 'mlx_vlm.generate', '--model', str(model),
+               '--image', str(image), '--prompt',
+               '請逐字抄錄圖片中所有可見文字，依閱讀順序輸出。不要補字、改寫或解釋。看不清楚標記[不清楚]。',
+               '--max-tokens', '2048', '--temperature', '0']
+    try:
+        result = subprocess.run(command, env=env, capture_output=True, text=True,
+                                timeout=timeout, check=False)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError('本機圖片辨識逾時；來源未修改') from exc
+    if result.returncode:
+        raise RuntimeError(f'本機圖片辨識失敗（{result.returncode}）：{result.stderr[-1500:]}')
+    text = result.stdout.strip()
+    if not text:
+        raise RuntimeError('本機圖片辨識未回傳文字；不能視為空白頁')
+    return {'engine': 'qwen-vl-local', 'image': str(image), 'model': str(model),
+            'text': text, 'review': 'pending', 'coordinates': None,
+            'fidelity': compare_copy(expected, text) if expected is not None else None}
