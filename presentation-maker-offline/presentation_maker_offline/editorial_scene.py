@@ -2,6 +2,7 @@
 from pathlib import Path
 import hashlib
 import json
+import math
 from copy import deepcopy
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QFontMetricsF, QImage, QPainter
@@ -69,7 +70,11 @@ def scene_image(scene: dict, *, width=1920, height=1080):
             flags = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap
             bounds = QFontMetricsF(font).boundingRect(rect, int(flags), item['text'])
             if bounds.height() > rect.height() or bounds.width() > rect.width():
-                raise ValueError(f"Text does not fit: {item['text']}")
+                raise ValueError(f"Text does not fit: {item['text']}; "
+                                 f"measured={math.ceil(bounds.width())}x{math.ceil(bounds.height())}px, "
+                                 f"available={rect.width():g}x{rect.height():g}px. "
+                                 "Increase rectangle height/width without overlapping other objects, "
+                                 "or adjust font size within the allowed range.")
             painter.setFont(font)
             painter.setPen(QColor(item.get('color', '#132E37')))
             painter.drawText(rect, int(flags), item['text'])

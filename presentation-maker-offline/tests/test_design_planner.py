@@ -3,6 +3,42 @@ import pytest
 from presentation_maker_offline.design_planner import compile_design
 
 
+def test_multiline_source_is_addressable_without_rewriting_document():
+    from presentation_maker_offline.design_planner import source_blocks
+    slide = dict(title='資格', elements=[dict(id='body', type='text',
+                 text='• 45至74歲民眾\n\n• 每2年補助1次糞便潛血檢查')])
+    before = deepcopy(slide)
+    assert source_blocks(slide) == {
+        'title': '資格', 'body/line/0': '• 45至74歲民眾',
+        'body/line/2': '• 每2年補助1次糞便潛血檢查'}
+    assert slide == before
+    slide['elements'].append(deepcopy(slide['elements'][0]))
+    with pytest.raises(ValueError, match='Duplicate'):
+        source_blocks(slide)
+
+
+@pytest.mark.parametrize('patch', [
+    {'texts': None}, {'texts': ['invalid']}, {'background': None},
+    {'texts': [{'source_id': []}]},
+    {'texts': [{'source_id': 'title', 'rect': None}]},
+    {'texts': [{'source_id': 'title', 'rect': [True,100,500,100], 'size': 40}]},
+    {'visual_brief': []},
+])
+def test_malformed_model_schema_is_a_recoverable_validation_error(patch):
+    plan = dict(background='#FFFFFF', texts=[dict(source_id='title',
+                rect=[100,100,1000,150], size=60)])
+    plan.update(patch)
+    with pytest.raises(ValueError):
+        compile_design(dict(title='原文', elements=[]), plan)
+
+
+def test_model_design_rejects_a_single_cjk_character_on_last_line():
+    plan = dict(background='#FFFFFF', texts=[dict(source_id='title',
+                rect=[100,100,55,300], size=40)])
+    with pytest.raises(ValueError, match='isolated CJK'):
+        compile_design(dict(title='原文', elements=[]), plan)
+
+
 def test_invalid_model_layout_gets_bounded_repair_without_changing_source():
     import json
     from presentation_maker_offline.design_planner import plan_slide_design

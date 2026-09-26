@@ -27,6 +27,15 @@ Local output directory:
 
 ## Still required before product delivery
 
+### Follow-up: bounded local layout repair
+
+- Added paragraph-addressable source IDs without changing the original document, strict JSON shape/type validation, explicit font measurements in overflow feedback, and rejection of a lone CJK character on the final wrapped line.
+- Added `layout_benchmark` to persist prompts, raw replies, attempt timing, source fingerprint, final scene and failure state. Existing output directories are never overwritten.
+- Actual page-17 run: `outputs/layout-benchmark-repair-20260926/page-17.json`, three attempts in 117.569 seconds. The third reply passed geometry/font-fit checks, with exact source text and a separate reserved illustration region.
+- Visual inspection still **rejected the candidate for delivery**: the second statement ends with a single `者` on a new line, no illustration has yet been generated, and the composition remains a bullet list. The newly added CJK widow check now rejects this pattern. No fourth model attempt was made; the original three attempts remain on disk.
+
+### Outstanding delivery checks
+
 - The current representative typography is functional, not approved as the requested NotebookLM-like visual quality.
 - Complete representative pages 6/17 and the three-route comparison; then validate all 21 designed and illustrated pages.
 - Integrate model-directed composition and reviewed visuals into the normal one-click desktop workflow, with cancellation and recoverable failures.

@@ -6,48 +6,67 @@ import re
 
 def source_blocks(slide):
     blocks = {'title': slide.get('title', '')}
+    element_ids = set()
     for element in slide.get('elements', []):
         if element.get('type', 'text') == 'text':
-            if element['id'] in blocks:
+            element_id = element['id']
+            if element_id in element_ids:
                 raise ValueError('Duplicate source text ID')
-            blocks[element['id']] = element['text']
+            element_ids.add(element_id)
+            lines = element['text'].splitlines()
+            entries = [(element_id, element['text'])] if len(lines) <= 1 else [
+                (f'{element_id}/line/{index}', line) for index, line in enumerate(lines) if line.strip()]
+            for key, text in entries:
+                if key in blocks:
+                    raise ValueError('Duplicate source text ID')
+                blocks[key] = text
     return blocks
 
 
 def compile_design(slide, plan):
     blocks = source_blocks(slide)
-    if not re.fullmatch(r'#[0-9a-fA-F]{6}', plan.get('background', '')):
+    if not isinstance(plan, dict):
+        raise ValueError('Design must be a JSON object')
+    if not isinstance(plan.get('background'), str) or not re.fullmatch(r'#[0-9a-fA-F]{6}', plan['background']):
         raise ValueError('Invalid background')
+    if not isinstance(plan.get('texts'), list):
+        raise ValueError('Design texts must be an array')
     seen, texts = set(), []
-    for item in plan.get('texts', []):
+    for item in plan['texts']:
+        if not isinstance(item, dict):
+            raise ValueError('Each design text must be an object')
         source_id = item.get('source_id')
-        if source_id not in blocks or source_id in seen:
+        if not isinstance(source_id, str) or source_id not in blocks or source_id in seen:
             raise ValueError('Unknown or duplicate source block')
         seen.add(source_id)
         rect = item.get('rect', [])
-        if len(rect) != 4 or any(not isinstance(v, (int, float)) or not math.isfinite(v) for v in rect):
+        if not isinstance(rect, list) or len(rect) != 4 or any(type(v) not in (int, float) or not math.isfinite(v) for v in rect):
             raise ValueError('Invalid design rectangle')
         x,y,w,h = rect
         if min(x,y) < 0 or min(w,h) <= 0 or x+w > 1920 or y+h > 1080:
             raise ValueError('Design rectangle outside canvas')
         size = item.get('size', 0)
-        if not isinstance(size, (int, float)) or not math.isfinite(size) or not 30 <= size <= 140:
+        if type(size) not in (int, float) or not math.isfinite(size) or not 30 <= size <= 140:
             raise ValueError('Unreadable font size')
         color = item.get('color', '#132E37')
-        if not re.fullmatch(r'#[0-9a-fA-F]{6}', color):
+        if not isinstance(color, str) or not re.fullmatch(r'#[0-9a-fA-F]{6}', color):
             raise ValueError('Invalid text color')
+        if not isinstance(item.get('bold', False), bool):
+            raise ValueError('Bold must be boolean')
         for previous in texts:
             px, py, pw, ph = previous['rect']
             if x < px+pw and px < x+w and y < py+ph and py < y+h:
                 raise ValueError('Design text rectangles overlap')
-        texts.append(dict(text=blocks[source_id], rect=rect, size=round(size),
+        texts.append(dict(source_id=source_id, text=blocks[source_id], rect=rect, size=round(size),
                           color=color, bold=bool(item.get('bold', False))))
     if seen != set(blocks):
         raise ValueError('Design omitted source text')
     visual_rect = plan.get('visual_rect')
+    if not isinstance(plan.get('visual_brief', ''), str):
+        raise ValueError('Visual brief must be text')
     if plan.get('visual_brief'):
         if (not isinstance(visual_rect, list) or len(visual_rect) != 4
-                or any(not isinstance(v, (int, float)) or not math.isfinite(v) for v in visual_rect)):
+                or any(type(v) not in (int, float) or not math.isfinite(v) for v in visual_rect)):
             raise ValueError('Visual brief requires an explicit reserved rectangle')
         x,y,w,h = visual_rect
         if min(x,y) < 0 or min(w,h) <= 0 or x+w > 1920 or y+h > 1080:
@@ -60,6 +79,33 @@ def compile_design(slide, plan):
                  visual_brief=plan.get('visual_brief', ''), visual_rect=visual_rect, images=[])
     from .editorial_scene import scene_image
     scene_image(scene)  # Reject overflow using actual installed font metrics.
+    from PySide6.QtGui import QFont, QTextLayout, QTextOption
+    for item in texts:
+        font = QFont('PingFang TC')
+        font.setPixelSize(item['size'])
+        font.setBold(item['bold'])
+        layout = QTextLayout(item['text'], font)
+        option = QTextOption()
+        option.setWrapMode(QTextOption.WrapMode.WordWrap)
+        layout.setTextOption(option)
+        lengths = []
+        layout.beginLayout()
+        try:
+            while True:
+                line = layout.createLine()
+                if not line.isValid():
+                    break
+                line.setLineWidth(item['rect'][2])
+                lengths.append((line.textStart(), line.textLength()))
+        finally:
+            layout.endLayout()
+        if len(lengths) > 1:
+            start, length = lengths[-1]
+            # QTextLayout offsets are UTF-16 units, not Python Unicode indexes.
+            tail = item['text'].encode('utf-16-le')[start*2:(start+length)*2].decode('utf-16-le').strip()
+            if re.fullmatch(r'[\u3400-\u9fff][。，！？、；：]*', tail):
+                raise ValueError(f'Text ends with an isolated CJK character: {item["source_id"]}. '
+                                 'Increase width or adjust font/line breaks without changing source copy.')
     return scene
 
 
