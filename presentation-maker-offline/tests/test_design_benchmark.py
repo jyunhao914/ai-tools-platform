@@ -62,6 +62,13 @@ def test_resume_checks_candidate_hash(monkeypatch, tmp_path):
     benchmark.run(outline, output, tmp_path, [6])
     assert len(calls) == 1
     assert json.loads((output / 'page-06.json').read_text())['review'] == 'pending'
+    record = output / 'page-06.json'
+    benchmark.record_review(record, accepted=False, notes='Incorrect anatomy and unwanted lettering')
+    reviewed = json.loads(record.read_text())
+    assert reviewed['review'] == 'rejected'
+    assert len(reviewed['review_history']) == 1
     (output / 'page-06.png').write_bytes(b'changed')
+    with pytest.raises(ValueError):
+        benchmark.record_review(record, accepted=True, notes='Must refuse changed bytes')
     with pytest.raises(RuntimeError):
         benchmark.run(outline, output, tmp_path, [6])

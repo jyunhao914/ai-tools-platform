@@ -13,6 +13,29 @@ from types import SimpleNamespace
 from .backends import LocalQwenImageBackend
 
 
+def record_review(record_path: Path, *, accepted: bool, notes: str) -> Path:
+    """Bind a review to exact image bytes; generating a file never approves it."""
+    if not notes.strip():
+        raise ValueError('Review notes are required')
+    record = json.loads(record_path.read_text())
+    image_path = record_path.with_suffix('.png')
+    if record.get('status') != 'generated' or not image_path.is_file():
+        raise ValueError('Only a completed candidate can be reviewed')
+    digest = hashlib.sha256(image_path.read_bytes()).hexdigest()
+    if digest != record.get('image_sha256'):
+        raise ValueError('Image changed since generation; review refused')
+    review = dict(image_sha256=digest, verdict='accepted' if accepted else 'rejected',
+                  notes=notes.strip(), reviewed_at=time.time())
+    history = record.setdefault('review_history', [])
+    history.append(review)
+    record['review'] = review['verdict']
+    staging = record_path.with_suffix('.json.review-tmp')
+    with staging.open('x', encoding='utf-8') as stream:
+        stream.write(json.dumps(record, ensure_ascii=False, indent=2))
+    staging.replace(record_path)
+    return record_path
+
+
 def page_source(outline: str, page: int) -> str:
     match = re.search(rf'^# 第{page}頁｜.*?(?=^# 第\d+頁｜|\Z)', outline, re.M | re.S)
     if not match:
