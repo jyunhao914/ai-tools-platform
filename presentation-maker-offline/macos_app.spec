@@ -1,6 +1,7 @@
 # Build with: python3 -m PyInstaller --noconfirm --clean --distpath <output> macos_app.spec
 import os
 from pathlib import Path
+from PyInstaller.utils.hooks import copy_metadata
 
 runtime_root = Path(os.environ.get(
     "PRESENTATION_MLX_SERVE_BUNDLE",
@@ -9,16 +10,26 @@ runtime_root = Path(os.environ.get(
 if not (runtime_root / "mlx-serve").is_file():
     raise RuntimeError("Set PRESENTATION_MLX_SERVE_BUNDLE to a verified mlx-serve runtime folder")
 
+# Transformers and Diffusers inspect installed distribution versions at runtime.
+runtime_metadata = []
+for distribution in (
+    "requests", "transformers", "diffusers", "accelerate", "huggingface-hub", "tokenizers",
+    "safetensors", "torch", "Pillow", "numpy", "packaging", "filelock",
+    "tqdm", "regex", "PyYAML",
+):
+    runtime_metadata.extend(copy_metadata(distribution))
+
 a = Analysis(
     ["app_launcher.py"],
     pathex=["."],
     binaries=[],
-    datas=[(str(runtime_root), "mlx-serve-macos-arm64")],
+    datas=[(str(runtime_root), "mlx-serve-macos-arm64"), *runtime_metadata],
     hiddenimports=[
         "pypdf",
         "docx",
         "pptx",
         "diffusers.pipelines.qwenimage21.pipeline_qwenimage21",
+        "accelerate",
         "transformers.models.qwen3.modeling_qwen3",
         "transformers.models.qwen3.configuration_qwen3",
         "safetensors.torch",
@@ -32,7 +43,7 @@ a = Analysis(
     excludes=[
         "mlx", "mlx_lm", "tkinter", "pytest", "IPython", "jupyter",
         # Keep unused training, analytics, and notebook stacks out of the desktop bundle.
-        "torchaudio", "accelerate", "sklearn", "matplotlib",
+        "torchaudio", "sklearn", "matplotlib",
         "pandas", "onnxruntime", "cv2", "timm", "numba",
     ],
     noarchive=False,
@@ -72,8 +83,8 @@ app = BUNDLE(
     info_plist={
         "CFBundleName": "離線簡報工作室",
         "CFBundleDisplayName": "離線簡報工作室",
-        "CFBundleShortVersionString": "0.2.0",
-        "CFBundleVersion": "2",
+        "CFBundleShortVersionString": "0.3.0",
+        "CFBundleVersion": "3",
         "LSMinimumSystemVersion": "13.0",
         "NSHighResolutionCapable": True,
     },

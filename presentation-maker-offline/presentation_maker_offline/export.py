@@ -1,9 +1,11 @@
+import io
 from pathlib import Path
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Inches, Pt
+from .layout_design import LAYOUT_NAMES, fit_body_font, layout_rects
 from .project_document import validate_project_document
 
 
@@ -18,9 +20,6 @@ THEMES = {
 def _color(hex_color: str) -> RGBColor:
     return RGBColor.from_string(hex_color)
 
-
-def _estimated_body_lines(text: str, *, characters_per_line: int = 44) -> int:
-    return sum(max(1, (len(line) + characters_per_line - 1) // characters_per_line) for line in text.splitlines() if line.strip())
 
 def export_demo_pptx(path: str | Path, title: str, outline: list[str], style: str = "清爽藍") -> Path:
     out = Path(path); out.parent.mkdir(parents=True, exist_ok=True)
@@ -55,10 +54,14 @@ def export_project_pptx(path: str | Path, document: dict, style: str = "清爽�
         brand_bar.line.fill.background()
         is_cover = slide_index == 0
         has_images = any(element.get("type") == "image" for element in slide_doc.get("elements", []))
+        layout_name = slide_doc.get("layout")
+        title_rect = (layout_rects(layout_name, cover=is_cover, has_image=has_images)["title"]
+                      if layout_name in LAYOUT_NAMES else None)
         title_box = slide.shapes.add_textbox(
-            Inches(.95 if is_cover else .8), Inches(1.35 if is_cover else .55),
-            Inches(5.5 if is_cover and has_images else 11.4 if is_cover else 11.7),
-            Inches(1.45 if is_cover else 1.0),
+            Inches(title_rect[0] * 13.333 if title_rect else .95 if is_cover else .8),
+            Inches(title_rect[1] * 7.5 if title_rect else 1.35 if is_cover else .55),
+            Inches(title_rect[2] * 13.333 if title_rect else 5.5 if is_cover and has_images else 11.4 if is_cover else 11.7),
+            Inches(title_rect[3] * 7.5 if title_rect else 1.45 if is_cover else 1.0),
         )
         title_frame = title_box.text_frame
         title_frame.clear()
@@ -74,7 +77,7 @@ def export_project_pptx(path: str | Path, document: dict, style: str = "清爽�
         title_run.font.bold = True
         title_run.font.color.rgb = _color(theme["accent"])
         if not is_cover:
-            rule = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(.8), Inches(1.62), Inches(11.7), Inches(.035))
+            rule = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(.8), Inches(1.31 if title_rect else 1.62), Inches(11.7), Inches(.035))
             rule.fill.solid()
             rule.fill.fore_color.rgb = _color(theme["rule"])
             rule.line.fill.background()
@@ -99,6 +102,24 @@ def export_project_pptx(path: str | Path, document: dict, style: str = "清爽�
                 with Image.open(image_path) as image:
                     image_ratio = image.width / image.height
                 box_width, box_height = width * 13.333, height * 7.5
+                if element.get("fit") == "crop":
+                    target_ratio = box_width / box_height
+                    with Image.open(image_path) as image:
+                        source_width, source_height = image.size
+                        if image_ratio > target_ratio:
+                            crop_width = round(source_height * target_ratio)
+                            left = (source_width - crop_width) // 2
+                            cropped = image.crop((left, 0, left + crop_width, source_height))
+                        else:
+                            crop_height = round(source_width / target_ratio)
+                            top = (source_height - crop_height) // 2
+                            cropped = image.crop((0, top, source_width, top + crop_height))
+                        image_bytes = io.BytesIO()
+                        cropped.convert("RGB").save(image_bytes, format="PNG")
+                        image_bytes.seek(0)
+                    slide.shapes.add_picture(image_bytes, Inches(x * 13.333), Inches(y * 7.5),
+                                             Inches(box_width), Inches(box_height))
+                    continue
                 if image_ratio > box_width / box_height:
                     draw_width, draw_height = box_width, box_width / image_ratio
                 else:
@@ -122,8 +143,7 @@ def export_project_pptx(path: str | Path, document: dict, style: str = "清爽�
             frame.margin_top = Inches(.02)
             frame.margin_bottom = Inches(.02)
             text = element.get("text", "").strip()
-            estimated_lines = _estimated_body_lines(text)
-            font_size = 24 if estimated_lines <= 6 else 21 if estimated_lines <= 9 else 18 if estimated_lines <= 13 else 16
+            font_size, _fits = fit_body_font(text, (x, y, width, height), cover=is_cover)
             for line_index, line in enumerate(text.splitlines() or [text]):
                 paragraph = frame.paragraphs[0] if line_index == 0 else frame.add_paragraph()
                 paragraph.text = line.strip()

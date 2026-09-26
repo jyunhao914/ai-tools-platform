@@ -171,8 +171,8 @@ def test_area_marking_uses_canvas_coordinates_and_survives_reopen(studio):
     app.processEvents()
     window.start_area_marking()
     app.processEvents()
-    start = window.slide_canvas.mapFromScene(160, 220)
-    end = window.slide_canvas.mapFromScene(600, 500)
+    start = window.slide_canvas.mapFromScene(160, 400)
+    end = window.slide_canvas.mapFromScene(600, 600)
     viewport = window.slide_canvas.viewport()
     QTest.mousePress(viewport, Qt.MouseButton.LeftButton, pos=start)
     QTest.mouseMove(viewport, end, 100)
@@ -249,3 +249,42 @@ def test_image_button_generates_saves_previews_and_exports_bound_asset(studio, t
     assert .57 <= picture.left / exported.slide_width <= .59
     text_shape = next(shape for shape in exported.slides[0].shapes if shape.has_text_frame and "均衡飲食" in shape.text)
     assert text_shape.width / exported.slide_width < .52
+
+
+def test_export_mode_is_saved_and_save_failure_stops_export(studio, tmp_path, monkeypatch):
+    app, window = studio
+    _create_one_slide_project(app, window)
+    from presentation_maker_offline import qt_ui
+
+    destination = tmp_path / "image-mode.pptx"
+    monkeypatch.setattr(qt_ui.QFileDialog, "getSaveFileName", lambda *_args, **_kwargs: (str(destination), "PowerPoint (*.pptx)"))
+    monkeypatch.setattr(qt_ui.QMessageBox, "information", lambda *_args, **_kwargs: None)
+    window.output_mode_choice.setCurrentText("圖像式 PPTX")
+    window.export_project()
+    app.processEvents()
+    assert len(Presentation(destination).slides[0].shapes) == 1
+    assert window.store.load_document(window.project_id)[1]["settings"]["output_format"] == "圖像式 PPTX"
+
+    blocked_destination = tmp_path / "should-not-export.pptx"
+    monkeypatch.setattr(qt_ui.QFileDialog, "getSaveFileName", lambda *_args, **_kwargs: (str(blocked_destination), "PowerPoint (*.pptx)"))
+    monkeypatch.setattr(window, "save_project", lambda: False)
+    window.export_project()
+    assert not blocked_destination.exists()
+
+
+def test_layout_design_and_per_slide_image_prompt_survive_reopen(studio):
+    app, window = studio
+    _create_one_slide_project(app, window)
+    window.layout_choice.setCurrentText("左圖右文")
+    window.apply_layout_button.click()
+    window.image_prompt.setPlainText("綠色植物與日常運動，無字插圖")
+    assert window.save_project()
+    project_id = window.project_id
+
+    window._return_home()
+    window._open_recent(window.recent_list.item(0))
+    app.processEvents()
+    assert window.project_id == project_id
+    assert window.layout_choice.currentText() == "左圖右文"
+    assert window.image_prompt.toPlainText() == "綠色植物與日常運動，無字插圖"
+    assert window.document["slides"][0]["layout"] == "左圖右文"

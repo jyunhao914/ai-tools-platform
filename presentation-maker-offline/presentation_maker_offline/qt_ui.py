@@ -9,8 +9,8 @@ from copy import deepcopy
 from pathlib import Path
 from uuid import uuid4
 
-from PySide6.QtCore import QThread, QTimer, Qt, Signal, QPointF, QRectF
-from PySide6.QtGui import QAction, QBrush, QColor, QFont, QKeySequence, QPainter, QPen, QPixmap
+from PySide6.QtCore import QThread, QTimer, Qt, Signal, QPointF, QRectF, QSize
+from PySide6.QtGui import QAction, QBrush, QColor, QFont, QIcon, QImage, QKeySequence, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QApplication, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFrame,
     QGraphicsScene, QGraphicsView, QHBoxLayout, QLabel, QLineEdit, QListWidget,
@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 
 from .backends import LocalQwenImageBackend, LocalQwenTextBackend
 from .export import THEMES, export_project_pptx
+from .layout_design import DEFAULT_LAYOUT, LAYOUT_NAMES, apply_slide_layout, fit_body_font, layout_rects, suggest_slide_layout
 from .manifest import CheckpointManifest
 from .project_document import new_project_document, update_slide_text_element
 from .source_import import import_source, parse_outline_text
@@ -39,6 +40,30 @@ QPushButton#primary:disabled { background: #aab7c9; border-color: #aab7c9; }
 QLineEdit, QPlainTextEdit, QComboBox, QListWidget { background: white; border: 1px solid #cbd5e1; border-radius: 6px; padding: 7px; }
 QListWidget::item { padding: 7px; }
 """
+
+
+def _design_icon(layout_name: str, theme_name: str = "清爽藍") -> QIcon:
+    theme = THEMES.get(theme_name, THEMES["清爽藍"])
+    rects = layout_rects(layout_name, cover=False, has_image=True)
+    pixmap = QPixmap(96, 54)
+    pixmap.fill(QColor("#" + theme["paper"]))
+    painter = QPainter(pixmap)
+    try:
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor("#" + theme["accent"]))
+        tx, ty, tw, th = rects["title"]
+        painter.drawRoundedRect(QRectF(tx * 96, ty * 54, tw * 96, max(3, th * 54 * .45)), 2, 2)
+        bx, by, bw, bh = rects["body"]
+        painter.setBrush(QColor("#" + theme["text"]))
+        for line in range(4):
+            painter.drawRoundedRect(QRectF(bx * 96, (by + line * bh / 6) * 54,
+                                           bw * 96 * (.85 if line == 3 else 1), 2), 1, 1)
+        ix, iy, iw, ih = rects["image"]
+        painter.setBrush(QColor("#" + theme["rule"]))
+        painter.drawRoundedRect(QRectF(ix * 96, iy * 54, iw * 96, ih * 54), 3, 3)
+    finally:
+        painter.end()
+    return QIcon(pixmap)
 
 
 class TextPlanningWorker(QThread):
@@ -106,6 +131,7 @@ class ImageGenerationWorker(QThread):
                 if self.cancel_event.is_set():
                     self.cancelled.emit()
                     return
+                self.backend.width, self.backend.height = slide["image_size"]
                 label = f"第 {index}/{len(self.slides)} 頁｜{slide['title']}"
                 self.progress.emit(index, len(self.slides), label + "：載入／生成中")
                 result = self.backend.generate(
@@ -142,8 +168,9 @@ class SlidePreview(QGraphicsView):
         self._mark_item = None
 
     def set_slide(self, title: str, body: str, number: int, total: int, theme_name: str, *, cover: bool = False,
-                  images: list[dict] | None = None, annotations: list[dict] | None = None):
-        self._slide = (title, body, number, total, theme_name, cover)
+                  images: list[dict] | None = None, annotations: list[dict] | None = None,
+                  layout_name: str = DEFAULT_LAYOUT):
+        self._slide = (title, body, number, total, theme_name, cover, layout_name)
         self._images = images or []
         self._annotations = annotations or []
         self._draw_slide()
@@ -157,44 +184,70 @@ class SlidePreview(QGraphicsView):
     def _draw_slide(self):
         if not self._slide:
             return
-        title, body, number, total, theme_name, cover = self._slide
+        title, body, number, total, theme_name, cover, layout_name = self._slide
         theme = THEMES.get(theme_name, THEMES["清爽藍"])
+        positions = layout_rects(layout_name, cover=cover, has_image=bool(self._images))
         self.scene.clear()
         self.scene.addRect(0, 0, 1280, 720, QPen(Qt.PenStyle.NoPen), QBrush(QColor("#" + theme["paper"])))
         self.scene.addRect(0, 0, 12, 720, QPen(Qt.PenStyle.NoPen), QBrush(QColor("#" + theme["accent"])))
         title_item = self.scene.addText(title, QFont("Arial", 43 if cover else 31, QFont.Weight.Bold))
         title_item.setDefaultTextColor(QColor("#" + theme["accent"]))
-        title_item.setTextWidth(1120)
-        title_item.setPos(92, 160 if cover else 50)
+        tx, ty, tw, _th = positions["title"]
+        title_item.setTextWidth(tw * 1280)
+        title_item.setPos(tx * 1280, ty * 720)
         if not cover:
-            self.scene.addRect(80, 146, 1120, 3, QPen(Qt.PenStyle.NoPen), QBrush(QColor("#" + theme["rule"])))
-        content = self.scene.addText(body, QFont("Arial", 24 if cover else 20))
+            self.scene.addRect(80, 126, 1120, 3, QPen(Qt.PenStyle.NoPen), QBrush(QColor("#" + theme["rule"])))
+        bx, by, bw, bh = positions["body"]
+        body_font, _fits = fit_body_font(body, (bx, by, bw, bh), cover=cover)
+        content = self.scene.addText(body, QFont("Arial", body_font))
         content.setDefaultTextColor(QColor("#" + theme["text"]))
-        content.setTextWidth(600 if self._images else 1080)
-        content.setPos(96, 390 if cover else 186)
+        content.setTextWidth(bw * 1280)
+        content.setPos(bx * 1280, by * 720)
         for image in self._images:
             pixmap = QPixmap(image["path"])
             if pixmap.isNull():
                 continue
             x, y, width, height = image["rect"]
-            fitted = pixmap.scaled(
-                max(1, round(width * 1280)), max(1, round(height * 720)),
-                Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation,
-            )
-            self.scene.addPixmap(fitted).setPos(x * 1280 + (width * 1280 - fitted.width()) / 2,
-                                                y * 720 + (height * 720 - fitted.height()) / 2)
-        for number, mark in enumerate(self._annotations, 1):
+            target_width, target_height = max(1, round(width * 1280)), max(1, round(height * 720))
+            if image.get("fit") == "crop":
+                expanded = pixmap.scaled(target_width, target_height,
+                                         Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                                         Qt.TransformationMode.SmoothTransformation)
+                fitted = expanded.copy((expanded.width() - target_width) // 2,
+                                       (expanded.height() - target_height) // 2,
+                                       target_width, target_height)
+                self.scene.addPixmap(fitted).setPos(x * 1280, y * 720)
+            else:
+                fitted = pixmap.scaled(target_width, target_height,
+                                      Qt.AspectRatioMode.KeepAspectRatio,
+                                      Qt.TransformationMode.SmoothTransformation)
+                self.scene.addPixmap(fitted).setPos(x * 1280 + (width * 1280 - fitted.width()) / 2,
+                                                    y * 720 + (height * 720 - fitted.height()) / 2)
+        for mark_number, mark in enumerate(self._annotations, 1):
             x1, y1, x2, y2 = mark["rect"]
             rect = QRectF(min(x1, x2) * 1280, min(y1, y2) * 720,
                           abs(x2 - x1) * 1280, abs(y2 - y1) * 720)
             self.scene.addRect(rect, QPen(QColor("#e05252"), 3), QBrush(Qt.BrushStyle.NoBrush))
-            label = self.scene.addText(str(number), QFont("Arial", 15, QFont.Weight.Bold))
+            label = self.scene.addText(str(mark_number), QFont("Arial", 15, QFont.Weight.Bold))
             label.setDefaultTextColor(QColor("#ffffff"))
             label.setPos(rect.topLeft() + QPointF(8, 6))
         footer = self.scene.addText(f"{theme_name}　·　{number:02d} / {total:02d}", QFont("Arial", 12))
         footer.setDefaultTextColor(QColor("#" + theme["muted"]))
         footer.setPos(930, 670)
         self.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+    def save_slide_image(self, path: str | Path) -> None:
+        image = QImage(1920, 1080, QImage.Format.Format_ARGB32_Premultiplied)
+        image.fill(Qt.GlobalColor.white)
+        painter = QPainter(image)
+        try:
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+            self.scene.render(painter, QRectF(0, 0, 1920, 1080), self.scene.sceneRect())
+        finally:
+            painter.end()
+        if not image.save(str(path), "PNG"):
+            raise OSError(f"投影片圖片未能寫入：{path}")
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -237,6 +290,47 @@ class SlidePreview(QGraphicsView):
             event.accept()
             return
         super().mouseReleaseEvent(event)
+
+
+def slide_preview_payload(document: dict, index: int, asset_root: str | Path, *,
+                          include_annotations: bool = False, strict_assets: bool = False) -> dict:
+    slide = document["slides"][index]
+    root = Path(asset_root).resolve()
+    images = []
+    for element in slide.get("elements", []):
+        if element.get("type") != "image":
+            continue
+        relative_path = element.get("asset_path")
+        if not relative_path:
+            if strict_assets:
+                raise FileNotFoundError(f"第 {index + 1} 頁有圖片物件但沒有素材路徑")
+            continue
+        image_path = (root / relative_path).resolve()
+        if root not in image_path.parents:
+            raise ValueError("圖片素材必須位於此專案的 assets 資料夾內")
+        if not image_path.is_file():
+            if strict_assets:
+                raise FileNotFoundError(f"找不到第 {index + 1} 頁圖片素材：{relative_path}")
+            continue
+        images.append({
+            "path": str(image_path),
+            "fit": element.get("fit", "contain"),
+            "rect": tuple(float(element.get(key, default)) for key, default in
+                          (("x", .58), ("y", .22), ("width", .36), ("height", .60))),
+        })
+    body = "\n".join(
+        element.get("text", "") for element in slide.get("elements", [])
+        if element.get("type", "text") == "text"
+    )
+    return {
+        "title": slide.get("title", ""), "body": body,
+        "number": index + 1, "total": len(document["slides"]),
+        "theme_name": document.get("settings", {}).get("style", "清爽藍"),
+        "cover": index == 0, "images": images,
+        "layout_name": slide.get("layout", DEFAULT_LAYOUT),
+        "annotations": ([mark for mark in document.get("annotations", [])
+                         if mark.get("slide_id") == slide["id"]] if include_annotations else []),
+    }
 
 
 class PresentationStudio(QMainWindow):
@@ -382,7 +476,7 @@ class PresentationStudio(QMainWindow):
     def _build_settings(self) -> QWidget:
         page, layout = self._page(
             title="第 2 步｜確認製作設定",
-            subtitle="先保留原文與頁數。風格與名稱之後仍可修改；目前提供可編輯式 PowerPoint 匯出。",
+            subtitle="先保留原文與頁數。風格、名稱及輸出形式之後仍可修改。",
         )
         self.settings_summary = QLabel()
         self.settings_summary.setWordWrap(True)
@@ -396,9 +490,15 @@ class PresentationStudio(QMainWindow):
         form.addWidget(self.settings_title)
         form.addWidget(QLabel("視覺風格"))
         self.style_choice = QComboBox()
-        self.style_choice.addItems(["清爽藍", "雜誌編輯", "自然療癒", "高科技"])
+        self.style_choice.setIconSize(QSize(96, 54))
+        for style in THEMES:
+            self.style_choice.addItem(_design_icon(DEFAULT_LAYOUT, style), style)
         form.addWidget(self.style_choice)
-        form.addWidget(QLabel("內容原則：忠實保留貼入內容。AI 大綱擴寫與圖像式簡報尚未通過驗收，不會顯示成可用選項。"))
+        form.addWidget(QLabel("PowerPoint 輸出形式"))
+        self.settings_output_mode = QComboBox()
+        self.settings_output_mode.addItems(["可編輯式 PPTX", "圖像式 PPTX"])
+        form.addWidget(self.settings_output_mode)
+        form.addWidget(QLabel("內容原則：忠實保留貼入內容；生成圖片會另外保存，可在編輯器中決定是否配圖。"))
         layout.addWidget(card)
         layout.addStretch(1)
         footer = QHBoxLayout()
@@ -422,6 +522,10 @@ class PresentationStudio(QMainWindow):
         self.editor_title.textChanged.connect(self._schedule_save)
         self.save_button = self._button("保存")
         self.export_button = self._button("匯出 PowerPoint…", primary=True)
+        self.output_mode_choice = QComboBox()
+        self.output_mode_choice.addItems(["可編輯式 PPTX", "圖像式 PPTX"])
+        self.output_mode_choice.setToolTip("可編輯式保留文字物件；圖像式把每頁畫布輸出為整張圖片。")
+        self.output_mode_choice.currentTextChanged.connect(self._output_mode_changed)
         self.generate_all_images_button = self._button("為尚無圖片的頁面配圖")
         self.generate_all_images_button.clicked.connect(self.generate_missing_slide_images)
         self.save_button.clicked.connect(self.save_project)
@@ -430,6 +534,7 @@ class PresentationStudio(QMainWindow):
         header.addWidget(self.editor_title, 1)
         header.addWidget(self.generate_all_images_button)
         header.addWidget(self.save_button)
+        header.addWidget(self.output_mode_choice)
         header.addWidget(self.export_button)
         layout.addLayout(header)
         columns = QHBoxLayout()
@@ -446,6 +551,17 @@ class PresentationStudio(QMainWindow):
         editor.addWidget(QLabel("頁面標題"))
         self.slide_heading = QLineEdit()
         editor.addWidget(self.slide_heading)
+        editor.addWidget(QLabel("排版設計"))
+        layout_row = QHBoxLayout()
+        self.layout_choice = QComboBox()
+        self.layout_choice.setIconSize(QSize(96, 54))
+        for design in LAYOUT_NAMES:
+            self.layout_choice.addItem(_design_icon(design), design)
+        self.apply_layout_button = self._button("套用這頁排版")
+        self.apply_layout_button.clicked.connect(self._apply_current_layout)
+        layout_row.addWidget(self.layout_choice, 1)
+        layout_row.addWidget(self.apply_layout_button)
+        editor.addLayout(layout_row)
         editor.addWidget(QLabel("頁面內容"))
         self.slide_text = QPlainTextEdit()
         editor.addWidget(self.slide_text, 1)
@@ -460,6 +576,7 @@ class PresentationStudio(QMainWindow):
         self.image_prompt = QPlainTextEdit()
         self.image_prompt.setPlaceholderText("描述這一頁需要的插圖。建議說明主體、情境、色彩與構圖；不要要求圖片內放文字。")
         self.image_prompt.setMaximumHeight(150)
+        self.image_prompt.textChanged.connect(self._image_prompt_changed)
         image_layout.addWidget(self.image_prompt)
         self.generate_current_image_button = self._button("為這一頁重新生成配圖", primary=True)
         self.generate_current_image_button.clicked.connect(self.generate_current_slide_image)
@@ -627,9 +744,10 @@ class PresentationStudio(QMainWindow):
             {"id": str(uuid4()), "slide_id": slide["id"], "title": slide["title"]}
             for slide in document["slides"]
         ]
-        document["settings"] = {"style": self.style_choice.currentText(), "output_format": "可編輯式 PPTX"}
-        for slide in document["slides"]:
+        document["settings"] = {"style": self.style_choice.currentText(), "output_format": self.settings_output_mode.currentText()}
+        for index, slide in enumerate(document["slides"]):
             slide["source_id"] = self.parsed["source"]["id"]
+            apply_slide_layout(slide, suggest_slide_layout(slide, index), cover=index == 0)
         project_id = document["project_id"]
         self.store.create(self.parsed["source"]["path"], project_id=project_id)
         self.revision = self.store.save_document(project_id, document, expected_revision=0)
@@ -654,6 +772,9 @@ class PresentationStudio(QMainWindow):
     def _show_editor(self) -> None:
         assert self.document is not None
         self.editor_title.setText(self.document.get("title", ""))
+        self.output_mode_choice.blockSignals(True)
+        self.output_mode_choice.setCurrentText(self.document.get("settings", {}).get("output_format", "可編輯式 PPTX"))
+        self.output_mode_choice.blockSignals(False)
         self.slide_list.clear()
         for index, slide in enumerate(self.document.get("slides", []), 1):
             self.slide_list.addItem(f"{index:02d}　{slide['title']}")
@@ -666,10 +787,14 @@ class PresentationStudio(QMainWindow):
             return
         slide = self.document["slides"][row]
         self.slide_heading.setText(slide.get("title", ""))
+        self.layout_choice.setCurrentText(slide.get("layout", DEFAULT_LAYOUT))
         text_elements = [element for element in slide.get("elements", []) if element.get("type", "text") == "text"]
         self._text_element_id = text_elements[0]["id"] if text_elements else None
         self.slide_text.setPlainText(text_elements[0].get("text", "") if text_elements else "")
-        self.image_prompt.setPlainText(slide.get("image_prompt") or self._default_image_prompt(slide))
+        self.image_prompt.blockSignals(True)
+        self.image_prompt.setPlainText(slide.get("image_prompt") or self._default_image_prompt(
+            slide, self.document.get("settings", {}).get("style", "")))
+        self.image_prompt.blockSignals(False)
         self._refresh_annotations(slide["id"])
         self._refresh_slide_canvas(row)
 
@@ -678,6 +803,7 @@ class PresentationStudio(QMainWindow):
         if not self.document or not 0 <= row < len(self.document["slides"]):
             return
         slide = self.document["slides"][row]
+        original_slide = deepcopy(slide)
         slide["title"] = self.slide_heading.text().strip()
         text = self.slide_text.toPlainText().strip()
         if text:
@@ -687,32 +813,42 @@ class PresentationStudio(QMainWindow):
             self._text_element_id = None
         self.slide_list.item(row).setText(f"{row + 1:02d}　{slide['title']}")
         self._refresh_slide_canvas(row)
-        self.save_project()
+        if not self.save_project():
+            self.document["slides"][row] = original_slide
+            self._select_slide(row)
+            self.slide_list.item(row).setText(f"{row + 1:02d}　{original_slide['title']}")
+
+    def _apply_current_layout(self) -> None:
+        row = self.slide_list.currentRow()
+        if not self.document or not 0 <= row < len(self.document["slides"]):
+            return
+        slide = self.document["slides"][row]
+        original_slide = deepcopy(slide)
+        apply_slide_layout(slide, self.layout_choice.currentText(), cover=row == 0)
+        if not self.save_project():
+            self.document["slides"][row] = original_slide
+            self._select_slide(row)
+            return
+        self._refresh_slide_canvas(row)
+        self.editor_status.setText(f"已套用「{slide['layout']}」排版並保存。")
+
+    def _output_mode_changed(self, mode: str) -> None:
+        if self.document and mode:
+            self.document.setdefault("settings", {})["output_format"] = mode
+            self._schedule_save()
+
+    def _image_prompt_changed(self) -> None:
+        row = self.slide_list.currentRow()
+        if self.document and 0 <= row < len(self.document["slides"]):
+            self.document["slides"][row]["image_prompt"] = self.image_prompt.toPlainText()
+            self._schedule_save()
 
     def _refresh_slide_canvas(self, row: int) -> None:
         if not self.document or not 0 <= row < len(self.document["slides"]):
             return
-        slide = self.document["slides"][row]
-        texts = [element.get("text", "") for element in slide.get("elements", []) if element.get("type", "text") == "text"]
-        body = "\n".join(texts)
-        assets = (self.app_support / "projects" / self.project_id / "assets").resolve()
-        images = []
-        for element in slide.get("elements", []):
-            if element.get("type") != "image" or not element.get("asset_path"):
-                continue
-            image_path = (assets / element["asset_path"]).resolve()
-            if assets in image_path.parents and image_path.is_file():
-                images.append({
-                    "path": str(image_path),
-                    "rect": tuple(float(element.get(key, default)) for key, default in
-                                   (("x", .58), ("y", .22), ("width", .36), ("height", .60))),
-                })
-        self.slide_canvas.set_slide(
-            slide.get("title", ""), body, row + 1, len(self.document["slides"]),
-            self.document.get("settings", {}).get("style", "清爽藍"), cover=row == 0,
-            images=images,
-            annotations=[mark for mark in self.document.get("annotations", []) if mark.get("slide_id") == slide["id"]],
-        )
+        assets = self.app_support / "projects" / self.project_id / "assets"
+        payload = slide_preview_payload(self.document, row, assets, include_annotations=True)
+        self.slide_canvas.set_slide(**payload)
 
     @staticmethod
     def _default_image_prompt(slide: dict, style: str = "") -> str:
@@ -721,8 +857,10 @@ class PresentationStudio(QMainWindow):
             if element.get("type", "text") == "text"
         )
         style_hint = f"使用{style}的視覺氣氛；" if style else ""
+        composition = ("採橫幅構圖，將重要主體留在中央，避免上下邊緣放關鍵內容。"
+                       if slide.get("layout") == "上圖下文" else "主體清楚，留出簡報文字所需的視覺空間。")
         return (f"為繁體中文簡報頁面設計一張清楚、簡潔的配圖。{style_hint}"
-                "以視覺呈現主題，不要在圖片中加入文字、標籤或數據。\n"
+                f"{composition}以視覺呈現主題，不要在圖片中加入文字、標籤或數據。\n"
                 f"頁面標題：{slide.get('title', '')}\n頁面重點：\n{body}")[:1800]
 
     def generate_current_slide_image(self) -> None:
@@ -788,6 +926,7 @@ class PresentationStudio(QMainWindow):
             snapshot = dict(slide)
             snapshot["prompt"] = prompts[slide["id"]]
             snapshot["content_fingerprint"] = self._slide_content_fingerprint(slide)
+            snapshot["image_size"] = (1024, 512) if slide.get("layout") == "上圖下文" else (768, 512)
             snapshots.append(snapshot)
         self._image_cancelled = False
         self._image_success_count = 0
@@ -816,7 +955,7 @@ class PresentationStudio(QMainWindow):
     @staticmethod
     def _slide_content_fingerprint(slide: dict) -> str:
         content = {
-            "id": slide.get("id"), "title": slide.get("title", ""),
+            "id": slide.get("id"), "title": slide.get("title", ""), "layout": slide.get("layout"),
             "text": [(element.get("id"), element.get("text", "")) for element in slide.get("elements", [])
                      if element.get("type", "text") == "text"],
         }
@@ -848,7 +987,9 @@ class PresentationStudio(QMainWindow):
         if self._slide_content_fingerprint(slide) != source_slide["content_fingerprint"]:
             self._image_generation_failed(slide_id, "生成期間頁面文字已變更；為免套用到舊內容，圖片保留在本機生成快取中。")
             return
-        slot = self._image_slot(slide)
+        layout_name = slide.get("layout")
+        slot = (layout_rects(layout_name, cover=slide.get("order") == 0, has_image=True)["image"]
+                if layout_name in LAYOUT_NAMES else self._image_slot(slide))
         source = {item.get("id"): item for item in self.document.get("sources", [])}
         is_outline = source.get(slide.get("source_id"), {}).get("origin") in {
             "pasted_text", "accepted_model_outline", "model_generated_outline",
@@ -869,12 +1010,12 @@ class PresentationStudio(QMainWindow):
         output_hash = hashlib.sha256(asset_path.read_bytes()).hexdigest()
         request_hash = hashlib.sha256(json.dumps({
             "slide_id": slide_id, "prompt": prompt, "model": "Qwen-Image-2.1",
-            "width": 768, "height": 512, "steps": 20,
+            "width": source_slide["image_size"][0], "height": source_slide["image_size"][1], "steps": 20,
         }, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
         original_elements = deepcopy(slide.get("elements", []))
         original_references = deepcopy(self.document.setdefault("image_generation_ledger", []))
         try:
-            if is_outline and not has_existing_image:
+            if is_outline and not has_existing_image and layout_name not in LAYOUT_NAMES:
                 for element in slide["elements"]:
                     if element.get("type", "text") == "text":
                         element.update(x=.06, y=.43 if slide.get("order") == 0 else .24,
@@ -885,6 +1026,8 @@ class PresentationStudio(QMainWindow):
                 "x": slot[0], "y": slot[1], "width": slot[2], "height": slot[3],
             }
             slide.setdefault("elements", []).append(element)
+            if layout_name in LAYOUT_NAMES:
+                apply_slide_layout(slide, layout_name, cover=slide.get("order") == 0)
             ledger_entry = {
                 "instance_id": instance_id, "slide_id": slide_id, "policy": "GENERATE",
                 "model": "Qwen-Image-2.1", "request_sha256": request_hash,
@@ -1012,9 +1155,7 @@ class PresentationStudio(QMainWindow):
             "status": "待處理", "base_revision": self.revision,
         }
         self.document.setdefault("annotations", []).append(mark)
-        try:
-            self.save_project()
-        except (OSError, RuntimeError, ValueError):
+        if not self.save_project():
             self.document["annotations"].remove(mark)
             return
         self.store.record_attempt(
@@ -1068,25 +1209,55 @@ class PresentationStudio(QMainWindow):
 
     def _return_home(self) -> None:
         self._autosave_timer.stop()
-        self.save_project()
+        if not self.save_project():
+            return
         self._refresh_recent()
         self.stack.setCurrentWidget(self.home_page)
 
     def export_project(self) -> None:
         if not self.document:
             return
-        path, _ = QFileDialog.getSaveFileName(self, "匯出可編輯 PowerPoint", f"{self.document['title']}.pptx", "PowerPoint (*.pptx)")
+        mode = self.output_mode_choice.currentText()
+        path, _ = QFileDialog.getSaveFileName(self, f"匯出{mode}", f"{self.document['title']}.pptx", "PowerPoint (*.pptx)")
         if not path:
             return
         try:
-            self.save_project()
+            self.document.setdefault("settings", {})["output_format"] = mode
+            if not self.save_project():
+                return
+            overflowing = []
+            for index, slide in enumerate(self.document["slides"]):
+                for element in slide.get("elements", []):
+                    if element.get("type", "text") != "text":
+                        continue
+                    rect = tuple(float(element.get(key, default)) for key, default in
+                                 (("x", .08), ("y", .24), ("width", .84), ("height", .58)))
+                    if not fit_body_font(element.get("text", ""), rect, cover=index == 0)[1]:
+                        overflowing.append(index + 1)
+                        break
+            if overflowing:
+                shown = "、".join(str(page) for page in overflowing[:8])
+                if len(overflowing) > 8:
+                    shown += "…"
+                answer = QMessageBox.question(
+                    self, "文字可能超出頁面",
+                    f"第 {shown} 頁文字可能放不下。建議先換排版或精簡文字；仍要匯出嗎？",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,
+                )
+                if answer != QMessageBox.StandardButton.Yes:
+                    return
             assets = self.app_support / "projects" / self.project_id / "assets"
-            export_project_pptx(path, self.document, self.document.get("settings", {}).get("style", "清爽藍"), asset_root=assets)
+            if mode == "圖像式 PPTX":
+                from .raster_export import export_project_image_pptx
+                export_project_image_pptx(path, self.document, asset_root=assets)
+            else:
+                export_project_pptx(path, self.document, self.document.get("settings", {}).get("style", "清爽藍"), asset_root=assets)
         except (OSError, ValueError, RuntimeError) as exc:
             QMessageBox.critical(self, "匯出失敗", f"PPTX 未能匯出：{exc}")
             return
-        self.editor_status.setText(f"已匯出可編輯 PowerPoint：{path}")
-        QMessageBox.information(self, "完成", f"已匯出 {len(self.document['slides'])} 頁。\n\n{path}")
+        self.editor_status.setText(f"已匯出{mode}：{path}")
+        QMessageBox.information(self, "完成", f"已匯出 {len(self.document['slides'])} 頁（{mode}）。\n\n{path}")
 
     def _import_source(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "選擇簡報或文字文件", "", "支援的文件 (*.pptx *.pdf *.docx *.txt)")
