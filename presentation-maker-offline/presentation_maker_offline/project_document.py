@@ -18,6 +18,7 @@ def new_project_document(title: str) -> dict:
         "slides": [],
         "outline": [],
         "annotations": [],
+        "image_generation_ledger": [],
         "styles": {"selected": "清爽藍"},
     }
 
@@ -65,6 +66,40 @@ def validate_project_document(document: dict) -> None:
         element_ids = [element.get("id") for element in elements]
         if any(not element_id for element_id in element_ids) or len(set(element_ids)) != len(element_ids):
             raise ValueError(f"slide {slide['id']} has missing or duplicate element ids")
+    annotations = document.get("annotations", [])
+    if not isinstance(annotations, list):
+        raise ValueError("annotations must be a list")
+    annotation_ids = [annotation.get("id") for annotation in annotations]
+    known_slides = set(slide_ids)
+    if any(not annotation_id for annotation_id in annotation_ids) or len(set(annotation_ids)) != len(annotation_ids):
+        raise ValueError("each annotation must have a unique stable id")
+    element_ids_by_slide = {
+        slide["id"]: {element.get("id") for element in slide.get("elements", [])}
+        for slide in slides
+    }
+    for annotation in annotations:
+        slide_id = annotation.get("slide_id")
+        if slide_id not in known_slides:
+            raise ValueError("annotation references an unknown slide")
+        element_id = annotation.get("element_id")
+        if element_id is not None and element_id not in element_ids_by_slide[slide_id]:
+            raise ValueError("annotation references an unknown slide element")
+        rect = annotation.get("rect")
+        if (not isinstance(rect, list) or len(rect) != 4
+                or any(not isinstance(value, (int, float)) or not 0 <= value <= 1 for value in rect)
+                or rect[0] >= rect[2] or rect[1] >= rect[3]):
+            raise ValueError("annotation rect must be a normalized, non-empty rectangle")
+    ledger = document.get("image_generation_ledger", [])
+    if not isinstance(ledger, list):
+        raise ValueError("image_generation_ledger must be a list")
+    instance_ids = [entry.get("instance_id") for entry in ledger]
+    if any(not instance_id for instance_id in instance_ids) or len(set(instance_ids)) != len(instance_ids):
+        raise ValueError("each generated image must have a unique stable instance id")
+    for entry in ledger:
+        if entry.get("slide_id") not in known_slides:
+            raise ValueError("generated image references an unknown slide")
+        if entry.get("instance_id") not in element_ids_by_slide[entry["slide_id"]]:
+            raise ValueError("generated image ledger must reference its slide image object")
 
 
 def copy_document(document: dict) -> dict:

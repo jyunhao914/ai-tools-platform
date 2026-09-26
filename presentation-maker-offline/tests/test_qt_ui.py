@@ -1,4 +1,5 @@
 import os
+import time
 from pathlib import Path
 
 import pytest
@@ -152,3 +153,99 @@ def test_rejected_ai_candidate_does_not_replace_pasted_outline(studio, monkeypat
     assert window.outline_input.toPlainText() == original
     assert window.model_outline_source is None
     assert window.parsed["source"]["text"] == original
+
+
+def _create_one_slide_project(app, window):
+    window._start_outline()
+    window.outline_input.setPlainText("# 測試簡報\n## 健康生活\n- 均衡飲食\n- 規律運動")
+    window._continue_settings()
+    window._create_project()
+    app.processEvents()
+
+
+def test_area_marking_uses_canvas_coordinates_and_survives_reopen(studio):
+    app, window = studio
+    _create_one_slide_project(app, window)
+    window.resize(1180, 780)
+    window.show()
+    app.processEvents()
+    window.start_area_marking()
+    app.processEvents()
+    start = window.slide_canvas.mapFromScene(160, 220)
+    end = window.slide_canvas.mapFromScene(600, 500)
+    viewport = window.slide_canvas.viewport()
+    QTest.mousePress(viewport, Qt.MouseButton.LeftButton, pos=start)
+    QTest.mouseMove(viewport, end, 100)
+    QTest.mouseRelease(viewport, Qt.MouseButton.LeftButton, pos=end)
+    app.processEvents()
+
+    assert window._pending_annotation is not None
+    window.annotation_comment.setText("只修改這個區域")
+    window.save_annotation()
+    loaded_revision, reopened = window.store.load_document(window.project_id)
+    mark = reopened["annotations"][0]
+    assert loaded_revision == window.revision
+    assert mark["comment"] == "只修改這個區域"
+    assert mark["slide_id"] == reopened["slides"][0]["id"]
+    assert mark["element_id"] == reopened["slides"][0]["elements"][0]["id"]
+    assert len(mark["rect"]) == 4
+
+    window._return_home()
+    window._open_recent(window.recent_list.item(0))
+    assert window.annotation_list.count() == 1
+    window.annotation_list.setCurrentRow(0)
+    window.annotation_comment.setText("留言可再編輯")
+    window.save_annotation()
+    assert len(window.document["annotations"]) == 1
+    assert window.document["annotations"][0]["comment"] == "留言可再編輯"
+
+
+def test_image_button_generates_saves_previews_and_exports_bound_asset(studio, tmp_path, monkeypatch):
+    app, window = studio
+    _create_one_slide_project(app, window)
+    from PIL import Image
+    from presentation_maker_offline import qt_ui
+
+    class FakeImageBackend:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def health(self):
+            return {"ok": True, "errors": []}
+
+        def generate(self, prompt, *, cancel_event=None, progress_callback=None):
+            generated = tmp_path / "generated.png"
+            Image.new("RGB", (96, 64), (24, 142, 86)).save(generated)
+            progress_callback(1, 2)
+            return {"image_path": str(generated), "device": "mps", "vae_device": "mps"}
+
+    monkeypatch.setattr(qt_ui, "LocalQwenImageBackend", FakeImageBackend)
+    monkeypatch.setattr(qt_ui, "qwen_image21_readiness", lambda _path: {"ready": True, "missing": [], "incomplete": []})
+    monkeypatch.setattr(qt_ui.QMessageBox, "critical", lambda *_args, **_kwargs: None)
+    window.image_prompt.setPlainText("無文字的健康生活插圖")
+    window.generate_current_image_button.click()
+
+    deadline = time.monotonic() + 5
+    while window._image_worker is not None and time.monotonic() < deadline:
+        QTest.qWait(20)
+    app.processEvents()
+
+    assert window._image_worker is None
+    slide = window.document["slides"][0]
+    image_element = next(element for element in slide["elements"] if element.get("type") == "image")
+    asset = tmp_path / "projects" / window.project_id / "assets" / image_element["asset_path"]
+    assert asset.is_file()
+    assert len([item for item in window.slide_canvas.scene.items() if hasattr(item, "pixmap")]) == 1
+    assert window.document["image_generation_ledger"][0]["output_sha256"]
+    assert window.store.attempts(window.project_id)[-1]["phase"] == "image_generation"
+
+    output = tmp_path / "with-image.pptx"
+    from presentation_maker_offline.export import export_project_pptx
+    export_project_pptx(output, window.document, "清爽藍", asset_root=tmp_path / "projects" / window.project_id / "assets")
+    exported = Presentation(output)
+    assert len(exported.slides[0].shapes) >= 4
+    assert any(shape.shape_type == 13 for shape in exported.slides[0].shapes)
+    picture = next(shape for shape in exported.slides[0].shapes if shape.shape_type == 13)
+    assert .57 <= picture.left / exported.slide_width <= .59
+    text_shape = next(shape for shape in exported.slides[0].shapes if shape.has_text_frame and "均衡飲食" in shape.text)
+    assert text_shape.width / exported.slide_width < .52

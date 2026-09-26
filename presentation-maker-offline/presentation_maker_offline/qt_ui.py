@@ -1,25 +1,29 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import shutil
 import sys
 import threading
+from copy import deepcopy
 from pathlib import Path
 from uuid import uuid4
 
-from PySide6.QtCore import QThread, QTimer, Qt, Signal
-from PySide6.QtGui import QAction, QBrush, QColor, QFont, QKeySequence, QPainter, QPen
+from PySide6.QtCore import QThread, QTimer, Qt, Signal, QPointF, QRectF
+from PySide6.QtGui import QAction, QBrush, QColor, QFont, QKeySequence, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QApplication, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFrame,
-    QGraphicsScene, QGraphicsTextItem, QGraphicsView, QHBoxLayout, QLabel,
-    QLineEdit, QListWidget, QMainWindow, QMessageBox, QPushButton,
-    QPlainTextEdit, QStackedWidget, QVBoxLayout, QWidget,
+    QGraphicsScene, QGraphicsView, QHBoxLayout, QLabel, QLineEdit, QListWidget,
+    QMainWindow, QMessageBox, QPushButton, QPlainTextEdit, QStackedWidget,
+    QTabWidget, QVBoxLayout, QWidget,
 )
 
-from .backends import LocalQwenTextBackend
+from .backends import LocalQwenImageBackend, LocalQwenTextBackend
 from .export import THEMES, export_project_pptx
 from .manifest import CheckpointManifest
 from .project_document import new_project_document, update_slide_text_element
 from .source_import import import_source, parse_outline_text
-from .storage import discover_qwen38_mlx
+from .storage import discover_qwen38_mlx, qwen_image21_readiness
 from .workflow import ProjectStore
 
 
@@ -71,8 +75,56 @@ class TextPlanningWorker(QThread):
             self.failed.emit(str(exc))
 
 
+class ImageGenerationWorker(QThread):
+    progress = Signal(int, int, str)
+    image_ready = Signal(str, str, str)
+    failed = Signal(str, str)
+    cancelled = Signal()
+
+    def __init__(self, model_path: Path, slides: list[dict], *, steps: int = 20):
+        super().__init__()
+        self.model_path = model_path
+        self.slides = slides
+        self.steps = steps
+        self.cancel_event = threading.Event()
+        self.backend: LocalQwenImageBackend | None = None
+        self.dispatch_token = str(uuid4())
+
+    def cancel(self) -> None:
+        self.cancel_event.set()
+
+    def run(self) -> None:
+        try:
+            self.backend = LocalQwenImageBackend(CheckpointManifest(
+                "Qwen-Image-2.1 local", str(self.model_path), "0" * 64,
+                "local model directory", "2.1", "see checkpoint license", "diffusers",
+            ), num_inference_steps=self.steps, width=768, height=512)
+            health = self.backend.health()
+            if not health["ok"]:
+                raise RuntimeError("本機圖片引擎未通過檢查：" + "; ".join(health["errors"]))
+            for index, slide in enumerate(self.slides, 1):
+                if self.cancel_event.is_set():
+                    self.cancelled.emit()
+                    return
+                label = f"第 {index}/{len(self.slides)} 頁｜{slide['title']}"
+                self.progress.emit(index, len(self.slides), label + "：載入／生成中")
+                result = self.backend.generate(
+                    slide["prompt"], cancel_event=self.cancel_event,
+                    progress_callback=lambda step, total, i=index, n=len(self.slides), title=slide["title"]:
+                        self.progress.emit(i, n, f"第 {i}/{n} 頁｜{title}：{step}/{total} 步"),
+                )
+                self.image_ready.emit(slide["id"], result["image_path"], slide["prompt"])
+            self.progress.emit(len(self.slides), len(self.slides), "所有配圖已生成，正在保存專案…")
+        except InterruptedError:
+            self.cancelled.emit()
+        except Exception as exc:
+            self.failed.emit(slide.get("id", "") if "slide" in locals() else "", str(exc))
+
+
 class SlidePreview(QGraphicsView):
     """16:9 live slide canvas matching the visual hierarchy of PPTX export."""
+
+    area_selected = Signal(object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -83,10 +135,24 @@ class SlidePreview(QGraphicsView):
         self.setBackgroundBrush(QColor("#e7ebf0"))
         self.setFrameShape(QFrame.Shape.NoFrame)
         self._slide = None
+        self._images: list[dict] = []
+        self._annotations: list[dict] = []
+        self._mark_mode = False
+        self._mark_start: QPointF | None = None
+        self._mark_item = None
 
-    def set_slide(self, title: str, body: str, number: int, total: int, theme_name: str, *, cover: bool = False):
+    def set_slide(self, title: str, body: str, number: int, total: int, theme_name: str, *, cover: bool = False,
+                  images: list[dict] | None = None, annotations: list[dict] | None = None):
         self._slide = (title, body, number, total, theme_name, cover)
+        self._images = images or []
+        self._annotations = annotations or []
         self._draw_slide()
+
+    def set_mark_mode(self, enabled: bool) -> None:
+        self._mark_mode = enabled
+        self._mark_start = None
+        self._mark_item = None
+        self.setCursor(Qt.CursorShape.CrossCursor if enabled else Qt.CursorShape.ArrowCursor)
 
     def _draw_slide(self):
         if not self._slide:
@@ -104,8 +170,27 @@ class SlidePreview(QGraphicsView):
             self.scene.addRect(80, 146, 1120, 3, QPen(Qt.PenStyle.NoPen), QBrush(QColor("#" + theme["rule"])))
         content = self.scene.addText(body, QFont("Arial", 24 if cover else 20))
         content.setDefaultTextColor(QColor("#" + theme["text"]))
-        content.setTextWidth(1080)
+        content.setTextWidth(600 if self._images else 1080)
         content.setPos(96, 390 if cover else 186)
+        for image in self._images:
+            pixmap = QPixmap(image["path"])
+            if pixmap.isNull():
+                continue
+            x, y, width, height = image["rect"]
+            fitted = pixmap.scaled(
+                max(1, round(width * 1280)), max(1, round(height * 720)),
+                Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation,
+            )
+            self.scene.addPixmap(fitted).setPos(x * 1280 + (width * 1280 - fitted.width()) / 2,
+                                                y * 720 + (height * 720 - fitted.height()) / 2)
+        for number, mark in enumerate(self._annotations, 1):
+            x1, y1, x2, y2 = mark["rect"]
+            rect = QRectF(min(x1, x2) * 1280, min(y1, y2) * 720,
+                          abs(x2 - x1) * 1280, abs(y2 - y1) * 720)
+            self.scene.addRect(rect, QPen(QColor("#e05252"), 3), QBrush(Qt.BrushStyle.NoBrush))
+            label = self.scene.addText(str(number), QFont("Arial", 15, QFont.Weight.Bold))
+            label.setDefaultTextColor(QColor("#ffffff"))
+            label.setPos(rect.topLeft() + QPointF(8, 6))
         footer = self.scene.addText(f"{theme_name}　·　{number:02d} / {total:02d}", QFont("Arial", 12))
         footer.setDefaultTextColor(QColor("#" + theme["muted"]))
         footer.setPos(930, 670)
@@ -114,6 +199,44 @@ class SlidePreview(QGraphicsView):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+    def mousePressEvent(self, event):
+        if self._mark_mode and event.button() == Qt.MouseButton.LeftButton:
+            point = self.mapToScene(event.position().toPoint())
+            bounds = self.scene.sceneRect()
+            self._mark_start = QPointF(min(max(point.x(), 0), bounds.width()), min(max(point.y(), 0), bounds.height()))
+            self._mark_item = self.scene.addRect(QRectF(self._mark_start, self._mark_start), QPen(QColor("#e05252"), 3, Qt.PenStyle.DashLine))
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self._mark_start is not None and self._mark_item is not None:
+            point = self.mapToScene(event.position().toPoint())
+            bounds = self.scene.sceneRect()
+            point = QPointF(min(max(point.x(), 0), bounds.width()), min(max(point.y(), 0), bounds.height()))
+            self._mark_item.setRect(QRectF(self._mark_start, point).normalized())
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if self._mark_start is not None and self._mark_item is not None:
+            point = self.mapToScene(event.position().toPoint())
+            bounds = self.scene.sceneRect()
+            point = QPointF(min(max(point.x(), 0), bounds.width()), min(max(point.y(), 0), bounds.height()))
+            rect = QRectF(self._mark_start, point).normalized()
+            if rect.width() >= 18 and rect.height() >= 18:
+                self.area_selected.emit((rect.left() / bounds.width(), rect.top() / bounds.height(),
+                                         rect.right() / bounds.width(), rect.bottom() / bounds.height()))
+            else:
+                self.scene.removeItem(self._mark_item)
+            self._mark_start = None
+            self._mark_item = None
+            self.set_mark_mode(False)
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
 
 class PresentationStudio(QMainWindow):
@@ -135,6 +258,12 @@ class PresentationStudio(QMainWindow):
         self.model_outline_source: dict | None = None
         self._adopting_ai_candidate = False
         self._plan_worker: TextPlanningWorker | None = None
+        self._image_worker: ImageGenerationWorker | None = None
+        self._image_dialog: QDialog | None = None
+        self._image_cancel_button: QPushButton | None = None
+        self._pending_annotation: tuple[float, float, float, float] | None = None
+        self._selected_annotation_id: str | None = None
+        self.image_model_path = Path.home() / ".cache/lm-studio/models/Qwen/Qwen-Image-2.1"
         self._text_element_id: str | None = None
         self._autosave_timer = QTimer(self)
         self._autosave_timer.setSingleShot(True)
@@ -200,7 +329,7 @@ class PresentationStudio(QMainWindow):
         card_layout = QVBoxLayout(card)
         card_layout.addWidget(QLabel("最近的專案"))
         self.recent_list = QListWidget()
-        self.recent_list.itemDoubleClicked.connect(self._open_recent)
+        self.recent_list.itemClicked.connect(self._open_recent)
         card_layout.addWidget(self.recent_list)
         layout.addWidget(card, 1)
         layout.addWidget(QLabel("小提示：在大綱頁直接按 ⌘V 貼上；也可用右鍵選單。"))
@@ -293,10 +422,13 @@ class PresentationStudio(QMainWindow):
         self.editor_title.textChanged.connect(self._schedule_save)
         self.save_button = self._button("保存")
         self.export_button = self._button("匯出 PowerPoint…", primary=True)
+        self.generate_all_images_button = self._button("為尚無圖片的頁面配圖")
+        self.generate_all_images_button.clicked.connect(self.generate_missing_slide_images)
         self.save_button.clicked.connect(self.save_project)
         self.export_button.clicked.connect(self.export_project)
         header.addWidget(home)
         header.addWidget(self.editor_title, 1)
+        header.addWidget(self.generate_all_images_button)
         header.addWidget(self.save_button)
         header.addWidget(self.export_button)
         layout.addLayout(header)
@@ -306,8 +438,11 @@ class PresentationStudio(QMainWindow):
         columns.addWidget(self.slide_list, 1)
         self.slide_canvas = SlidePreview()
         self.slide_canvas.setMinimumSize(480, 300)
+        self.slide_canvas.area_selected.connect(self._area_selected)
         columns.addWidget(self.slide_canvas, 3)
-        editor = QVBoxLayout()
+        self.editor_tabs = QTabWidget()
+        content_page = QWidget()
+        editor = QVBoxLayout(content_page)
         editor.addWidget(QLabel("頁面標題"))
         self.slide_heading = QLineEdit()
         editor.addWidget(self.slide_heading)
@@ -317,7 +452,46 @@ class PresentationStudio(QMainWindow):
         self.apply_slide_button = self._button("套用到這一頁")
         self.apply_slide_button.clicked.connect(self._apply_slide_text)
         editor.addWidget(self.apply_slide_button)
-        columns.addLayout(editor, 2)
+        self.editor_tabs.addTab(content_page, "內容")
+
+        image_page = QWidget()
+        image_layout = QVBoxLayout(image_page)
+        image_layout.addWidget(QLabel("配圖描述（可自行修改；會由本機 Qwen-Image 生成）"))
+        self.image_prompt = QPlainTextEdit()
+        self.image_prompt.setPlaceholderText("描述這一頁需要的插圖。建議說明主體、情境、色彩與構圖；不要要求圖片內放文字。")
+        self.image_prompt.setMaximumHeight(150)
+        image_layout.addWidget(self.image_prompt)
+        self.generate_current_image_button = self._button("為這一頁重新生成配圖", primary=True)
+        self.generate_current_image_button.clicked.connect(self.generate_current_slide_image)
+        image_layout.addWidget(self.generate_current_image_button)
+        self.image_status = QLabel("目前尚未生成圖片。圖片不會改寫頁面文字。")
+        self.image_status.setWordWrap(True)
+        image_layout.addWidget(self.image_status)
+        image_layout.addStretch(1)
+        self.editor_tabs.addTab(image_page, "配圖")
+
+        annotation_page = QWidget()
+        annotation_layout = QVBoxLayout(annotation_page)
+        self.annotation_list = QListWidget()
+        self.annotation_list.currentRowChanged.connect(self._select_annotation)
+        annotation_layout.addWidget(QLabel("此頁區域標記與留言"))
+        annotation_layout.addWidget(self.annotation_list, 1)
+        self.annotation_comment = QLineEdit()
+        self.annotation_comment.setPlaceholderText("選區說明或修改要求（可稍後補寫）")
+        annotation_layout.addWidget(self.annotation_comment)
+        mark_actions = QHBoxLayout()
+        self.mark_area_button = self._button("在畫布框選區域")
+        self.mark_area_button.clicked.connect(self.start_area_marking)
+        self.save_annotation_button = self._button("保存標記／留言", primary=True)
+        self.save_annotation_button.clicked.connect(self.save_annotation)
+        mark_actions.addWidget(self.mark_area_button)
+        mark_actions.addWidget(self.save_annotation_button)
+        annotation_layout.addLayout(mark_actions)
+        self.annotation_status = QLabel("標記會跟著頁面保存；目前是待處理項目，尚未執行 AI 修改。")
+        self.annotation_status.setWordWrap(True)
+        annotation_layout.addWidget(self.annotation_status)
+        self.editor_tabs.addTab(annotation_page, "標記與留言")
+        columns.addWidget(self.editor_tabs, 2)
         layout.addLayout(columns, 1)
         self.editor_status = QLabel("專案會自動保存到本機資料庫。")
         layout.addWidget(self.editor_status)
@@ -495,6 +669,8 @@ class PresentationStudio(QMainWindow):
         text_elements = [element for element in slide.get("elements", []) if element.get("type", "text") == "text"]
         self._text_element_id = text_elements[0]["id"] if text_elements else None
         self.slide_text.setPlainText(text_elements[0].get("text", "") if text_elements else "")
+        self.image_prompt.setPlainText(slide.get("image_prompt") or self._default_image_prompt(slide))
+        self._refresh_annotations(slide["id"])
         self._refresh_slide_canvas(row)
 
     def _apply_slide_text(self) -> None:
@@ -519,20 +695,371 @@ class PresentationStudio(QMainWindow):
         slide = self.document["slides"][row]
         texts = [element.get("text", "") for element in slide.get("elements", []) if element.get("type", "text") == "text"]
         body = "\n".join(texts)
+        assets = (self.app_support / "projects" / self.project_id / "assets").resolve()
+        images = []
+        for element in slide.get("elements", []):
+            if element.get("type") != "image" or not element.get("asset_path"):
+                continue
+            image_path = (assets / element["asset_path"]).resolve()
+            if assets in image_path.parents and image_path.is_file():
+                images.append({
+                    "path": str(image_path),
+                    "rect": tuple(float(element.get(key, default)) for key, default in
+                                   (("x", .58), ("y", .22), ("width", .36), ("height", .60))),
+                })
         self.slide_canvas.set_slide(
             slide.get("title", ""), body, row + 1, len(self.document["slides"]),
             self.document.get("settings", {}).get("style", "清爽藍"), cover=row == 0,
+            images=images,
+            annotations=[mark for mark in self.document.get("annotations", []) if mark.get("slide_id") == slide["id"]],
         )
 
-    def save_project(self) -> None:
+    @staticmethod
+    def _default_image_prompt(slide: dict, style: str = "") -> str:
+        body = "\n".join(
+            element.get("text", "") for element in slide.get("elements", [])
+            if element.get("type", "text") == "text"
+        )
+        style_hint = f"使用{style}的視覺氣氛；" if style else ""
+        return (f"為繁體中文簡報頁面設計一張清楚、簡潔的配圖。{style_hint}"
+                "以視覺呈現主題，不要在圖片中加入文字、標籤或數據。\n"
+                f"頁面標題：{slide.get('title', '')}\n頁面重點：\n{body}")[:1800]
+
+    def generate_current_slide_image(self) -> None:
         if not self.document or not self.project_id:
             return
+        row = self.slide_list.currentRow()
+        if not 0 <= row < len(self.document["slides"]):
+            return
+        slide = self.document["slides"][row]
+        images = [element for element in slide.get("elements", []) if element.get("type") == "image"]
+        if images and QMessageBox.question(
+            self, "此頁已有圖片", "仍要另外生成一張配圖嗎？原有圖片會保留。",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        ) != QMessageBox.StandardButton.Yes:
+            return
+        prompt = self.image_prompt.toPlainText().strip()
+        if not prompt:
+            QMessageBox.information(self, "需要配圖描述", "請輸入這一頁要呈現的畫面內容。")
+            return
+        self._start_image_generation([slide], {slide["id"]: prompt})
+
+    def generate_missing_slide_images(self) -> None:
+        if not self.document or not self.project_id:
+            return
+        slides = [
+            slide for slide in self.document["slides"]
+            if not any(element.get("type") == "image" for element in slide.get("elements", []))
+        ]
+        if not slides:
+            QMessageBox.information(self, "配圖已完成", "每一頁目前都有圖片；如需重做，請切到該頁的「配圖」分頁。")
+            return
+        answer = QMessageBox.question(
+            self, "依序為頁面配圖",
+            f"將為 {len(slides)} 頁逐頁生成本機配圖，可能需要一段時間。已完成的頁面會立即保存；可隨時取消。",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        if answer != QMessageBox.StandardButton.Ok:
+            return
+        prompts = {
+            slide["id"]: slide.get("image_prompt") or self._default_image_prompt(
+                slide, self.document.get("settings", {}).get("style", ""))
+            for slide in slides
+        }
+        self._start_image_generation(slides, prompts)
+
+    def _start_image_generation(self, slides: list[dict], prompts: dict[str, str]) -> None:
+        if self._image_worker and self._image_worker.isRunning():
+            QMessageBox.information(self, "圖片生成中", "目前的配圖工作完成或取消後，才能開始另一項工作。")
+            return
+        readiness = qwen_image21_readiness(self.image_model_path)
+        if not readiness["ready"]:
+            QMessageBox.warning(
+                self, "圖片模型尚未就緒",
+                "Qwen-Image-2.1 尚未通過完整性檢查；不會開始推論或變更投影片。\n\n"
+                + "\n".join(readiness["missing"] + readiness["incomplete"]),
+            )
+            self.image_status.setText("圖片模型未通過完整性檢查。")
+            return
+        snapshots = []
+        for slide in slides:
+            snapshot = dict(slide)
+            snapshot["prompt"] = prompts[slide["id"]]
+            snapshot["content_fingerprint"] = self._slide_content_fingerprint(slide)
+            snapshots.append(snapshot)
+        self._image_cancelled = False
+        self._image_success_count = 0
+        self._image_error = ""
+        self._image_dialog = QDialog(self)
+        self._image_dialog.setWindowTitle("本機生成簡報配圖")
+        self._image_dialog.resize(430, 150)
+        layout = QVBoxLayout(self._image_dialog)
+        self._image_progress_label = QLabel("正在啟動 Qwen-Image-2.1；首次載入需要一些時間。")
+        self._image_progress_label.setWordWrap(True)
+        layout.addWidget(self._image_progress_label)
+        self._image_cancel_button = self._button("取消後續頁面")
+        self._image_cancel_button.clicked.connect(self._cancel_image_generation)
+        layout.addWidget(self._image_cancel_button)
+        self._image_dialog.finished.connect(lambda *_: self._cancel_image_generation())
+        self._image_dialog.show()
+        self._image_worker = ImageGenerationWorker(self.image_model_path, snapshots, steps=20)
+        self._image_worker.progress.connect(self._image_generation_progress)
+        self._image_worker.image_ready.connect(self._attach_generated_image)
+        self._image_worker.failed.connect(self._image_generation_failed)
+        self._image_worker.cancelled.connect(self._image_generation_cancelled)
+        self._image_worker.finished.connect(self._image_generation_finished)
+        self.image_status.setText(f"本機圖片生成已開始，共 {len(slides)} 頁；已完成的配圖會逐頁保存。")
+        self._image_worker.start()
+
+    @staticmethod
+    def _slide_content_fingerprint(slide: dict) -> str:
+        content = {
+            "id": slide.get("id"), "title": slide.get("title", ""),
+            "text": [(element.get("id"), element.get("text", "")) for element in slide.get("elements", [])
+                     if element.get("type", "text") == "text"],
+        }
+        return hashlib.sha256(json.dumps(content, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+
+    def _cancel_image_generation(self) -> None:
+        worker = self._image_worker
+        if worker and worker.isRunning():
+            self._image_cancelled = True
+            worker.cancel()
+            if self._image_cancel_button:
+                self._image_cancel_button.setEnabled(False)
+                self._image_cancel_button.setText("正在停止…")
+
+    def _image_generation_progress(self, _index: int, _total: int, message: str) -> None:
+        if hasattr(self, "_image_progress_label"):
+            self._image_progress_label.setText(message)
+            self.image_status.setText(message)
+
+    def _attach_generated_image(self, slide_id: str, generated_path: str, prompt: str) -> None:
+        if not self.document or not self.project_id:
+            return
+        source_slide = next((slide for slide in self._image_worker.slides if slide["id"] == slide_id), None)
+        slide = next((item for item in self.document["slides"] if item["id"] == slide_id), None)
+        path = Path(generated_path)
+        if not source_slide or not slide or not path.is_file():
+            self._image_generation_failed(slide_id, "專案頁面已變更或生成檔不存在；圖片保留在本機生成快取中。")
+            return
+        if self._slide_content_fingerprint(slide) != source_slide["content_fingerprint"]:
+            self._image_generation_failed(slide_id, "生成期間頁面文字已變更；為免套用到舊內容，圖片保留在本機生成快取中。")
+            return
+        slot = self._image_slot(slide)
+        source = {item.get("id"): item for item in self.document.get("sources", [])}
+        is_outline = source.get(slide.get("source_id"), {}).get("origin") in {
+            "pasted_text", "accepted_model_outline", "model_generated_outline",
+        }
+        has_existing_image = any(element.get("type") == "image" for element in slide.get("elements", []))
+        if slot is None and is_outline and not has_existing_image:
+            slot = (.58, .22, .36, .60)
+        if slot is None:
+            self._image_generation_failed(slide_id, "此頁找不到不重疊的配圖位置；已保留生成圖片，請先調整版面後再試。")
+            return
+        project_id = self.project_id
+        assets = self.app_support / "projects" / project_id / "assets"
+        assets.mkdir(parents=True, exist_ok=True)
+        asset_name = f"qwen-image-{uuid4().hex}.png"
+        asset_path = assets / asset_name
+        shutil.copyfile(path, asset_path)
+        instance_id = str(uuid4())
+        output_hash = hashlib.sha256(asset_path.read_bytes()).hexdigest()
+        request_hash = hashlib.sha256(json.dumps({
+            "slide_id": slide_id, "prompt": prompt, "model": "Qwen-Image-2.1",
+            "width": 768, "height": 512, "steps": 20,
+        }, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+        original_elements = deepcopy(slide.get("elements", []))
+        original_references = deepcopy(self.document.setdefault("image_generation_ledger", []))
+        try:
+            if is_outline and not has_existing_image:
+                for element in slide["elements"]:
+                    if element.get("type", "text") == "text":
+                        element.update(x=.06, y=.43 if slide.get("order") == 0 else .24,
+                                       width=.49, height=.38 if slide.get("order") == 0 else .60)
+            element = {
+                "id": instance_id, "type": "image", "origin": "qwen_image21",
+                "asset_path": asset_name, "prompt": prompt,
+                "x": slot[0], "y": slot[1], "width": slot[2], "height": slot[3],
+            }
+            slide.setdefault("elements", []).append(element)
+            ledger_entry = {
+                "instance_id": instance_id, "slide_id": slide_id, "policy": "GENERATE",
+                "model": "Qwen-Image-2.1", "request_sha256": request_hash,
+                "output_sha256": output_hash, "asset_path": asset_name,
+            }
+            self.document["image_generation_ledger"].append(ledger_entry)
+            if not self.save_project():
+                raise RuntimeError("專案版本保存失敗；已撤回尚未接受的配圖。")
+            self.store.record_attempt(
+                project_id, slide["order"], "image_generation",
+                {"prompt": prompt, "policy": "GENERATE", "model": "Qwen-Image-2.1",
+                 "request_sha256": request_hash, "dispatch_token": self._image_worker.dispatch_token,
+                 "slide_id": slide_id, "instance_id": instance_id},
+                {"status": "accepted", "asset_path": asset_name, "output_sha256": output_hash},
+            )
+        except Exception as exc:
+            slide["elements"] = original_elements
+            self.document["image_generation_ledger"] = original_references
+            asset_path.unlink(missing_ok=True)
+            self._image_generation_failed(slide_id, f"配圖未能保存：{exc}")
+            return
+        path.unlink(missing_ok=True)
+        self._image_success_count += 1
+        row = next(index for index, item in enumerate(self.document["slides"]) if item["id"] == slide_id)
+        self.slide_list.item(row).setText(f"{row + 1:02d}　{slide['title']}　· 有配圖")
+        if self.slide_list.currentRow() == row:
+            self._refresh_slide_canvas(row)
+        self.image_status.setText(f"第 {row + 1} 頁配圖已生成並保存；原有文字與其他頁面未更動。")
+
+    @staticmethod
+    def _image_slot(slide: dict) -> tuple[float, float, float, float] | None:
+        candidates = ((.58, .22, .36, .60), (.58, .54, .36, .30), (.06, .60, .35, .27))
+        for candidate in candidates:
+            if all(not (
+                candidate[0] < float(element.get("x", .08)) + float(element.get("width", .84))
+                and float(element.get("x", .08)) < candidate[0] + candidate[2]
+                and candidate[1] < float(element.get("y", .24)) + float(element.get("height", .58))
+                and float(element.get("y", .24)) < candidate[1] + candidate[3]
+            ) for element in slide.get("elements", [])):
+                return candidate
+        return None
+
+    def _image_generation_failed(self, slide_id: str, message: str) -> None:
+        if self.project_id:
+            slide = next((item for item in self.document.get("slides", []) if item["id"] == slide_id), None) if self.document else None
+            self.store.record_attempt(
+                self.project_id, slide.get("order", -1) if slide else -1, "image_generation",
+                {"slide_id": slide_id, "dispatch_token": getattr(self._image_worker, "dispatch_token", "")},
+                {"status": "resumable_error", "error": message},
+            )
+        self._image_error = message
+        self.image_status.setText("圖片未套用；原有簡報保持不變。" + message)
+
+    def _image_generation_cancelled(self) -> None:
+        self._image_cancelled = True
+        self.image_status.setText(f"已取消後續生成；已成功保存 {self._image_success_count} 頁配圖。")
+
+    def _image_generation_finished(self) -> None:
+        if self._image_dialog:
+            self._image_dialog.close()
+            self._image_dialog.deleteLater()
+            self._image_dialog = None
+        self._image_worker = None
+        if self._image_cancel_button:
+            self._image_cancel_button = None
+        if self._image_error:
+            QMessageBox.warning(self, "圖片生成中斷", self.image_status.text())
+        elif self._image_success_count:
+            self.image_status.setText(f"已完成並保存 {self._image_success_count} 頁配圖。")
+        elif not self._image_cancelled:
+            self.image_status.setText("沒有頁面配圖完成；原有專案未變更。")
+
+    def start_area_marking(self) -> None:
+        if not self.document or self.slide_list.currentRow() < 0:
+            QMessageBox.information(self, "先選擇頁面", "請先選取一張投影片，再框選需要修改或備註的區域。")
+            return
+        self.editor_tabs.setCurrentIndex(2)
+        self._pending_annotation = None
+        self.annotation_status.setText("在中央投影片上按住滑鼠左鍵拖曳，框出要標記的範圍。")
+        self.slide_canvas.set_mark_mode(True)
+
+    def _area_selected(self, rect: tuple[float, float, float, float]) -> None:
+        self._pending_annotation = rect
+        self.annotation_status.setText("已框選區域；可補寫留言，再按「保存標記／留言」。")
+        self.annotation_comment.setFocus()
+
+    def save_annotation(self) -> None:
+        if not self.document or not self.project_id or self.slide_list.currentRow() < 0:
+            return
+        if self._pending_annotation is None:
+            row = self.annotation_list.currentRow()
+            if 0 <= row < len(getattr(self, "_annotation_ids", [])):
+                mark = next((item for item in self.document.get("annotations", [])
+                             if item["id"] == self._annotation_ids[row]), None)
+                if mark:
+                    old_comment = mark.get("comment", "")
+                    mark["comment"] = self.annotation_comment.text().strip()
+                    if not self.save_project():
+                        mark["comment"] = old_comment
+                        return
+                    slide = self.document["slides"][self.slide_list.currentRow()]
+                    self.store.record_attempt(
+                        self.project_id, slide["order"], "annotation_comment_updated",
+                        {"annotation_id": mark["id"], "slide_id": mark["slide_id"], "comment": mark["comment"]},
+                        {"status": mark.get("status", "待處理"), "base_revision": self.revision},
+                    )
+                    self._refresh_annotations(slide["id"])
+                    self.annotation_list.setCurrentRow(row)
+                    return
+            QMessageBox.information(self, "尚未框選區域", "請先按「在畫布框選區域」，再於投影片上拖曳選取範圍。")
+            return
+        slide = self.document["slides"][self.slide_list.currentRow()]
+        x1, y1, x2, y2 = self._pending_annotation
+        center = ((x1 + x2) / 2, (y1 + y2) / 2)
+        element_id = None
+        for element in slide.get("elements", []):
+            x, y = float(element.get("x", .08)), float(element.get("y", .24))
+            width, height = float(element.get("width", .84)), float(element.get("height", .58))
+            if x <= center[0] <= x + width and y <= center[1] <= y + height:
+                element_id = element.get("id")
+                break
+        mark = {
+            "id": str(uuid4()), "slide_id": slide["id"], "element_id": element_id,
+            "rect": [x1, y1, x2, y2], "comment": self.annotation_comment.text().strip(),
+            "status": "待處理", "base_revision": self.revision,
+        }
+        self.document.setdefault("annotations", []).append(mark)
+        try:
+            self.save_project()
+        except (OSError, RuntimeError, ValueError):
+            self.document["annotations"].remove(mark)
+            return
+        self.store.record_attempt(
+            self.project_id, slide["order"], "annotation_created",
+            {"annotation_id": mark["id"], "slide_id": slide["id"], "element_id": element_id,
+             "rect": mark["rect"], "comment": mark["comment"]},
+            {"status": "pending", "base_revision": mark["base_revision"]},
+        )
+        self._pending_annotation = None
+        self.annotation_comment.clear()
+        self._refresh_annotations(slide["id"])
+        self._refresh_slide_canvas(self.slide_list.currentRow())
+        self.annotation_status.setText("標記和留言已保存；尚未對投影片執行修改。")
+
+    def _refresh_annotations(self, slide_id: str) -> None:
+        self.annotation_list.clear()
+        self._annotation_ids = []
+        marks = [mark for mark in self.document.get("annotations", []) if mark.get("slide_id") == slide_id]
+        for index, mark in enumerate(marks, 1):
+            comment = mark.get("comment") or "尚未留言"
+            self.annotation_list.addItem(f"{index:02d} · {mark.get('status', '待處理')} · {comment}")
+            self._annotation_ids.append(mark["id"])
+        self.annotation_status.setText(f"本頁有 {len(marks)} 個已保存標記；標記只記錄範圍，尚未執行 AI 修改。")
+
+    def _select_annotation(self, row: int) -> None:
+        if not self.document or not hasattr(self, "_annotation_ids") or not 0 <= row < len(self._annotation_ids):
+            return
+        annotation_id = self._annotation_ids[row]
+        mark = next((item for item in self.document.get("annotations", []) if item["id"] == annotation_id), None)
+        if mark:
+            self._selected_annotation_id = annotation_id
+            self.annotation_comment.setText(mark.get("comment", ""))
+            self._refresh_slide_canvas(self.slide_list.currentRow())
+
+    def save_project(self) -> bool:
+        if not self.document or not self.project_id:
+            return False
         self.document["title"] = self.editor_title.text().strip() or self.document["title"]
         try:
             self.revision = self.store.save_document(self.project_id, self.document, expected_revision=self.revision)
             self.editor_status.setText("已保存。")
+            return True
         except (OSError, RuntimeError, ValueError) as exc:
             QMessageBox.critical(self, "保存失敗", f"專案未能保存：{exc}")
+            return False
 
     def _schedule_save(self) -> None:
         if self.document and self.project_id:
@@ -612,13 +1139,14 @@ class PresentationStudio(QMainWindow):
             self._show_editor()
 
     def closeEvent(self, event) -> None:
-        worker = self._plan_worker
-        if worker and worker.isRunning():
+        workers = [worker for worker in (self._plan_worker, self._image_worker) if worker and worker.isRunning()]
+        for worker in workers:
             worker.cancel()
-            if not worker.wait(15_000):
+        if any(not worker.wait(15_000) for worker in workers):
+            if hasattr(self, "parse_status"):
                 self.parse_status.setText("正在停止本機模型；請稍候再關閉視窗。")
-                event.ignore()
-                return
+            event.ignore()
+            return
         event.accept()
 
 

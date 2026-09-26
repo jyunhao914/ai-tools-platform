@@ -18,6 +18,10 @@ a = Analysis(
         "pypdf",
         "docx",
         "pptx",
+        "diffusers.pipelines.qwenimage21.pipeline_qwenimage21",
+        "transformers.models.qwen3.modeling_qwen3",
+        "transformers.models.qwen3.configuration_qwen3",
+        "safetensors.torch",
         "PySide6.QtWidgets",
         "PySide6.QtGui",
         "PySide6.QtCore",
@@ -27,10 +31,8 @@ a = Analysis(
     runtime_hooks=["offline_runtime_hook.py"],
     excludes=[
         "mlx", "mlx_lm", "tkinter", "pytest", "IPython", "jupyter",
-        # The shipped Qt workflow does not expose image inference yet; keep its
-        # multi-gigabyte training/inference stack out of the desktop bundle.
-        "torch", "torchvision", "torchaudio", "diffusers", "transformers",
-        "safetensors", "accelerate", "scipy", "sklearn", "matplotlib",
+        # Keep unused training, analytics, and notebook stacks out of the desktop bundle.
+        "torchaudio", "accelerate", "sklearn", "matplotlib",
         "pandas", "onnxruntime", "cv2", "timm", "numba",
     ],
     noarchive=False,

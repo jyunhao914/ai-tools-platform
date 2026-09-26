@@ -45,7 +45,6 @@ def export_project_pptx(path: str | Path, document: dict, style: str = "清爽�
     presentation.slide_width = Inches(13.333)
     presentation.slide_height = Inches(7.5)
     theme = THEMES.get(style, THEMES["清爽藍"])
-    source_origins = {source.get("id"): source.get("origin") for source in document.get("sources", [])}
     for slide_index, slide_doc in enumerate(document["slides"]):
         slide = presentation.slides.add_slide(presentation.slide_layouts[6])
         slide.background.fill.solid()
@@ -55,9 +54,11 @@ def export_project_pptx(path: str | Path, document: dict, style: str = "清爽�
         brand_bar.fill.fore_color.rgb = _color(theme["accent"])
         brand_bar.line.fill.background()
         is_cover = slide_index == 0
+        has_images = any(element.get("type") == "image" for element in slide_doc.get("elements", []))
         title_box = slide.shapes.add_textbox(
             Inches(.95 if is_cover else .8), Inches(1.35 if is_cover else .55),
-            Inches(11.4 if is_cover else 11.7), Inches(1.45 if is_cover else 1.0),
+            Inches(5.5 if is_cover and has_images else 11.4 if is_cover else 11.7),
+            Inches(1.45 if is_cover else 1.0),
         )
         title_frame = title_box.text_frame
         title_frame.clear()
@@ -78,14 +79,10 @@ def export_project_pptx(path: str | Path, document: dict, style: str = "清爽�
             rule.fill.fore_color.rgb = _color(theme["rule"])
             rule.line.fill.background()
         for element in slide_doc.get("elements", []):
-            generated_outline = source_origins.get(slide_doc.get("source_id")) in {"pasted_text", "model_generated_outline", "accepted_model_outline"}
-            if generated_outline:
-                x, y, width, height = (0.09, 0.40 if is_cover else 0.26, 0.82, 0.32 if is_cover else 0.60)
-            else:
-                x = max(0, min(.98, float(element.get("x", .08))))
-                y = max(0, min(.95, float(element.get("y", .24))))
-                width = max(.02, min(1-x, float(element.get("width", .84))))
-                height = max(.02, min(1-y, float(element.get("height", .58))))
+            x = max(0, min(.98, float(element.get("x", .08))))
+            y = max(0, min(.95, float(element.get("y", .24))))
+            width = max(.02, min(1-x, float(element.get("width", .84))))
+            height = max(.02, min(1-y, float(element.get("height", .58))))
             if element.get("type", "text") == "image":
                 relative_path = element.get("asset_path")
                 if not relative_path:
