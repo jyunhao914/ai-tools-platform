@@ -27,6 +27,20 @@ def test_prompts_are_content_specific():
     assert '兩欄對照表' in table and '破解常見迷思' in table
 
 
+def test_visual_layer_reserves_exact_text_regions():
+    prompt = benchmark.visual_prompt('# 第6頁｜流程\n正常 → 瘜肉 → 病變 → 癌')
+    assert 'exactly four' in prompt
+    assert 'Absolutely no text' in prompt
+    assert 'bottom fifth' in prompt
+
+
+def test_invalid_route_and_dimensions_do_not_start(tmp_path):
+    with pytest.raises(ValueError):
+        benchmark.run(tmp_path / 'missing', tmp_path, tmp_path, [1], route='invalid')
+    with pytest.raises(ValueError):
+        benchmark.run(tmp_path / 'missing', tmp_path, tmp_path, [1], width=0)
+
+
 def test_resume_checks_candidate_hash(monkeypatch, tmp_path):
     outline = tmp_path / 'outline.md'
     outline.write_text('# 第6頁｜流程\n正常 → 瘜肉')
