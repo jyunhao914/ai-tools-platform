@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import time
 from pathlib import Path
@@ -13,11 +14,36 @@ from .backends import LocalQwenImageBackend
 
 
 def page_source(outline: str, page: int) -> str:
-    import re
     match = re.search(rf'^# 第{page}頁｜.*?(?=^# 第\d+頁｜|\Z)', outline, re.M | re.S)
     if not match:
         raise ValueError(f"找不到第 {page} 頁")
     return match.group(0).strip()
+
+
+def build_prompt(source: str) -> str:
+    """Keep layout instructions specific to the source's actual structure."""
+    lines = source.splitlines()
+    title = re.sub(r'^# 第\d+頁｜', '', lines[0]).strip()
+    content = []
+    for line in lines[1:]:
+        line = line.replace('**', '').strip()
+        if not line or '視覺建議：' in line:
+            continue
+        if re.fullmatch(r'[|\s:-]+', line):
+            continue
+        content.append(re.sub(r'^-\s+', '', line))
+    if any(line.startswith('|') for line in content):
+        layout = '標題下方為兩欄對照表。每列左右內容必須一一對應，不新增列欄。'
+    elif '→' in source:
+        layout = '標題下方為橫向流程，各階段以箭頭連接，說明文字置底。不要使用表格。'
+    else:
+        layout = '標題下方依內容分組，以清楚文字層級與留白呈現重點。不要使用表格。'
+    return (
+        '設計完整16:9繁體中文健康衛教投影片，藍白配色。不是投影片的照片。'
+        + layout + '所有文字必須清晰、精確，不遮擋、不裁切。'
+        '只呈現以下標題和正文；不新增文字、數字或事實，不改寫，不使用簡體字。\n'
+        f'標題（逐字）：{title}\n正文（逐字）：\n' + '\n'.join(content)
+    )
 
 
 def run(outline_path: Path, output: Path, model: Path, pages: list[int]) -> None:
@@ -27,13 +53,7 @@ def run(outline_path: Path, output: Path, model: Path, pages: list[int]) -> None
                                    width=1024, height=576, num_inference_steps=40)
     for page in pages:
         source = page_source(outline, page)
-        prompt = (
-            "設計完整16:9繁體中文健康衛教投影片，藍白配色，清楚字級層次與留白。"
-            "依內容自行設計流程、重點或對照表，不是投影片的照片。"
-            "以下為來源大綱，Markdown為格式指示。視覺建議不用印在頁上。"
-            "正文、數字、標點必須精確保留，不新增事實，不使用簡體字。"
-            "表格每列兩欄必須正確對應，不遮擋、不裁切文字。\n" + source
-        )
+        prompt = build_prompt(source)
         signature = hashlib.sha256((str(model) + prompt + '1024x576/40').encode()).hexdigest()
         record_path = output / f"page-{page:02d}.json"
         image_path = output / f"page-{page:02d}.png"
