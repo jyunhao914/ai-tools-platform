@@ -3,6 +3,17 @@ import subprocess
 import pytest
 from PIL import Image
 from presentation_maker_offline.vision_backend import read_slide_text
+from presentation_maker_offline.vision_backend import discover_vision_python
+
+
+def test_discovery_preserves_venv_symlink(monkeypatch, tmp_path):
+    target = tmp_path / 'base-python'
+    target.touch()
+    target.chmod(0o755)
+    executable = tmp_path / 'venv-python'
+    executable.symlink_to(target)
+    monkeypatch.setenv('PRESENTATION_VISION_PYTHON', str(executable))
+    assert discover_vision_python() == executable
 
 
 @pytest.fixture

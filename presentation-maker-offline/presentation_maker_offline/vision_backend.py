@@ -5,6 +5,19 @@ import os
 from pathlib import Path
 import subprocess
 
+
+def discover_vision_python() -> Path | None:
+    """Prefer explicit configuration, then app-managed runtime, never resolve symlinks."""
+    candidates = [os.environ.get('PRESENTATION_VISION_PYTHON'),
+                  Path.home() / 'Library/Application Support/PresentationMaker/vision-runtime/bin/python',
+                  Path.home() / 'Documents/Codex/2026-09-22/presentation-maker-offline-qwen/work/vision-runtime/bin/python']
+    for candidate in candidates:
+        if candidate:
+            path = Path(candidate).expanduser().absolute()
+            if path.is_file() and os.access(path, os.X_OK):
+                return path
+    return None
+
 from .content_fidelity import compare_copy
 
 

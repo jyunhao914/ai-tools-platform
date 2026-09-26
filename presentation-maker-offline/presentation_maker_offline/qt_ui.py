@@ -29,6 +29,7 @@ from .revision_compare import compare_documents
 from .source_import import import_source, parse_outline_text
 from .source_library import SOURCE_ROLES, add_file_source, add_text_source, append_fragment_to_slide, source_preview
 from .source_recognition import recognize_image_source, accept_recognition
+from .vision_backend import discover_vision_python
 from .storage import discover_qwen38_mlx, qwen_image21_readiness
 from .workflow import ProjectStore
 
@@ -1742,7 +1743,7 @@ class PresentationStudio(QMainWindow):
         if source.get('format') not in {'png', 'jpg', 'jpeg', 'webp'}:
             QMessageBox.information(self, '請選圖片來源', '此入口目前支援圖片；掃描 PDF 尚未接入。')
             return
-        python = os.environ.get('PRESENTATION_VISION_PYTHON', '')
+        python = discover_vision_python()
         if not python:
             python, _ = QFileDialog.getOpenFileName(self, '選擇本機視覺環境的 Python 執行檔')
         if not python:

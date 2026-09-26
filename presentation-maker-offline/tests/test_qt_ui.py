@@ -368,6 +368,31 @@ def test_editor_columns_resize_and_large_preview_contains_current_slide(studio, 
     assert any("健康生活" in text for text in captured["preview_text"])
 
 
+def test_recognition_review_saves_only_after_acceptance(studio, tmp_path, monkeypatch):
+    from PIL import Image
+    from presentation_maker_offline import qt_ui
+    from presentation_maker_offline.source_library import add_file_source
+    app, window = studio
+    _create_one_slide_project(app, window)
+    image = tmp_path / 'scan.png'
+    Image.new('RGB', (32, 32)).save(image)
+    source = add_file_source(image, window.app_support / 'projects' / window.project_id, [])
+    window._append_library_source(source)
+    before = window.store.load_document(window.project_id)[1]['slides']
+    candidate = dict(id='candidate', source_id=source['id'], source_version=source['version'],
+                     content_sha256=source['content_sha256'], status='pending', text='辨識結果',
+                     engine='qwen-vl-local', coordinates=None)
+    monkeypatch.setattr(qt_ui.QDialog, 'exec', lambda _: qt_ui.QDialog.DialogCode.Rejected)
+    window._review_source_recognition(window.project_id, candidate)
+    assert window.document['sources'][-1]['version'] == 1
+    monkeypatch.setattr(qt_ui.QDialog, 'exec', lambda _: qt_ui.QDialog.DialogCode.Accepted)
+    window._review_source_recognition(window.project_id, candidate)
+    saved = window.store.load_document(window.project_id)[1]
+    assert saved['sources'][-1]['version'] == 2
+    assert saved['sources'][-1]['fragments'][0]['text'] == '辨識結果'
+    assert saved['slides'] == before
+
+
 def test_reference_files_are_visible_persisted_and_do_not_change_slides(studio, tmp_path, monkeypatch):
     app, window = studio
     _create_one_slide_project(app, window)
