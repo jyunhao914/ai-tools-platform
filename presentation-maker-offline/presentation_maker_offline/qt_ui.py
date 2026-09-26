@@ -549,6 +549,17 @@ class PresentationStudio(QMainWindow):
         self.settings_output_mode = QComboBox()
         self.settings_output_mode.addItems(["可編輯式 PPTX", "圖像式 PPTX"])
         form.addWidget(self.settings_output_mode)
+        self.settings_output_description = QLabel()
+        self.settings_output_description.setWordWrap(True)
+        def describe_output(mode):
+            self.settings_output_description.setText(
+                "每頁輸出為一張完整圖片，保留設計外觀。仍可回到本軟體修改專案內容再匯出。"
+                if mode == "圖像式 PPTX" else
+                "文字與圖片分開輸出，可在 PowerPoint 修改文字、移動及替換圖片。圖片內的細節仍屬圖片。"
+            )
+        self.settings_output_mode.currentTextChanged.connect(describe_output)
+        describe_output(self.settings_output_mode.currentText())
+        form.addWidget(self.settings_output_description)
         form.addWidget(QLabel("內容原則：忠實保留貼入內容；生成圖片會另外保存，可在編輯器中決定是否配圖。"))
         layout.addWidget(card)
         layout.addStretch(1)
@@ -1816,7 +1827,8 @@ class PresentationStudio(QMainWindow):
         if not self.document:
             return
         mode = self.output_mode_choice.currentText()
-        path, _ = QFileDialog.getSaveFileName(self, f"匯出{mode}", f"{self.document['title']}.pptx", "PowerPoint (*.pptx)")
+        suffix = "圖像式" if mode == "圖像式 PPTX" else "可編輯式"
+        path, _ = QFileDialog.getSaveFileName(self, f"匯出{mode}", f"{self.document['title']}_{suffix}.pptx", "PowerPoint (*.pptx)")
         if not path:
             return
         try:
