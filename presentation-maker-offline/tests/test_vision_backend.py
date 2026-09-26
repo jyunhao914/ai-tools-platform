@@ -4,6 +4,31 @@ import pytest
 from PIL import Image
 from presentation_maker_offline.vision_backend import read_slide_text
 from presentation_maker_offline.vision_backend import discover_vision_python
+from presentation_maker_offline import vision_backend
+
+
+def test_report_preserves_existing_evidence(monkeypatch, tmp_path):
+    image = tmp_path / 'image.png'
+    image.write_bytes(b'original')
+    output = tmp_path / 'report.json'
+    monkeypatch.setattr(vision_backend, 'read_slide_text', lambda *a, **k: {'text': '文字'})
+    result = vision_backend.save_recognition_report(image, output, python=tmp_path, model=tmp_path)
+    assert result['image_sha256']
+    with pytest.raises(FileExistsError):
+        vision_backend.save_recognition_report(image, output, python=tmp_path, model=tmp_path)
+
+
+def test_changed_image_does_not_save_report(monkeypatch, tmp_path):
+    image = tmp_path / 'image.png'
+    image.write_bytes(b'original')
+    def read(*a, **k):
+        image.write_bytes(b'changed')
+        return {'text': '文字'}
+    monkeypatch.setattr(vision_backend, 'read_slide_text', read)
+    output = tmp_path / 'report.json'
+    with pytest.raises(RuntimeError):
+        vision_backend.save_recognition_report(image, output, python=tmp_path, model=tmp_path)
+    assert not output.exists()
 
 
 def test_discovery_preserves_venv_symlink(monkeypatch, tmp_path):

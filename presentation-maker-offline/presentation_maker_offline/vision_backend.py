@@ -4,6 +4,11 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import subprocess
+import hashlib
+import json
+import time
+
+from .content_fidelity import compare_copy
 
 
 def discover_vision_python() -> Path | None:
@@ -17,9 +22,6 @@ def discover_vision_python() -> Path | None:
             if path.is_file() and os.access(path, os.X_OK):
                 return path
     return None
-
-from .content_fidelity import compare_copy
-
 
 def read_slide_text(image: str | Path, *, python: str | Path, model: str | Path,
                     expected: str | None = None, timeout: float = 180) -> dict:
@@ -56,3 +58,20 @@ def read_slide_text(image: str | Path, *, python: str | Path, model: str | Path,
     return {'engine': 'qwen-vl-local', 'image': str(image), 'model': str(model),
             'text': text, 'review': 'pending', 'coordinates': None,
             'fidelity': compare_copy(expected, text) if expected is not None else None}
+
+
+def save_recognition_report(image: Path, output: Path, *, python: Path,
+                            model: Path, expected: str | None = None) -> dict:
+    """Persist actual recognition evidence without overwriting a previous run."""
+    if output.exists():
+        raise FileExistsError(output)
+    started = time.monotonic()
+    digest = hashlib.sha256(image.read_bytes()).hexdigest()
+    result = read_slide_text(image, python=python, model=model, expected=expected)
+    if hashlib.sha256(image.read_bytes()).hexdigest() != digest:
+        raise RuntimeError('辨識期間圖片已變更，結果不保存')
+    result.update(image_sha256=digest, seconds=round(time.monotonic() - started, 2))
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open('x', encoding='utf-8') as stream:
+        json.dump(result, stream, ensure_ascii=False, indent=2)
+    return result
