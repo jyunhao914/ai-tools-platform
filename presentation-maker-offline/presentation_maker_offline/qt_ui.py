@@ -402,6 +402,7 @@ class PresentationStudio(QMainWindow):
         self._adopting_ai_candidate = False
         self._plan_worker: TextPlanningWorker | None = None
         self._edit_worker: TextEditWorker | None = None
+        self._edit_annotation_id: str | None = None
         self._image_worker: ImageGenerationWorker | None = None
         self._image_dialog: QDialog | None = None
         self._image_cancel_button: QPushButton | None = None
@@ -673,8 +674,11 @@ class PresentationStudio(QMainWindow):
         self.mark_area_button.clicked.connect(self.start_area_marking)
         self.save_annotation_button = self._button("保存標記／留言", primary=True)
         self.save_annotation_button.clicked.connect(self.save_annotation)
+        use_mark_button = self._button("用選定標記修改文字")
+        use_mark_button.clicked.connect(self.use_selected_annotation_for_text_edit)
         mark_actions.addWidget(self.mark_area_button)
         mark_actions.addWidget(self.save_annotation_button)
+        mark_actions.addWidget(use_mark_button)
         annotation_layout.addLayout(mark_actions)
         self.annotation_status = QLabel("標記會跟著頁面保存；目前是待處理項目，尚未執行 AI 修改。")
         self.annotation_status.setWordWrap(True)
@@ -938,6 +942,7 @@ class PresentationStudio(QMainWindow):
             slide, self.document.get("settings", {}).get("style", "")))
         self.image_prompt.blockSignals(False)
         self._refresh_annotations(slide["id"])
+        self._edit_annotation_id = None
         self._refresh_edit_candidates(slide["id"])
         self._refresh_slide_canvas(row)
 
@@ -983,9 +988,17 @@ class PresentationStudio(QMainWindow):
             QMessageBox.information(self, "請輸入修改要求", "請先說明這頁文字要怎麼修改。")
             return
         slide = self.document["slides"][row]
-        element = next((item for item in slide.get("elements", []) if item.get("id") == self._text_element_id), None)
+        annotation = next((item for item in self.document.get("annotations", [])
+                           if item.get("id") == self._edit_annotation_id and item.get("slide_id") == slide["id"]), None)
+        target_id = annotation.get("element_id") if annotation else self._text_element_id
+        element = next((item for item in slide.get("elements", []) if item.get("id") == target_id), None)
+        if element and element.get("type") != "text":
+            QMessageBox.information(self, "標記不是文字", "這個標記指向圖片；目前僅能對文字物件建立候選稿。")
+            return
+        current_text_element = next((item for item in slide.get("elements", [])
+                                     if item.get("id") == self._text_element_id), None)
         if (self.slide_heading.text().strip() != slide["title"]
-                or self.slide_text.toPlainText().strip() != (element.get("text", "").strip() if element else "")):
+                or self.slide_text.toPlainText().strip() != (current_text_element.get("text", "").strip() if current_text_element else "")):
             QMessageBox.information(self, "先套用目前文字", "內容分頁有尚未套用的文字或標題。請先按「套用到這一頁」，再產生修改候選稿。")
             return
         if not element:
@@ -1012,7 +1025,8 @@ class PresentationStudio(QMainWindow):
         )
         target = {"slide_id": slide["id"], "element_id": element["id"],
                   "base_revision": self.revision, "instruction": instruction,
-                  "original_text": element.get("text", "")}
+                  "original_text": element.get("text", ""),
+                  "annotation_id": annotation["id"] if annotation else None}
         self.propose_edit_button.setEnabled(False)
         self.edit_status.setText("本機文字模型正在提出候選稿；原稿保持不變。")
         self._edit_worker = TextEditWorker(prompt, Path(model_path), target)
@@ -1034,6 +1048,8 @@ class PresentationStudio(QMainWindow):
             result["instruction"], result["base_revision"],
         )
         candidate["runtime"] = result.get("runtime")
+        if result.get("annotation_id"):
+            candidate["annotation_id"] = result["annotation_id"]
         if not self.save_project():
             self.document["edit_candidates"].remove(candidate)
             return
@@ -1058,6 +1074,11 @@ class PresentationStudio(QMainWindow):
         except (RuntimeError, ValueError) as exc:
             QMessageBox.warning(self, "候選稿無法套用", str(exc))
             return
+        if candidate.get("annotation_id"):
+            mark = next((item for item in self.document.get("annotations", [])
+                         if item["id"] == candidate["annotation_id"]), None)
+            if mark:
+                mark["status"] = "已處理"
         row = self.slide_list.currentRow()
         if 0 <= row < len(self.document["slides"]) and self.document["slides"][row].get("auto_layout"):
             auto_design_slide(self.document["slides"][row], row)
@@ -1512,6 +1533,25 @@ class PresentationStudio(QMainWindow):
             self._selected_annotation_id = annotation_id
             self.annotation_comment.setText(mark.get("comment", ""))
             self._refresh_slide_canvas(self.slide_list.currentRow())
+
+    def use_selected_annotation_for_text_edit(self) -> None:
+        row = self.annotation_list.currentRow()
+        if not self.document or not 0 <= row < len(getattr(self, "_annotation_ids", [])):
+            QMessageBox.information(self, "先選標記", "請先在標記清單選取要修改的文字區域。")
+            return
+        mark = next((item for item in self.document.get("annotations", [])
+                     if item["id"] == self._annotation_ids[row]), None)
+        slide_row = self.slide_list.currentRow()
+        slide = self.document["slides"][slide_row]
+        element = next((item for item in slide.get("elements", [])
+                        if item.get("id") == mark.get("element_id")), None) if mark else None
+        if not element or element.get("type") != "text":
+            QMessageBox.information(self, "標記不是文字", "這個標記未指向文字物件；目前不能從此標記改字。")
+            return
+        self._edit_annotation_id = mark["id"]
+        self.edit_instruction.setPlainText(mark.get("comment", ""))
+        self.editor_tabs.setCurrentIndex(self.editor_tabs.count() - 1)
+        self.edit_status.setText("已選定標記區域；目前會修改整個對應文字物件，不會只改框內字句。")
 
     def save_project(self) -> bool:
         if not self.document or not self.project_id:

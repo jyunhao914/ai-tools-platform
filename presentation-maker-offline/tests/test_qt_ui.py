@@ -445,3 +445,30 @@ def test_text_edit_refuses_unsaved_slide_text(studio, monkeypatch):
     assert window._edit_worker is None
     assert window.revision == revision
     assert "先按" in messages[0]
+
+
+def test_saved_text_mark_can_drive_candidate_and_is_completed_only_on_accept(studio):
+    app, window = studio
+    _create_one_slide_project(app, window)
+    slide = window.document["slides"][0]
+    element = next(item for item in slide["elements"] if item["type"] == "text")
+    mark = {"id": "mark-1", "slide_id": slide["id"], "element_id": element["id"],
+            "rect": [.1, .2, .3, .4], "comment": "改得更簡短", "status": "待處理",
+            "base_revision": window.revision}
+    window.document["annotations"].append(mark)
+    assert window.save_project()
+    window._refresh_annotations(slide["id"])
+    window.annotation_list.setCurrentRow(0)
+    window.use_selected_annotation_for_text_edit()
+    assert window.edit_instruction.toPlainText() == "改得更簡短"
+    assert window._edit_annotation_id == mark["id"]
+    window._receive_text_edit_candidate({
+        "slide_id": slide["id"], "element_id": element["id"], "base_revision": window.revision,
+        "instruction": "改得更簡短", "original_text": element["text"],
+        "proposed_text": "精簡內容", "runtime": "test-local", "annotation_id": mark["id"],
+    })
+    assert mark["status"] == "待處理"
+    window.accept_selected_text_edit()
+    saved = window.store.load_document(window.project_id)[1]
+    assert saved["slides"][0]["elements"][0]["text"] == "精簡內容"
+    assert saved["annotations"][0]["status"] == "已處理"
