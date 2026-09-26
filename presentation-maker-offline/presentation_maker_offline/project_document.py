@@ -18,6 +18,7 @@ def new_project_document(title: str) -> dict:
         "slides": [],
         "outline": [],
         "annotations": [],
+        "edit_candidates": [],
         "image_generation_ledger": [],
         "styles": {"selected": "清爽藍"},
     }
@@ -102,6 +103,18 @@ def validate_project_document(document: dict) -> None:
                 or any(not isinstance(value, (int, float)) or not 0 <= value <= 1 for value in rect)
                 or rect[0] >= rect[2] or rect[1] >= rect[3]):
             raise ValueError("annotation rect must be a normalized, non-empty rectangle")
+    candidates = document.get("edit_candidates", [])
+    if not isinstance(candidates, list):
+        raise ValueError("edit_candidates must be a list")
+    candidate_ids = [candidate.get("id") for candidate in candidates]
+    if any(not item for item in candidate_ids) or len(candidate_ids) != len(set(candidate_ids)):
+        raise ValueError("each edit candidate needs a unique id")
+    for candidate in candidates:
+        if (candidate.get("slide_id") not in known_slides
+                or candidate.get("element_id") not in element_ids_by_slide[candidate["slide_id"]]
+                or candidate.get("kind") != "text"
+                or candidate.get("status") not in {"candidate", "accepted", "rejected"}):
+            raise ValueError("edit candidate target or state is invalid")
     ledger = document.get("image_generation_ledger", [])
     if not isinstance(ledger, list):
         raise ValueError("image_generation_ledger must be a list")
