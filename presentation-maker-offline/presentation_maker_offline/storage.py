@@ -1,9 +1,30 @@
 from __future__ import annotations
-import json, os, shutil
+import json, os, shutil, sys
 from dataclasses import dataclass
 from pathlib import Path
 
 SAFETY_MARGIN_BYTES = 20 * 1024**3
+
+def available_capacity(location: str | Path) -> int:
+    """Use macOS important-use capacity, including OS-reclaimable space.
+
+    This is an estimate, not a reservation: writes must still handle ENOSPC.
+    Never delete snapshots or user files to realize the estimate.
+    """
+    target = Path(location).resolve()
+    free = shutil.disk_usage(target).free
+    if sys.platform == "darwin":
+        try:
+            from Foundation import NSURL, NSURLVolumeAvailableCapacityForImportantUsageKey
+            values, error = NSURL.fileURLWithPath_(str(target)).resourceValuesForKeys_error_(
+                [NSURLVolumeAvailableCapacityForImportantUsageKey], None)
+            if error is None and values is not None:
+                capacity = values.get(NSURLVolumeAvailableCapacityForImportantUsageKey)
+                if capacity is not None and int(capacity) >= 0:
+                    return max(free, int(capacity))
+        except (ImportError, AttributeError, TypeError, ValueError, OSError):
+            pass
+    return free
 
 @dataclass(frozen=True)
 class StorageConfig:
@@ -21,7 +42,9 @@ class StorageConfig:
         return {"MODEL_HOME": str(self.model_dir), "HF_HOME": str(self.model_dir / "huggingface")}
     def check_space(self, required_bytes: int, location: str | Path | None = None) -> tuple[bool, int]:
         target = Path(location or self.root); target.mkdir(parents=True, exist_ok=True)
-        free = shutil.disk_usage(target).free
+        if required_bytes < 0:
+            raise ValueError("required_bytes must be non-negative")
+        free = available_capacity(target)
         return free >= required_bytes + SAFETY_MARGIN_BYTES, free
     def safe_clear_generation_cache(self) -> int:
         if self.generation_cache in (self.root, self.model_dir): raise ValueError("protected storage root")
