@@ -376,3 +376,20 @@ def test_new_outline_auto_designs_each_page_and_reflows_after_text_edit(studio):
     window._apply_slide_text()
     assert window.document["slides"][1]["content_layout"] == "重點敘述"
     assert window.store.load_document(window.project_id)[1]["slides"][1]["content_layout"] == "重點敘述"
+
+
+def test_revision_restore_creates_new_revision_without_erasing_history(studio):
+    app, window = studio
+    _create_one_slide_project(app, window)
+    original_revision = window.revision
+    assert window.save_project()
+    assert window.revision == original_revision
+    window.slide_heading.setText("更改後標題")
+    window._apply_slide_text()
+    changed_revision = window.revision
+    assert changed_revision > original_revision
+    assert window.restore_project_revision(original_revision)
+    assert window.revision > changed_revision
+    assert window.document["slides"][0]["title"] == "健康生活"
+    assert window.store.load_revision(window.project_id, changed_revision)[1]["slides"][0]["title"] == "更改後標題"
+    assert window.store.revision_parent(window.project_id, window.revision) == original_revision

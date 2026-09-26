@@ -23,6 +23,7 @@ from .export import THEMES, export_project_pptx
 from .layout_design import DEFAULT_LAYOUT, LAYOUT_NAMES, apply_slide_layout, auto_design_slide, fit_body_font, layout_rects, render_text_blocks
 from .manifest import CheckpointManifest
 from .project_document import new_project_document, update_slide_text_element
+from .revision_compare import compare_documents
 from .source_import import import_source, parse_outline_text
 from .source_library import SOURCE_ROLES, add_file_source, add_text_source, append_fragment_to_slide, source_preview
 from .storage import discover_qwen38_mlx, qwen_image21_readiness
@@ -535,6 +536,8 @@ class PresentationStudio(QMainWindow):
         self.editor_title.setPlaceholderText("簡報名稱")
         self.editor_title.textChanged.connect(self._schedule_save)
         self.save_button = self._button("保存")
+        self.history_button = self._button("版本比較／還原…")
+        self.history_button.clicked.connect(self.show_revision_history)
         self.export_button = self._button("匯出 PowerPoint…", primary=True)
         self.output_mode_choice = QComboBox()
         self.output_mode_choice.addItems(["可編輯式 PPTX", "圖像式 PPTX"])
@@ -548,6 +551,7 @@ class PresentationStudio(QMainWindow):
         header.addWidget(self.editor_title, 1)
         header.addWidget(self.generate_all_images_button)
         header.addWidget(self.save_button)
+        header.addWidget(self.history_button)
         header.addWidget(self.output_mode_choice)
         header.addWidget(self.export_button)
         layout.addLayout(header)
@@ -1307,6 +1311,10 @@ class PresentationStudio(QMainWindow):
             return False
         self.document["title"] = self.editor_title.text().strip() or self.document["title"]
         try:
+            current = self.store.load_document(self.project_id)
+            if current and current[0] == self.revision and dict(current[1], revision=0) == dict(self.document, revision=0):
+                self.editor_status.setText("已保存。")
+                return True
             self.revision = self.store.save_document(self.project_id, self.document, expected_revision=self.revision)
             self.editor_status.setText("已保存。")
             return True
@@ -1325,6 +1333,92 @@ class PresentationStudio(QMainWindow):
             return
         self._refresh_recent()
         self.stack.setCurrentWidget(self.home_page)
+
+    def show_revision_history(self) -> None:
+        if not self.document or not self.project_id:
+            return
+        if not self.save_project():
+            return
+        revisions = self.store.list_revisions(self.project_id)
+        if len(revisions) < 2:
+            QMessageBox.information(self, "版本歷史", "目前只有一個版本；修改並保存後即可比較。")
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle("版本比較與還原")
+        dialog.resize(850, 650)
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(QLabel("選擇舊版本，比較與目前版本的逐頁差異。還原會產生新版本，不會刪除現有歷史。"))
+        picker = QComboBox()
+        for revision in revisions:
+            if revision["revision"] < self.revision:
+                picker.addItem(f"版本 {revision['revision']} · {revision['created_at']}", revision["revision"])
+        layout.addWidget(picker)
+        changes_list = QListWidget()
+        layout.addWidget(changes_list, 1)
+        comparison = QPlainTextEdit()
+        comparison.setReadOnly(True)
+        layout.addWidget(comparison, 2)
+        def show_selection(row: int) -> None:
+            if not 0 <= row < len(getattr(dialog, "_changes", [])):
+                return
+            change = dialog._changes[row]
+            comparison.setPlainText(
+                f"修改前｜{change['old_title']}\n{change['old_text']}\n圖片：{', '.join(change['old_images']) or '無'}\n\n"
+                f"修改後｜{change['new_title']}\n{change['new_text']}\n圖片：{', '.join(change['new_images']) or '無'}"
+            )
+        def show_revision(_index: int) -> None:
+            loaded = self.store.load_revision(self.project_id, picker.currentData())
+            changes_list.clear()
+            comparison.clear()
+            dialog._changes = compare_documents(loaded[1], self.document) if loaded else []
+            for change in dialog._changes:
+                changes_list.addItem(f"{change['kind']} · {change['new_title'] or change['old_title']}")
+            if not dialog._changes:
+                comparison.setPlainText("此版本與目前投影片內容相同。")
+            else:
+                changes_list.setCurrentRow(0)
+        picker.currentIndexChanged.connect(show_revision)
+        changes_list.currentRowChanged.connect(show_selection)
+        show_revision(0)
+        buttons = QDialogButtonBox()
+        restore = buttons.addButton("還原所選舊版本", QDialogButtonBox.ButtonRole.ActionRole)
+        close = buttons.addButton("保留目前版本", QDialogButtonBox.ButtonRole.RejectRole)
+        close.clicked.connect(dialog.reject)
+        def restore_revision() -> None:
+            answer = QMessageBox.question(
+                dialog, "確認還原版本",
+                f"將整份簡報還原為版本 {picker.currentData()}，並另存為新版本。確定嗎？",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+            if self.restore_project_revision(picker.currentData()):
+                dialog.accept()
+        restore.clicked.connect(restore_revision)
+        layout.addWidget(buttons)
+        dialog.exec()
+
+    def restore_project_revision(self, target_revision: int) -> bool:
+        if not self.project_id or not self.document or target_revision >= self.revision:
+            return False
+        loaded = self.store.load_revision(self.project_id, target_revision)
+        if not loaded:
+            return False
+        current_revision = self.revision
+        try:
+            restored = deepcopy(loaded[1])
+            self.revision = self.store.save_document(
+                self.project_id, restored, expected_revision=current_revision,
+                parent_revision=target_revision,
+            )
+        except (OSError, RuntimeError, ValueError) as exc:
+            QMessageBox.critical(self, "還原失敗", f"目前版本未被覆寫：{exc}")
+            return False
+        self.document = restored
+        self._show_editor()
+        self.editor_status.setText(f"已由版本 {target_revision} 建立新版本 {self.revision}；舊版本仍可比較。")
+        return True
 
     def _refresh_library_sources(self, selected_id: str | None = None) -> None:
         self.source_list.clear()
