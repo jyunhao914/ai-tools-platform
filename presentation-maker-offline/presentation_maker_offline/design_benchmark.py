@@ -96,13 +96,22 @@ def visual_prompt(source: str, visual_brief: str) -> str:
 
 def run(outline_path: Path, output: Path, model: Path, pages: list[int],
         *, route: str = 'whole-slide', width: int = 1024, height: int = 576,
-        visual_brief: str = '') -> None:
+        visual_brief: str = '', design_brief: str = '', reference_image: Path | None = None) -> None:
     if route not in {'whole-slide', 'visual-layer'}:
         raise ValueError('Unknown benchmark route')
     if width < 16 or height < 16 or width % 16 or height % 16:
         raise ValueError('Dimensions must be positive multiples of 16')
     if route == 'visual-layer' and (not visual_brief.strip() or len(pages) != 1):
         raise ValueError('Visual-layer benchmark needs one page and its reviewed visual brief')
+    reference = None
+    if reference_image is not None:
+        from PIL import Image
+        reference_image = Path(reference_image).resolve(strict=True)
+        with Image.open(reference_image) as image:
+            image.verify()
+        reference = dict(path=str(reference_image),
+                         sha256=hashlib.sha256(reference_image.read_bytes()).hexdigest(),
+                         role='style_reference')
     outline = outline_path.read_text(encoding="utf-8")
     output.mkdir(parents=True, exist_ok=True)
     backend = LocalQwenImageBackend(SimpleNamespace(path=str(model)),
@@ -110,7 +119,18 @@ def run(outline_path: Path, output: Path, model: Path, pages: list[int],
     for page in pages:
         source = page_source(outline, page)
         prompt = build_prompt(source) if route == 'whole-slide' else visual_prompt(source, visual_brief)
+        if design_brief.strip():
+            # Do not silently force the old blue-white palette over a supplied design direction.
+            prompt = prompt.replace('藍白配色。', '').replace(
+                'Warm ivory, deep navy and restrained teal accents; ', '')
+            prompt += '\n指定視覺設計方向（不得改動來源內容）：\n' + design_brief.strip()
+        if reference:
+            prompt += ('\n附圖僅作視覺風格與構圖品質參考，不是內容來源。'
+                       '依本頁內容重新組織資訊與配圖；不要複製參考圖的文字、標誌、數字或主題。'
+                       '仍須遵守本路線的文字要求。')
         signature = hashlib.sha256((str(model) + prompt + f'{width}x{height}/40/{route}').encode()).hexdigest()
+        if reference:
+            signature = hashlib.sha256((signature + reference['sha256']).encode()).hexdigest()
         record_path = output / f"page-{page:02d}.json"
         image_path = output / f"page-{page:02d}.png"
         if record_path.exists():
@@ -126,11 +146,22 @@ def run(outline_path: Path, output: Path, model: Path, pages: list[int],
         record = dict(page=page, signature=signature, prompt=prompt, source=source,
                       model=str(model), width=width, height=height, steps=40,
                       status='running', review='pending', route=route)
+        if design_brief.strip():
+            record['design_brief'] = design_brief.strip()
+        if reference:
+            record['reference_image'] = reference
         record_path.write_text(json.dumps(record, ensure_ascii=False, indent=2))
         start = time.monotonic()
         try:
-            result = backend.generate(prompt, progress_callback=lambda n, total:
-                                      print(f"PAGE {page} STEP {n}/{total}", flush=True))
+            kwargs = dict(progress_callback=lambda n, total:
+                          print(f"PAGE {page} STEP {n}/{total}", flush=True))
+            if reference:
+                if hashlib.sha256(reference_image.read_bytes()).hexdigest() != reference['sha256']:
+                    raise ValueError('Reference image changed before inference')
+                kwargs['edit_image'] = str(reference_image)
+            result = backend.generate(prompt, **kwargs)
+            if reference and hashlib.sha256(reference_image.read_bytes()).hexdigest() != reference['sha256']:
+                raise ValueError('Reference image changed during inference; candidate not accepted')
             shutil.copy2(result['image_path'], image_path)
             record.update(status='generated', image_sha256=hashlib.sha256(image_path.read_bytes()).hexdigest())
         except Exception as exc:
@@ -152,6 +183,9 @@ if __name__ == '__main__':
     parser.add_argument('--width', type=int, default=1024)
     parser.add_argument('--height', type=int, default=576)
     parser.add_argument('--visual-brief', default='')
+    parser.add_argument('--design-brief', default='')
+    parser.add_argument('--reference-image', type=Path)
     args = parser.parse_args()
     run(args.outline, args.output, args.model, args.pages,
-        route=args.route, width=args.width, height=args.height, visual_brief=args.visual_brief)
+        route=args.route, width=args.width, height=args.height, visual_brief=args.visual_brief,
+        design_brief=args.design_brief, reference_image=args.reference_image)

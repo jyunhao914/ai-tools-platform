@@ -72,3 +72,56 @@ def test_resume_checks_candidate_hash(monkeypatch, tmp_path):
         benchmark.record_review(record, accepted=True, notes='Must refuse changed bytes')
     with pytest.raises(RuntimeError):
         benchmark.run(outline, output, tmp_path, [6])
+
+
+def test_reference_conditioning_records_bytes_and_preserves_source(monkeypatch, tmp_path):
+    from PIL import Image
+    import hashlib
+    outline = tmp_path/'outline.md'
+    outline.write_text('# 第17頁｜篩檢\n45至74歲民眾\n每2年補助1次')
+    reference = tmp_path/'reference.png'
+    Image.new('RGB', (32,32), 'red').save(reference)
+    candidate = tmp_path/'candidate.png'
+    Image.new('RGB', (64,64), 'white').save(candidate)
+    calls = []
+    class Backend:
+        def __init__(self, *args, **kwargs): pass
+        def generate(self, prompt, **kwargs):
+            calls.append((prompt, kwargs.get('edit_image')))
+            return {'image_path': str(candidate)}
+    monkeypatch.setattr(benchmark, 'LocalQwenImageBackend', Backend)
+    output = tmp_path/'output'
+    options = dict(design_brief='暖色編輯式資訊圖', reference_image=reference)
+    benchmark.run(outline, output, tmp_path, [17], **options)
+    benchmark.run(outline, output, tmp_path, [17], **options)
+    assert len(calls) == 1
+    prompt, condition = calls[0]
+    assert condition == str(reference.resolve())
+    assert '45至74歲民眾' in prompt and '每2年補助1次' in prompt
+    assert '藍白配色' not in prompt and '暖色編輯式資訊圖' in prompt
+    record = json.loads((output/'page-17.json').read_text())
+    assert record['reference_image']['sha256'] == hashlib.sha256(reference.read_bytes()).hexdigest()
+    assert record['review'] == 'pending'
+    Image.new('RGB', (32,32), 'blue').save(reference)
+    with pytest.raises(RuntimeError):
+        benchmark.run(outline, output, tmp_path, [17], **options)
+    assert len(calls) == 1
+
+
+def test_reference_mutation_during_inference_keeps_failure_evidence(monkeypatch, tmp_path):
+    from PIL import Image
+    outline = tmp_path/'outline.md'
+    outline.write_text('# 第1頁｜封面\n文字')
+    reference = tmp_path/'reference.png'
+    Image.new('RGB', (32,32), 'red').save(reference)
+    class Backend:
+        def __init__(self, *args, **kwargs): pass
+        def generate(self, *args, **kwargs):
+            Image.new('RGB', (32,32), 'blue').save(reference)
+            return {'image_path': str(reference)}
+    monkeypatch.setattr(benchmark, 'LocalQwenImageBackend', Backend)
+    output = tmp_path/'output'
+    with pytest.raises(ValueError, match='changed during'):
+        benchmark.run(outline, output, tmp_path, [1], reference_image=reference)
+    assert not (output/'page-01.png').exists()
+    assert json.loads((output/'page-01.json').read_text())['status'] == 'failed'

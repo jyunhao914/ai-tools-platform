@@ -36,6 +36,17 @@ Local output directory:
 
 ### Outstanding delivery checks
 
+Reference-conditioned benchmark support now accepts `--reference-image` and
+`--design-brief`. The reference is passed as an actual image condition, not merely
+mentioned in the prompt. Its exact bytes participate in the candidate signature;
+changing the reference cannot silently reuse an earlier result. Records retain
+the reference hash, path and style-only role. A supplied design direction removes
+the previously hard-coded palette. Unit tests verify conditioning, unchanged
+source numbers, resumable identical requests, and rejection of a reference changed
+during inference. This is benchmark plumbing only: no new style-reference image
+generation or visual-quality success is claimed by this change. The earlier
+rejected candidates remain intact.
+
 - The current representative typography is functional, not approved as the requested NotebookLM-like visual quality.
 - Complete representative pages 6/17 and the three-route comparison; then validate all 21 designed and illustrated pages.
 - Integrate model-directed composition and reviewed visuals into the normal one-click desktop workflow, with cancellation and recoverable failures.
