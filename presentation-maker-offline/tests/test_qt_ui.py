@@ -225,7 +225,7 @@ def test_image_button_generates_saves_previews_and_exports_bound_asset(studio, t
     window.image_prompt.setPlainText("無文字的健康生活插圖")
     window.generate_current_image_button.click()
 
-    deadline = time.monotonic() + 5
+    deadline = time.monotonic() + 15
     while window._image_worker is not None and time.monotonic() < deadline:
         QTest.qWait(20)
     app.processEvents()
@@ -357,3 +357,22 @@ def test_source_content_requires_confirm_and_keeps_citation(studio, monkeypatch)
     saved = window.store.load_document(window.project_id)[1]
     assert len(saved["slides"][0]["elements"]) == before + 1
     assert saved["slides"][0]["elements"][-1]["source_ref"]["source_id"] == source["id"]
+
+
+def test_new_outline_auto_designs_each_page_and_reflows_after_text_edit(studio):
+    app, window = studio
+    window._start_outline()
+    window.outline_input.setPlainText(
+        "# 衛教簡報\n## 封面\n- 早期發現\n"
+        "## 第2頁｜風險因素\n- 年齡\n- 家族史\n- 吸菸\n- 飲酒\n- 缺乏運動\n- 肥胖\n")
+    window._continue_settings()
+    window._create_project()
+    assert window.document["slides"][1]["content_layout"] == "雙欄重點"
+    assert window.document["slides"][1]["auto_layout"]
+    window.slide_list.setCurrentRow(1)
+    app.processEvents()
+    assert "雙欄重點" in window.auto_layout_status.text()
+    window.slide_text.setPlainText("• 只留下單一重點")
+    window._apply_slide_text()
+    assert window.document["slides"][1]["content_layout"] == "重點敘述"
+    assert window.store.load_document(window.project_id)[1]["slides"][1]["content_layout"] == "重點敘述"

@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 
 from .backends import LocalQwenImageBackend, LocalQwenTextBackend
 from .export import THEMES, export_project_pptx
-from .layout_design import DEFAULT_LAYOUT, LAYOUT_NAMES, apply_slide_layout, fit_body_font, layout_rects, suggest_slide_layout
+from .layout_design import DEFAULT_LAYOUT, LAYOUT_NAMES, apply_slide_layout, auto_design_slide, fit_body_font, layout_rects, render_text_blocks
 from .manifest import CheckpointManifest
 from .project_document import new_project_document, update_slide_text_element
 from .source_import import import_source, parse_outline_text
@@ -170,10 +170,11 @@ class SlidePreview(QGraphicsView):
 
     def set_slide(self, title: str, body: str, number: int, total: int, theme_name: str, *, cover: bool = False,
                   images: list[dict] | None = None, annotations: list[dict] | None = None,
-                  layout_name: str = DEFAULT_LAYOUT):
+                  layout_name: str = DEFAULT_LAYOUT, text_blocks: list[dict] | None = None):
         self._slide = (title, body, number, total, theme_name, cover, layout_name)
         self._images = images or []
         self._annotations = annotations or []
+        self._text_blocks = text_blocks
         self._draw_slide()
 
     def set_mark_mode(self, enabled: bool) -> None:
@@ -198,12 +199,23 @@ class SlidePreview(QGraphicsView):
         title_item.setPos(tx * 1280, ty * 720)
         if not cover:
             self.scene.addRect(80, 126, 1120, 3, QPen(Qt.PenStyle.NoPen), QBrush(QColor("#" + theme["rule"])))
-        bx, by, bw, bh = positions["body"]
-        body_font, _fits = fit_body_font(body, (bx, by, bw, bh), cover=cover)
-        content = self.scene.addText(body, QFont("Arial", body_font))
-        content.setDefaultTextColor(QColor("#" + theme["text"]))
-        content.setTextWidth(bw * 1280)
-        content.setPos(bx * 1280, by * 720)
+        blocks = self._text_blocks if self._text_blocks is not None else [dict(
+            text=body, x=positions["body"][0], y=positions["body"][1],
+            width=positions["body"][2], height=positions["body"][3])]
+        for block in blocks:
+            rect = tuple(float(block.get(key, default)) for key, default in
+                         (("x", .08), ("y", .24), ("width", .84), ("height", .58)))
+            if block.get("card"):
+                self.scene.addRect(QRectF(rect[0] * 1280, rect[1] * 720,
+                                         rect[2] * 1280, rect[3] * 720),
+                                   QPen(QColor("#" + theme["rule"]), 2),
+                                   QBrush(QColor("#" + theme["rule"])))
+                rect = (rect[0] + .018, rect[1] + .024, rect[2] - .036, rect[3] - .048)
+            body_font, _fits = fit_body_font(block.get("text", ""), rect, cover=cover)
+            content = self.scene.addText(block.get("text", ""), QFont("Arial", body_font))
+            content.setDefaultTextColor(QColor("#" + theme["text"]))
+            content.setTextWidth(rect[2] * 1280)
+            content.setPos(rect[0] * 1280, rect[1] * 720)
         for image in self._images:
             pixmap = QPixmap(image["path"])
             if pixmap.isNull():
@@ -329,6 +341,7 @@ def slide_preview_payload(document: dict, index: int, asset_root: str | Path, *,
         "theme_name": document.get("settings", {}).get("style", "清爽藍"),
         "cover": index == 0, "images": images,
         "layout_name": slide.get("layout", DEFAULT_LAYOUT),
+        "text_blocks": render_text_blocks(slide, cover=index == 0),
         "annotations": ([mark for mark in document.get("annotations", [])
                          if mark.get("slide_id") == slide["id"]] if include_annotations else []),
     }
@@ -564,7 +577,14 @@ class PresentationStudio(QMainWindow):
         editor.addWidget(QLabel("頁面標題"))
         self.slide_heading = QLineEdit()
         editor.addWidget(self.slide_heading)
-        editor.addWidget(QLabel("排版設計"))
+        editor.addWidget(QLabel("依本頁內容自動排版"))
+        self.auto_layout_status = QLabel("建立專案時自動設計；修改文字後可重新排版。")
+        self.auto_layout_status.setWordWrap(True)
+        editor.addWidget(self.auto_layout_status)
+        self.auto_layout_button = self._button("依內容重新設計這一頁", primary=True)
+        self.auto_layout_button.clicked.connect(self._auto_design_current_slide)
+        editor.addWidget(self.auto_layout_button)
+        editor.addWidget(QLabel("手動微調（可選）"))
         layout_row = QHBoxLayout()
         self.layout_choice = QComboBox()
         self.layout_choice.setIconSize(QSize(96, 54))
@@ -797,7 +817,7 @@ class PresentationStudio(QMainWindow):
         document["settings"] = {"style": self.style_choice.currentText(), "output_format": self.settings_output_mode.currentText()}
         for index, slide in enumerate(document["slides"]):
             slide["source_id"] = self.parsed["source"]["id"]
-            apply_slide_layout(slide, suggest_slide_layout(slide, index), cover=index == 0)
+            auto_design_slide(slide, index)
         project_id = document["project_id"]
         self.store.create(self.parsed["source"]["path"], project_id=project_id)
         self.revision = self.store.save_document(project_id, document, expected_revision=0)
@@ -839,6 +859,9 @@ class PresentationStudio(QMainWindow):
         slide = self.document["slides"][row]
         self.slide_heading.setText(slide.get("title", ""))
         self.layout_choice.setCurrentText(slide.get("layout", DEFAULT_LAYOUT))
+        self.auto_layout_status.setText(
+            f"自動設計：{slide.get('content_layout', '尚未分析')} · {slide.get('layout', DEFAULT_LAYOUT)}"
+            if slide.get("auto_layout") else "目前為手動微調排版；可按上方按鈕恢復依內容自動設計。")
         text_elements = [element for element in slide.get("elements", []) if element.get("type", "text") == "text"]
         self._text_element_id = text_elements[0]["id"] if text_elements else None
         self.slide_text.setPlainText(text_elements[0].get("text", "") if text_elements else "")
@@ -862,12 +885,16 @@ class PresentationStudio(QMainWindow):
         elif self._text_element_id:
             slide["elements"] = [element for element in slide.get("elements", []) if element.get("id") != self._text_element_id]
             self._text_element_id = None
+        if slide.get("auto_layout"):
+            auto_design_slide(slide, row)
         self.slide_list.item(row).setText(f"{row + 1:02d}　{slide['title']}")
         self._refresh_slide_canvas(row)
         if not self.save_project():
             self.document["slides"][row] = original_slide
             self._select_slide(row)
             self.slide_list.item(row).setText(f"{row + 1:02d}　{original_slide['title']}")
+        elif slide.get("auto_layout"):
+            self.auto_layout_status.setText(f"自動設計：{slide['content_layout']} · {slide['layout']}")
 
     def _apply_current_layout(self) -> None:
         row = self.slide_list.currentRow()
@@ -876,12 +903,27 @@ class PresentationStudio(QMainWindow):
         slide = self.document["slides"][row]
         original_slide = deepcopy(slide)
         apply_slide_layout(slide, self.layout_choice.currentText(), cover=row == 0)
+        slide["auto_layout"] = False
+        slide["content_layout"] = "手動微調"
         if not self.save_project():
             self.document["slides"][row] = original_slide
             self._select_slide(row)
             return
         self._refresh_slide_canvas(row)
         self.editor_status.setText(f"已套用「{slide['layout']}」排版並保存。")
+
+    def _auto_design_current_slide(self) -> None:
+        row = self.slide_list.currentRow()
+        if not self.document or not 0 <= row < len(self.document["slides"]):
+            return
+        slide = self.document["slides"][row]
+        original = deepcopy(slide)
+        kind = auto_design_slide(slide, row)
+        if not self.save_project():
+            self.document["slides"][row] = original
+            return
+        self._select_slide(row)
+        self.editor_status.setText(f"已依本頁內容自動設計為「{kind}」，並保存。")
 
     def _output_mode_changed(self, mode: str) -> None:
         if self.document and mode:
@@ -1094,7 +1136,9 @@ class PresentationStudio(QMainWindow):
                 "x": slot[0], "y": slot[1], "width": slot[2], "height": slot[3],
             }
             slide.setdefault("elements", []).append(element)
-            if layout_name in LAYOUT_NAMES:
+            if slide.get("auto_layout"):
+                auto_design_slide(slide, slide.get("order", 0))
+            elif layout_name in LAYOUT_NAMES:
                 apply_slide_layout(slide, layout_name, cover=slide.get("order") == 0)
             ledger_entry = {
                 "instance_id": instance_id, "slide_id": slide_id, "policy": "GENERATE",
@@ -1413,13 +1457,16 @@ class PresentationStudio(QMainWindow):
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         slide = self.document["slides"][slide_row]
+        original_slide = deepcopy(slide)
         try:
             element = append_fragment_to_slide(slide, source, choices.currentData())
         except ValueError as exc:
             QMessageBox.warning(self, "無法加入", str(exc))
             return
+        if slide.get("auto_layout"):
+            auto_design_slide(slide, slide_row)
         if not self.save_project():
-            slide["elements"].remove(element)
+            self.document["slides"][slide_row] = original_slide
             return
         self._refresh_slide_canvas(slide_row)
         self.editor_status.setText(f"已將「{source['display_name']}」第 {element['source_ref']['page']} 頁內容加入第 {slide_row + 1} 頁，並保存來源關聯。")
@@ -1486,8 +1533,10 @@ class PresentationStudio(QMainWindow):
                 for slide in slides
             ]
             document["settings"] = {"style": "清爽藍", "output_format": "可編輯式 PPTX"}
-            for slide in slides:
+            for index, slide in enumerate(slides):
                 slide["source_id"] = source["id"]
+                if source.get("format") in {"txt", "docx", "pdf"}:
+                    auto_design_slide(slide, index)
             self.store.create(str(Path(path).resolve()), project_id=project_id)
             self.revision = self.store.save_document(project_id, document, expected_revision=0)
             self.project_id, self.document = project_id, document

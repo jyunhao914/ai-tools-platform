@@ -44,16 +44,94 @@ def layout_rects(name: str, *, cover: bool, has_image: bool) -> dict[str, tuple[
 
 
 def suggest_slide_layout(slide: dict, index: int) -> str:
-    """Give new outlines varied layouts while avoiding a shallow text region on dense pages."""
+    """Choose image composition from each page's content, not its position in the deck."""
     if index == 0:
         return "右圖左文"
     body = "\n".join(
         item.get("text", "") for item in slide.get("elements", [])
         if item.get("type", "text") == "text"
     )
-    if len(body) < 100 and index % 4 == 3:
+    lines = [line.strip() for line in body.splitlines() if line.strip()]
+    visual_terms = ("視覺建議", "位置圖", "示意圖", "流程圖", "圖像", "圖示")
+    if len(lines) <= 3 and any(term in body for term in visual_terms):
         return "上圖下文"
-    return "左圖右文" if index % 2 else "右圖左文"
+    if len(lines) >= 6 or len(body) >= 180:
+        return "右圖左文"
+    if "→" in body or "流程" in slide.get("title", ""):
+        return "上圖下文"
+    return "左圖右文" if any(term in slide.get("title", "") for term in ("什麼", "哪裡", "功能", "治療")) else "右圖左文"
+
+
+def content_layout_kind(slide: dict, *, cover: bool = False, has_image: bool = False) -> str:
+    if cover:
+        return "封面主視覺"
+    body = "\n".join(item.get("text", "") for item in slide.get("elements", [])
+                     if item.get("type") == "text")
+    lines = [line.strip() for line in body.splitlines() if line.strip()]
+    if has_image:
+        return "圖文搭配"
+    if sum("迷思：" in line for line in lines) >= 2 and sum("正確觀念：" in line for line in lines) >= 2:
+        return "迷思對照"
+    if any("→" in line for line in lines):
+        return "流程步驟"
+    if len(lines) >= 5:
+        return "雙欄重點"
+    return "重點敘述"
+
+
+def auto_design_slide(slide: dict, index: int) -> str:
+    """Apply a repeatable content-aware layout; manual overrides remain possible."""
+    name = suggest_slide_layout(slide, index)
+    apply_slide_layout(slide, name, cover=index == 0)
+    slide["auto_layout"] = True
+    slide["content_layout"] = content_layout_kind(
+        slide, cover=index == 0,
+        has_image=any(item.get("type") == "image" for item in slide.get("elements", [])),
+    )
+    return slide["content_layout"]
+
+
+def render_text_blocks(slide: dict, *, cover: bool = False) -> list[dict]:
+    """Visual blocks for preview and PPTX; source text in the document stays editable."""
+    texts = [item for item in slide.get("elements", []) if item.get("type") == "text"]
+    if not slide.get("auto_layout") or cover or any(item.get("type") == "image" for item in slide.get("elements", [])):
+        return texts
+    if len(texts) != 1:
+        return texts
+    text = texts[0].get("text", "")
+    lines = [line for line in text.splitlines() if line.strip()]
+    if not lines:
+        return texts
+    kind = content_layout_kind(slide)
+    if kind == "迷思對照":
+        myths = [line for line in lines if "迷思：" in line]
+        facts = [line for line in lines if "正確觀念：" in line]
+        other = [line for line in lines if "迷思：" not in line and "正確觀念：" not in line]
+        if len(myths) == len(facts):
+            return [dict(texts[0], text="\n".join(["常見迷思", *myths, *other]),
+                         x=.08, y=.24, width=.39, height=.60, card=True),
+                    dict(texts[0], text="\n".join(["正確觀念", *facts]),
+                         x=.53, y=.24, width=.39, height=.60, card=True)]
+    if kind == "流程步驟":
+        flow_index = next((index for index, line in enumerate(lines) if "→" in line), None)
+        if flow_index is not None:
+            flow_line = lines[flow_index]
+            steps = [part.strip() for part in flow_line.split("→") if part.strip()]
+            if 2 <= len(steps) <= 5:
+                gap = .018
+                width = (.84 - gap * (len(steps) - 1)) / len(steps)
+                blocks = [dict(texts[0], text=step, x=.08 + i * (width + gap), y=.29,
+                               width=width, height=.27, card=True) for i, step in enumerate(steps)]
+                remaining = [line for index, line in enumerate(lines) if index != flow_index]
+                if remaining:
+                    blocks.append(dict(texts[0], text="\n".join(remaining), x=.08, y=.61,
+                                       width=.84, height=.22))
+                return blocks
+    if kind == "雙欄重點":
+        midpoint = math.ceil(len(lines) / 2)
+        return [dict(texts[0], text="\n".join(lines[:midpoint]), x=.08, y=.24, width=.39, height=.60, card=True),
+                dict(texts[0], text="\n".join(lines[midpoint:]), x=.53, y=.24, width=.39, height=.60, card=True)]
+    return texts
 
 
 def fit_body_font(text: str, rect: tuple[float, float, float, float], *, cover: bool) -> tuple[int, bool]:

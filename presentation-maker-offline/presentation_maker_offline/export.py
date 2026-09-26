@@ -5,7 +5,7 @@ from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Inches, Pt
-from .layout_design import LAYOUT_NAMES, fit_body_font, layout_rects
+from .layout_design import LAYOUT_NAMES, fit_body_font, layout_rects, render_text_blocks
 from .project_document import validate_project_document
 
 
@@ -81,11 +81,21 @@ def export_project_pptx(path: str | Path, document: dict, style: str = "清爽�
             rule.fill.solid()
             rule.fill.fore_color.rgb = _color(theme["rule"])
             rule.line.fill.background()
-        for element in slide_doc.get("elements", []):
+        visual_elements = [item for item in slide_doc.get("elements", []) if item.get("type") == "image"]
+        visual_elements.extend(render_text_blocks(slide_doc, cover=is_cover))
+        for element in visual_elements:
             x = max(0, min(.98, float(element.get("x", .08))))
             y = max(0, min(.95, float(element.get("y", .24))))
             width = max(.02, min(1-x, float(element.get("width", .84))))
             height = max(.02, min(1-y, float(element.get("height", .58))))
+            if element.get("card"):
+                card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
+                                              Inches(x * 13.333), Inches(y * 7.5),
+                                              Inches(width * 13.333), Inches(height * 7.5))
+                card.fill.solid()
+                card.fill.fore_color.rgb = _color(theme["rule"])
+                card.line.fill.background()
+                x, y, width, height = x + .018, y + .024, width - .036, height - .048
             if element.get("type", "text") == "image":
                 relative_path = element.get("asset_path")
                 if not relative_path:
