@@ -19,11 +19,11 @@ import tempfile
 import urllib.request
 import zipfile
 
-VERSION = "0.1.0+codex.20261005074014"
-BASE = "https://github.com/jyunhao914/ai-tools-platform/releases/download/presentation-maker-editable-20261005074014/"
+VERSIONS = {"macos": "0.1.0+codex.20261005074014", "windows": "0.1.0+codex.20261013132602"}
+BASE = "https://github.com/jyunhao914/ai-tools-platform/releases/download/presentation-maker-windows-20261013132602/"
 PACKAGES = {
     "macos": ("Presentation-Maker-macOS.zip", "69bc96e4dec581de7a8d50d00f5b345fa6b19a1721780eea62b4ab191ee09af2"),
-    "windows": ("Presentation-Maker-Windows.zip", "e7f6f25ca5c2b56e8899fc97093f99b9a7007dae7269a1b3daf7e3f9c970decf"),
+    "windows": ("Presentation-Maker-Windows.zip", "0b9efd7e664d364c3a51bee235ad0d2cf7380d381dd53e9f47e9128718c31136"),
 }
 
 def system_key(system=None, machine=None):
@@ -94,6 +94,7 @@ def main():
         raise RuntimeError("Use the desktop app's x64 Python runtime; Windows 11 ARM can run it through emulation.")
     if key == "macos" and int(platform.mac_ver()[0].split(".")[0]) < 14:
         raise RuntimeError("macOS 14 or newer is required by this release.")
+    version = VERSIONS[key]
     filename, digest = PACKAGES[key]
     store = Path.home() / ".presentation-maker" / "installations"
     store.mkdir(parents=True, exist_ok=True)
@@ -107,7 +108,7 @@ def main():
     extract_verified(archive, attempt, digest)
     root = attempt / "ai-presentation-marketplace"
     manifest = json.loads((root / "plugins/ai-presentation-plugin/.codex-plugin/plugin.json").read_text(encoding="utf-8"))
-    if manifest.get("version") != VERSION:
+    if manifest.get("version") != version:
         raise RuntimeError("Unexpected plugin version.")
     if args.prepare_only:
         print("PREPARED ONLY; not installed. " + str(root))
@@ -117,7 +118,7 @@ def main():
                ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(root / "install_windows.ps1")])
     print("[3/4] Installing dependencies and registering plugin...", flush=True)
     subprocess.run(command, env=env, stdin=subprocess.DEVNULL, check=True)
-    receipt = {"version": VERSION, "platform": key, "package_sha256": digest, "installation": str(root), "status": "installer_verified"}
+    receipt = {"version": version, "platform": key, "package_sha256": digest, "installation": str(root), "status": "installer_verified"}
     receipt_path = attempt / "installation-receipt.json"
     receipt_path.write_text(json.dumps(receipt, ensure_ascii=False, indent=2), encoding="utf-8")
     print("[4/4] Installer verified. Open a NEW local task; restart the app if necessary.")
