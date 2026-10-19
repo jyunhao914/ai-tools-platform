@@ -29,3 +29,4 @@ https://jyunhao914.github.io/ai-tools-platform/gpt-slides/
 https://jyunhao914.github.io/ai-tools-platform/tools/certificate/
 https://jyunhao914.github.io/ai-tools-platform/tools/desk-card/
 https://jyunhao914.github.io/ai-tools-platform/tools/name-tag/
+https://jyunhao914.github.io/ai-tools-platform/cards/presentation-studio.html
