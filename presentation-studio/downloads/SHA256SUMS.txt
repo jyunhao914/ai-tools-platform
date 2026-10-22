@@ -1,7 +1,0 @@
-f7bd70b07524c31af3630df5a05afb6e3fb1a37c07d0b3eda0a09d6f0b8a2f44  Presentation-Studio-2026.10.21-190106.zip
-37864868db881df10c565ce55c71ddee1a43c3508e34a4571708007fb6b0a664  Presentation-Studio-plugin-dev-20261019-11.zip
-71860864e8f25629e7b5ceb08a90d0bf44ba48839e0488c1c1a2aec8de39380f  Presentation-Studio-plugin-dev-20261019-12.zip
-cbe291b1626a6e0ed14b2ba84fe0dc1a1f33a4a7936f81285cc2354829256f49  Presentation-Studio-plugin-dev-20261019-13.zip
-ae747894829a71ec4fe54f0e1e050bc4d2067ca3cb617928f25599574ff26c7a  Presentation-Studio-plugin-dev-20261019-14.zip
-680744eeadf90185364a7d89f08b798393f4ae9f2caa6c094e4d53611cefc879  Presentation-Studio-plugin-dev-20261019-16.zip
-0538bb8ebc0c3f0dcdb7325dad4803a10ce85ec54f70172036e2ffc09df6cda7  Presentation-Studio-2026.10.21-210806.zip
