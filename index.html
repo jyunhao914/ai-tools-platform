@@ -1555,7 +1555,8 @@ function renderOneArticleCard(grid,card){
   body.appendChild(ce('div','card-title',esc(card.title)));
   /* excerpt */
   var tmp=document.createElement('div');
-  tmp.innerHTML=card.content||card.desc||'';
+  if(card.excerpt)tmp.textContent=card.excerpt;
+  else tmp.innerHTML=card.content||card.desc||'';
   var excerpt=(tmp.textContent||tmp.innerText||'').substring(0,80);
   body.appendChild(ce('div','card-desc',esc(excerpt)+(excerpt.length>=80?'...':'')));
   var foot=ce('div','card-foot');
@@ -1837,7 +1838,10 @@ function openArticleReader(card){
   }else{
     cover.style.display='none';
   }
-  var _metaParts=[];var _pubDate=card.publishDate?card.publishDate.slice(0,10):'';if(_pubDate)_metaParts.push(_pubDate);$('articleMetaText').textContent=_metaParts.join(' \u30FB ');
+  var _metaParts=[];var _pubDate=card.publishDate?card.publishDate.slice(0,10):'';
+  if(card.previewDate&&/^\d{4}-\d{2}-\d{2}$/.test(card.previewDate))_metaParts.push('候選稿更新：'+card.previewDate,'尚未發布');
+  else if(_pubDate)_metaParts.push(_pubDate);
+  $('articleMetaText').textContent=_metaParts.join(' \u30FB ');
   /* 先用本地內容立即顯示（getData / data.json 快照已含 content），
      GAS 回來內容不同才更新。原本等 getArticle 3~6 秒畫面都是空的，
      script.google.com 被公司/醫院網路擋掉時更是永遠空白。 */
@@ -1846,6 +1850,17 @@ function openArticleReader(card){
     hydrateInlineCopyBtns($('articleContent'));
     /* Lazy load images */
     $('articleContent').querySelectorAll('img').forEach(function(img){img.setAttribute('loading','lazy')});
+    /* Guide section links scroll inside the reader without replacing #article=. */
+    $('articleContent').querySelectorAll('.ps-guide a[data-guide-anchor]').forEach(function(a){
+      a.onclick=function(e){
+        if(e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;
+        var id=a.getAttribute('data-guide-anchor');
+        var target=document.getElementById(id);
+        if(!target||!$('articleContent').contains(target))return;
+        e.preventDefault();
+        target.scrollIntoView({behavior:'smooth',block:'start'});
+      };
+    });
     buildArticleToc();
     updateReadingTime($('articleContent'));
     _articleFontSize=15;
@@ -1878,7 +1893,8 @@ function buildArticleToc(){
   var tocLinks=$('articleTocLinks');
   var toc=$('articleToc');
   tocLinks.innerHTML='';
-  var headings=content.querySelectorAll('h2,h3');
+  var guide=content.querySelector('.ps-guide[data-toc="sections"]');
+  var headings=guide?guide.querySelectorAll('section>h2'):content.querySelectorAll('h2,h3');
   if(headings.length<2){toc.style.display='none';return}
   toc.style.display='';
   headings.forEach(function(h,i){
@@ -1927,6 +1943,12 @@ function checkArticleHash(){
 /* ====== READING TIME ====== */
 function updateReadingTime(contentEl){
   var text=(contentEl.textContent||contentEl.innerText||'');
+  var guide=contentEl.querySelector('.ps-guide');
+  if(guide){
+    var readable=guide.cloneNode(true);
+    readable.querySelectorAll('style,script,template,noscript,[data-reading-exclude]').forEach(function(el){el.remove()});
+    text=readable.textContent||'';
+  }
   var chars=text.replace(/\s/g,'').length;
   var minutes=Math.max(1,Math.round(chars/500));
   var el=$('articleReadTime');
