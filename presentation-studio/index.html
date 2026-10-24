@@ -77,13 +77,23 @@
   </section>
 
   <section id="ps-install">
-    <p class="eyebrow">04 / 安裝與更新</p><h2>先安裝，再從對話呼叫工作室。</h2>
-    <p class="lead">適用於桌面 Codex。安裝後在新對話呼叫 Presentation Studio，再提供主題或檔案即可開始。</p>
+    <p class="eyebrow">04 / 安裝與更新</p><h2>安裝 → 完成設定 → 開始製作。</h2>
+    <p class="lead">先依使用介面完成安裝，再執行一次初次設定。安裝成功、雲端設定完成與表單能否送出，是三個不同的檢查項目。</p>
     <div class="actions"><a class="button" data-release-download href="/ai-tools-platform/presentation-studio/downloads/Presentation-Studio-2026.10.24-t094000.zip" download="Presentation-Studio-2026.10.24-t094000.zip">下載安裝檔 · 2026.10.24-t094000</a></div>
     <p class="note">版本 <strong>2026.10.24-t094000</strong> · 2,317,209 bytes</p><details><summary>安裝檔資訊</summary><p>Presentation-Studio-2026.10.24-t094000.zip</p><p>SHA-256：<code style="overflow-wrap:anywhere">dbfdf5c84e95a3773dff99cb2a1f9ff495920bf8369c2a95b5282fb3364c2823</code></p></details>
     <details open><summary>第一次安裝：桌面 Codex</summary><ol class="install-list"><li>下載本頁安裝檔，解壓後保留完整的 presentation-studio 資料夾。</li><li>在桌面 Codex 開啟包含該資料夾的位置，告訴 Codex：「請依 OpenAI 官方本機外掛流程，將這份 Presentation Studio 加入我的本機外掛來源並安裝，保留現有外掛設定，完成後核對版本。」</li><li>依提示重新開啟 Codex，在外掛目錄選擇剛建立的本機來源；若 Presentation Studio 仍顯示待安裝，選擇安裝並完成介面提示。</li><li>建立新對話，選擇或呼叫 Presentation Studio；確認顯示的版本為 <strong>2026.10.24-t094000</strong>，再提供製作內容。</li></ol><p class="note">安裝設定可交給 Codex 協助，不必自行輸入指令。請保留外掛資料夾；製作簡報時，再把 PDF、PPTX 或圖片加入對話。<a href="https://developers.openai.com/plugins/build/plugins#install-a-local-plugin-manually" target="_blank" rel="noopener noreferrer">官方本機安裝說明</a></p></details>
+    <details open id="ps-setup"><summary>安裝後必做：完成初次設定</summary>
+      <ol class="install-list">
+        <li><strong>開啟設定。</strong>若安裝完成畫面出現「設定 Presentation Studio｜簡報工作室」，按下這個按鈕。若先前選了「稍後再說」，在新對話選取外掛，再輸入下方這句話。</li>
+        <li><strong>確認自己的雲端連接。</strong>需要保存作品與個人風格時，依官方提示連接自己的 Google Drive。已有「我的風格庫」與「製作紀錄」時沿用，不必刪除重建；沒有使用 Drive 時，請先說明要以檔案下載交付。</li>
+        <li><strong>等候設定結果。</strong>確認回覆有說明設定完成與未完成的項目。只有「基本設定完成」不代表手機傳送、風格預覽或簡報製作都已通過測試。</li>
+        <li><strong>開始第一份簡報。</strong>在新對話選取 Presentation Studio，提供主題、大綱或檔案。先確認對象、用途與頁數或時間，再討論內容。</li>
+      </ol>
+      <div class="example"><h3>稍後補做設定，可以這樣說</h3><p>請使用 studio-setup 完成簡報工作室初次設定，沿用已有的風格庫與製作紀錄，並說明哪些功能已確認、哪些仍未完成。</p></div>
+      <p class="note">若你的介面沒有 ZIP 匯入或設定按鈕，請依本頁對應介面的安裝方式操作。<a href="https://learn.chatgpt.com/docs/plugins" target="_blank" rel="noopener noreferrer">官方外掛安裝與連接說明</a></p>
+    </details>
     <details><summary>已安裝過，要更新版本</summary><ol class="install-list"><li>下載新版並解壓，保留原本的作品與風格庫。</li><li>請 Codex 更新目前使用的 Presentation Studio，並核對新版本；避免同時啟用兩份同名外掛。</li><li>重新開啟 Codex，建立新對話使用新版表單。舊對話已顯示的表單不會自動換版。</li></ol><p class="note">更新外掛不需要刪除 Google Drive 中的作品或個人風格。</p></details>
-    <details><summary>ChatGPT Work 與手機 App 的相容性</summary><p>本次操作說明以桌面 Codex 為準。ChatGPT Work 的 ZIP 匯入與手機 App 流程尚未完成本版確認；是否提供安裝入口，依你的帳號與介面而定。</p><p>其他介面的安裝與更新方式，請依該介面的官方說明與提示操作。</p></details>
+    <details><summary>ChatGPT Work 與手機 App 的相容性</summary><p>本次本機安裝步驟以桌面 Codex 為準。若 ChatGPT Work 帳號提供 ZIP 匯入入口，請依該介面提示匯入，再完成上方初次設定。安裝入口依帳號與介面而定。</p><p>目前仍有手機表單可顯示、但無法送出需求的實際失敗紀錄；電腦送出成功不代表手機也能送出。尚未確認全面修復，請勿把「設定完成」當成跨裝置功能已通過驗收。</p></details>
     <details><summary>Google Drive 要在什麼時候連接？</summary><p>需要保存成品、讀取「我的風格庫」或保存新風格時，使用自己的 Google Drive 連接。是否成功保存會依實際結果顯示。</p><p>沒有連接 Drive 或存檔失敗時，仍可取得完成的 PPTX 下載；畫面會清楚說明「未存入 Drive」。</p></details>
   </section>
 
