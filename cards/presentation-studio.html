@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Presentation Studio｜安裝與操作教學</title>
-<meta name="description" content="從主題、大綱、資料與既有簡報開始，先確認內容，再選圖片與風格。">
+<meta name="description" content="主題、大綱、資料與舊簡報，先確認內容再製作。下載 t140000，完成安裝與初次設定。">
 <meta property="og:title" content="Presentation Studio｜安裝與操作教學">
-<meta property="og:description" content="從主題、大綱、資料與既有簡報開始，先確認內容，再選圖片與風格。">
+<meta property="og:description" content="主題、大綱、資料與舊簡報，先確認內容再製作。下載 t140000，完成安裝與初次設定。">
 <meta property="og:image" content="https://jyunhao914.github.io/ai-tools-platform/assets/presentation-studio/cover.svg">
 <meta property="og:type" content="article">
 <style>body{margin:0;background:#f7f7f2}.platform-back{max-width:1120px;margin:auto;padding:20px 5% 0;font:14px/1.5 system-ui,sans-serif}.platform-back a{color:#126b64;text-underline-offset:4px}</style>
@@ -14,96 +14,67 @@
 <body>
 <nav class="platform-back" aria-label="平台導覽"><a href="/ai-tools-platform/#article=presentation-studio">回到 AI 工具資源平台</a></nav>
 <main>
-<link rel="stylesheet" href="/ai-tools-platform/assets/presentation-studio/guide-candidate.css?v=2026.10.24-t203600">
+<link rel="stylesheet" href="/ai-tools-platform/assets/presentation-studio/guide.css?v=2026.10.26-t140000">
 <article class="ps-guide" data-toc="sections">
-
   <header>
     <div class="brand"><img src="/ai-tools-platform/assets/presentation-studio/icon-4f65a3d9.png" alt="" width="42" height="42">Presentation Studio｜簡報工作室</div>
-    <p class="eyebrow">從你的內容開始，逐步確認，再製作。</p>
-    <h1>把想說的內容，<br>變成講得清楚的簡報。</h1>
-    <p class="hero-intro">只有一個主題、已有大綱，或手上有文件與舊簡報，都可以從適合的入口開始。先確認內容，再選擇圖片、文字與風格。</p>
-    <div class="actions"><a class="button" data-release-download href="/ai-tools-platform/presentation-studio/downloads/Presentation-Studio-2026.10.24-t203600.zip" download="Presentation-Studio-2026.10.24-t203600.zip">下載安裝檔 · 2026.10.24-t203600</a><a class="button secondary" href="/ai-tools-platform/presentation-studio/#ps-start" data-guide-anchor="ps-start">看看怎麼開始</a></div>
-    <nav class="subnav" aria-label="教學導覽"><a href="/ai-tools-platform/presentation-studio/#ps-start" data-guide-anchor="ps-start">選擇入口</a><a href="/ai-tools-platform/presentation-studio/#ps-flow" data-guide-anchor="ps-flow">製作流程</a><a href="/ai-tools-platform/presentation-studio/#ps-images" data-guide-anchor="ps-images">圖片與風格</a><a href="/ai-tools-platform/presentation-studio/#ps-install" data-guide-anchor="ps-install">安裝與更新</a><a href="/ai-tools-platform/presentation-studio/#ps-delivery" data-guide-anchor="ps-delivery">下載與保存</a></nav>
+    <p class="eyebrow">免費外掛 · 主題、資料、舊簡報都能開始</p>
+    <h1>先確認內容，<br>再做成你的簡報。</h1>
+    <p class="hero-intro">整理大綱、調整內容，選好圖片與風格後製作 PPTX。</p>
+    <div class="actions"><a class="button" data-release-download href="/ai-tools-platform/presentation-studio/downloads/Presentation-Studio-2026.10.26-t140000.zip" download="Presentation-Studio-2026.10.26-t140000.zip">下載安裝檔 · t140000</a><a class="button secondary" href="/ai-tools-platform/presentation-studio/#ps-install" data-guide-anchor="ps-install">安裝與設定</a></div>
+    <p class="note">2026.10.26 更新：修改後的大綱直接展開，改善修改欄位的輸入焦點。</p>
+    <nav class="subnav" aria-label="教學導覽"><a href="/ai-tools-platform/presentation-studio/#ps-start" data-guide-anchor="ps-start">功能</a><a href="/ai-tools-platform/presentation-studio/#ps-install" data-guide-anchor="ps-install">安裝設定</a><a href="/ai-tools-platform/presentation-studio/#ps-flow" data-guide-anchor="ps-flow">製作流程</a><a href="/ai-tools-platform/presentation-studio/#ps-images" data-guide-anchor="ps-images">圖片與風格</a><a href="/ai-tools-platform/presentation-studio/#ps-delivery" data-guide-anchor="ps-delivery">成品交付</a></nav>
   </header>
 
   <section id="ps-start">
-    <p class="eyebrow">01 / 選擇入口</p><h2>你手上現在有什麼？</h2>
-    <p class="lead">四個製作模式，對應四種起點。若你已說清楚需求，會直接進入對應步驟，沿用已提供的資訊。</p>
-    <fieldset class="mode-switch"><legend class="demo-label">教學示意：選一張卡片，查看接下來的流程</legend>
-      <div class="mode-grid">
-        <label class="mode-card"><input id="mode-topic" type="radio" name="guide-mode" value="TOPIC" checked><span><strong>從主題製作簡報</strong><small>目前只有題目或想法。先決定要對誰說、用在哪裡、講多久。</small></span></label>
-        <label class="mode-card"><input id="mode-outline" type="radio" name="guide-mode" value="OUTLINE"><span><strong>依現成大綱製作簡報</strong><small>已寫好逐頁內容。確認要修改，或直接採用這份大綱。</small></span></label>
-        <label class="mode-card"><input id="mode-material" type="radio" name="guide-mode" value="MATERIAL"><span><strong>把資料整理成簡報</strong><small>從文件、報告、長文或海報，整理出適合簡報的重點。</small></span></label>
-        <label class="mode-card"><input id="mode-redesign" type="radio" name="guide-mode" value="REDESIGN"><span><strong>重製現有簡報</strong><small>已有 PPTX 或投影片型 PDF，想重新設計、精簡或擴充。</small></span></label>
-      </div>
-      <div class="example mode-example example-topic"><h3>例如：想做一份「時間管理」簡報</h3><p>先確認對象、用途，以及目標頁數或講述時間。資訊齊全後才產生大綱，讓你修改與確認。</p></div>
-      <div class="example mode-example example-outline"><h3>例如：貼上已寫好的 6 頁大綱</h3><p>保留這份大綱，詢問要修改或依此製作。確認後進入製作設定，避免把同一份大綱再完整重貼一次。</p></div>
-      <div class="example mode-example example-material"><h3>例如：把一頁研究海報，整理成 5 頁簡報</h3><p>先確認可讀取內容，再了解對象、用途與目標篇幅。文件 PDF、海報或圖片的原稿頁數，不等於成品必須保留的頁數。</p></div>
-      <div class="example mode-example example-redesign"><h3>例如：把 20 頁既有簡報，精簡成 8 頁</h3><p>先辨識檔名、原稿頁數與內容，再選擇保留內容重新設計、縮減或擴增。縮減與擴增先確認調整後的大綱；保留內容則確認保留範圍，也可重新分頁，改變頁數不等於增刪內容。</p></div>
-    </fieldset>
-    <details><summary>只需要還原大綱或分析風格？</summary><div class="two-col"><div class="mini-card"><h3>還原大綱</h3><p>將可讀取的內容整理成逐頁文字大綱，交付大綱即完成。</p></div><div class="mini-card"><h3>分析風格</h3><p>分析配色、字體與版面，交付分析結果；之後可選擇保存風格。</p></div></div><p class="note">這兩項是獨立輔助功能，完成後不會接著要求選擇製作圖片或簡報的設定。</p></details>
-    <p class="note">PDF 會依實際內容區分為資料文件或既有投影片。內容讀取不完整時，會先說明缺少的部分。</p>
-  </section>
-
-  <section id="ps-flow">
-    <p class="eyebrow">02 / 一路都知道下一步</p><h2>內容確認好，再開始製作。</h2>
-    <p class="lead">依來源套用下列步驟，已確認的資訊直接沿用。頁數與時間集中在「製作目標」，原稿頁數與目標頁數分開顯示；例如原稿 2 頁重新排成 3 頁，仍會標示原稿 2 頁、目標 3 頁；修改來源、處理方式或目標篇幅後，會重新確認受影響的內容。</p>
-    <ol class="steps">
-      <li><strong>接收來源</strong><span>辨識主題、大綱、資料或簡報。檔案先確認名稱、頁數與可讀取內容。</span></li>
-      <li><strong>確認基本需求</strong><span>主題與資料先補齊對象、用途、頁數或時間；已提供的資料直接帶入。</span></li>
-      <li><strong>選擇處理方式</strong><span>依來源顯示適用選項；投影片型 PDF 與 PPTX 使用一致的選單規則。</span></li>
-      <li><strong>討論內容</strong><span>確認新大綱、調整後的大綱，或原稿的保留範圍。</span></li>
-      <li><strong>確認製作設定</strong><span>一起確認製作目標、形式、圖片、文字處理與風格。文字可選「保留原文」或「允許潤飾」；潤飾後先確認文字，不自行新增事實。</span></li>
-      <li class="authorization"><strong>確認並開始製作</strong><span>檢查來源與設定摘要，按下「確認並開始製作」才生成成品。</span></li>
-      <li><strong>取得成品</strong><span>提供可用下載與實際保存結果；儲存風格是交付後的選擇性操作。</span></li>
-    </ol>
-  </section>
-
-  <section id="ps-images">
-    <p class="eyebrow">03 / 圖片與風格，各自決定</p><h2>怎麼編輯，跟怎麼用圖，是兩件事。</h2>
-    <div class="two-col"><div class="mini-card"><h3>可編輯式</h3><p>文字與可支援的圖表元件保留編輯能力，方便後續調整。</p></div><div class="mini-card"><h3>圖像式</h3><p>每頁以完整圖片呈現。頁面中的文字無法像原生文字方塊逐字修改。</p></div></div>
-    <div class="image-grid">
-      <div class="image-item"><span class="tag">圖片處理</span><h3>直接沿用原圖</h3><p>使用來源中實際可取得的圖片，保留原本圖像內容。搭配圖像式時，以原圖和已確認的文字組成整頁，不交由 AI 重繪。</p></div>
-      <div class="image-item"><span class="tag">圖片處理</span><h3>超擬真重繪</h3><p>以可取得的原圖為參考重新繪製；圖像式也可使用已擷取的原頁作為重繪參考。</p></div>
-      <div class="image-item"><span class="tag">圖片處理</span><h3>重新生成配圖</h3><p>依本次內容製作新的配圖。</p></div>
-      <div class="image-item"><span class="tag">圖片處理</span><h3>不用圖片</h3><p>不加入照片或插圖；文字與必要的資訊圖表仍可保留。</p></div>
+    <p class="eyebrow">01 / 功能</p><h2>四種起點，兩個輔助功能。</h2>
+    <div class="two-col">
+      <div class="mini-card"><h3>主題製成簡報</h3><p>提供題目，先確認對象、用途與頁數或時間，再規劃大綱。</p></div>
+      <div class="mini-card"><h3>大綱製成簡報</h3><p>沿用逐頁內容，可先修改再製作。</p></div>
+      <div class="mini-card"><h3>資料整理成簡報</h3><p>把文件、PDF、海報或圖片整理成投影片內容。</p></div>
+      <div class="mini-card"><h3>重製現有簡報</h3><p>PPTX 或投影片型 PDF，可保留內容重新設計、縮減或擴增。</p></div>
     </div>
-    <p class="note">只有主題或文字大綱、沒有可用原圖時，提供「不用圖片」與「重新生成配圖」。單憑 PDF 或 PPTX 副檔名，不會假定已取得可重用的原圖。選「圖像式」也不會自動替你選擇生成配圖。</p>
-    <details class="preview-demo"><summary>選擇預設風格：直接點預覽圖</summary><p class="demo-label">教學示意・三種內建風格節錄</p><fieldset><legend>預覽展開在選項下方，點圖片即可選擇。</legend><div class="preview-choices">
-      <label class="preview"><img src="/ai-tools-platform/presentation-studio/styles/thumbs/s01.jpg" alt="明亮暖色風格預覽" width="320" height="180"><span><input id="style-01" type="radio" name="guide-style" checked>01 明亮暖色</span></label>
-      <label class="preview"><img src="/ai-tools-platform/presentation-studio/styles/thumbs/s08.jpg" alt="手繪溫暖風格預覽" width="320" height="180"><span><input id="style-08" type="radio" name="guide-style">08 手繪溫暖</span></label>
-      <label class="preview"><img src="/ai-tools-platform/presentation-studio/styles/thumbs/s10.jpg" alt="日系極簡風格預覽" width="320" height="180"><span><input id="style-10" type="radio" name="guide-style">10 日系極簡</span></label>
-    </div><p class="preview-result"><span class="result-01">已選：01 明亮暖色（示意）</span><span class="result-08">已選：08 手繪溫暖（示意）</span><span class="result-10">已選：10 日系極簡（示意）</span></p></fieldset><p class="note">也可選擇自動、自訂風格，或從已連接的「我的風格庫」選擇。這裡的選擇只影響本頁教學示意，不會建立簡報或保存資料。</p></details>
+    <p class="note"><strong>輔助功能：</strong>還原逐頁文字大綱、分析配色與版面風格；可獨立完成。</p>
   </section>
 
   <section id="ps-install">
-    <p class="eyebrow">04 / 安裝與更新</p><h2>安裝 → 完成設定 → 開始製作。</h2>
-    <p class="lead">先依使用介面完成安裝，再執行一次初次設定。安裝成功、雲端設定完成與表單能否送出，是三個不同的檢查項目。</p>
-    <div class="actions"><a class="button" data-release-download href="/ai-tools-platform/presentation-studio/downloads/Presentation-Studio-2026.10.24-t203600.zip" download="Presentation-Studio-2026.10.24-t203600.zip">下載安裝檔 · 2026.10.24-t203600</a></div>
-    <p class="note">版本 <strong>2026.10.24-t203600</strong> · 2,352,716 bytes</p><details><summary>安裝檔資訊</summary><p>Presentation-Studio-2026.10.24-t203600.zip</p><p>SHA-256：<code style="overflow-wrap:anywhere">76dc72e028412b2352e0f71afa1fee655bba305039132c7377a38901d7afe5d9</code></p></details>
-    <details open><summary>第一次安裝：桌面 Codex</summary><ol class="install-list"><li>下載本頁安裝檔，解壓後保留完整的 presentation-studio 資料夾。</li><li>在桌面 Codex 開啟包含該資料夾的位置，告訴 Codex：「請依 OpenAI 官方本機外掛流程，將這份 Presentation Studio 加入我的本機外掛來源並安裝，保留現有外掛設定，完成後核對版本。」</li><li>依提示重新開啟 Codex，在外掛目錄選擇剛建立的本機來源；若 Presentation Studio 仍顯示待安裝，選擇安裝並完成介面提示。</li><li>建立新對話，選擇或呼叫 Presentation Studio；確認顯示的版本為 <strong>2026.10.24-t203600</strong>，再提供製作內容。</li></ol><p class="note">安裝設定可交給 Codex 協助，不必自行輸入指令。請保留外掛資料夾；製作簡報時，再把 PDF、PPTX 或圖片加入對話。<a href="https://developers.openai.com/plugins/build/plugins#install-a-local-plugin-manually" target="_blank" rel="noopener noreferrer">官方本機安裝說明</a></p></details>
-    <details open id="ps-setup"><summary>安裝後必做：完成初次設定</summary>
-      <ol class="install-list">
-        <li><strong>開啟設定。</strong>若安裝完成畫面出現「設定 Presentation Studio｜簡報工作室」，按下這個按鈕。若先前選了「稍後再說」，在新對話選取外掛，再輸入下方這句話。</li>
-        <li><strong>確認自己的雲端連接。</strong>需要保存作品與個人風格時，依官方提示連接自己的 Google Drive。已有「我的風格庫」與「製作紀錄」時沿用，不必刪除重建；沒有使用 Drive 時，請先說明要以檔案下載交付。</li>
-        <li><strong>等候設定結果。</strong>確認回覆有說明設定完成與未完成的項目。只有「基本設定完成」不代表手機傳送、風格預覽或簡報製作都已通過測試。</li>
-        <li><strong>開始第一份簡報。</strong>在新對話選取 Presentation Studio，提供主題、大綱或檔案。先確認對象、用途與頁數或時間，再討論內容。</li>
-      </ol>
-      <div class="example"><h3>稍後補做設定，可以這樣說</h3><p>請使用 studio-setup 完成簡報工作室初次設定，沿用已有的風格庫與製作紀錄，並說明哪些功能已確認、哪些仍未完成。</p></div>
-      <p class="note">若你的介面沒有 ZIP 匯入或設定按鈕，請依本頁對應介面的安裝方式操作。<a href="https://learn.chatgpt.com/docs/plugins" target="_blank" rel="noopener noreferrer">官方外掛安裝與連接說明</a></p>
-    </details>
-    <details><summary>已安裝過，要更新版本</summary><ol class="install-list"><li>下載新版並解壓，保留原本的作品與風格庫。</li><li>請 Codex 更新目前使用的 Presentation Studio，並核對新版本；避免同時啟用兩份同名外掛。</li><li>重新開啟 Codex，建立新對話使用新版表單。舊對話已顯示的表單不會自動換版。</li></ol><p class="note">更新外掛不需要刪除 Google Drive 中的作品或個人風格。</p></details>
-    <details><summary>ChatGPT Work 與手機 App 的相容性</summary><p>本次本機安裝步驟以桌面 Codex 為準。若 ChatGPT Work 帳號提供 ZIP 匯入入口，請依該介面提示匯入，再完成上方初次設定。安裝入口依帳號與介面而定。</p><p>目前仍有手機表單可顯示、但無法送出需求的實際失敗紀錄；電腦送出成功不代表手機也能送出。尚未確認全面修復，請勿把「設定完成」當成跨裝置功能已通過驗收。</p></details>
-    <details><summary>Google Drive 要在什麼時候連接？</summary><p>需要保存成品、讀取「我的風格庫」或保存新風格時，使用自己的 Google Drive 連接。是否成功保存會依實際結果顯示。</p><p>沒有連接 Drive 或存檔失敗時，仍可取得完成的 PPTX 下載；畫面會清楚說明「未存入 Drive」。</p></details>
+    <p class="eyebrow">02 / 安裝設定</p><h2>下載、安裝，再完成初次設定。</h2>
+    <ol class="install-list">
+      <li><strong>下載 ZIP。</strong>使用本頁的 t140000 安裝檔。</li>
+      <li><strong>安裝或更新。</strong>若帳號提供「匯入外掛／上傳 ZIP」，依介面提示匯入；桌面 Codex 請展開下方安裝說明。</li>
+      <li><strong>開新對話。</strong>輸入 @ 選取 Presentation Studio，先完成初次設定，再提供製作內容。</li>
+    </ol>
+    <div class="example" id="ps-setup"><h3>安裝後，先說這句話</h3><p>請使用 studio-setup 完成簡報工作室初次設定，沿用已有的風格庫與製作紀錄，並說明哪些功能已就緒。</p></div>
+    <p class="note">若出現「設定 Presentation Studio」按鈕，也可直接按下。需要雲端存檔或個人風格時，依提示連接自己的 Google Drive。</p>
+    <details><summary>桌面 Codex 安裝與版本更新</summary><ol class="install-list"><li>解壓 ZIP，保留完整的 presentation-studio 資料夾。</li><li>在 Codex 開啟該位置，輸入：「請依官方本機外掛流程安裝這份 Presentation Studio；已安裝則更新原外掛，保留現有設定，並核對版本為 2026.10.26-t140000。」</li><li>依提示完成安裝或重新開啟 App，再開新對話。既有對話中的舊表單不會自動換版。</li></ol><p class="note">更新不需刪除作品與風格庫。<a href="https://developers.openai.com/plugins/build/plugins#install-a-local-plugin-manually" target="_blank" rel="noopener noreferrer">官方本機安裝說明</a></p></details>
+    <details><summary>相容性與使用條件</summary><p>外掛入口與可用工具依帳號、方案及介面而定；沒有 ZIP 匯入入口時，請使用桌面 Codex 的本機安裝方式。</p><p>t140000 已檢查桌面表單操作與本機 PPTX 輸出；手機及跨帳號完整流程尚未全面驗證。初次設定完成不等於所有功能都已通過實測。</p><p class="note"><a href="https://learn.chatgpt.com/docs/plugins" target="_blank" rel="noopener noreferrer">官方外掛安裝與使用說明</a></p></details>
+  </section>
+
+  <section id="ps-flow">
+    <p class="eyebrow">03 / 製作流程</p><h2>確認需求 → 檢視內容 → 設定與製作</h2>
+    <ol class="steps">
+      <li><strong>確認來源與需求</strong><span>提供主題、大綱或檔案，補齊對象、用途與篇幅；已提供的資訊會沿用。</span></li>
+      <li><strong>檢視與修改內容</strong><span>確認逐頁大綱或保留範圍。修改後顯示新版內容，讓你再次確認。</span></li>
+      <li class="authorization"><strong>選好設定，確認並開始製作</strong><span>選擇形式、圖片、文字與風格，核對摘要後才製作成品。</span></li>
+    </ol>
+    <p class="note">原稿頁數與目標頁數分開顯示；更換來源或篇幅後，會重新確認受影響的內容。檔案讀取不完整時會說明。</p>
+  </section>
+
+  <section id="ps-images">
+    <p class="eyebrow">04 / 圖片與風格</p><h2>編輯方式、圖片和文字，分別選擇。</h2>
+    <div class="two-col"><div class="mini-card"><h3>可編輯式</h3><p>文字與可支援的物件可繼續編輯。</p></div><div class="mini-card"><h3>圖像式</h3><p>每頁為完整圖片，文字無法逐字編輯。</p></div></div>
+    <ul class="checklist"><li><strong>圖片：</strong>不用圖片、沿用原圖、超擬真重繪、重新生成配圖；依來源提供可用選項。</li><li><strong>文字：</strong>保留原文，或允許微調文字。</li><li><strong>風格：</strong>自動、15 款預設、我的風格庫或自訂描述；預覽圖可直接點選。</li></ul>
+    <p class="note"><a href="/ai-tools-platform/presentation-studio/styles/">查看預設風格圖錄</a></p>
   </section>
 
   <section id="ps-delivery">
-    <p class="eyebrow">05 / 交付與接續</p><h2>完成簡報或風格分析，再決定是否收藏風格。</h2>
-    <div class="two-col"><div class="status-box"><h3>下載與保存分開顯示</h3><p>可直接下載實際產出的 PPTX；沒有雲端文件時，也可用檔案完成交付。Drive 保存結果另外顯示，不會把下載成功當成已存入雲端。</p></div><div class="status-box"><h3>喜歡這個風格，再存起來</h3><p>簡報交付或風格分析完成後，可選擇「存入我的風格庫」並修改名稱，也可以選擇「這次不儲存」。只分析風格時不必先製作簡報；儲存完成後才顯示成功。</p></div></div>
-    <details><summary>按下表單按鈕後，應該發生什麼？</summary><p>正常流程會直接提交你選好的設定，接續按鈕所寫的下一步，不要求把設定文字手動複製轉貼。</p><p>傳送失敗時保留已填內容、顯示失敗原因並提供重試。若 App 另顯示傳送確認，依提示完成；未送達時不會顯示已接續。</p></details>
-    <details><summary>想改頁數、來源或內容怎麼辦？</summary><p>直接修改目標或提出新內容。系統會沿用仍有效的資料，重新確認受影響的大綱或保留範圍，再讓你確認製作。</p></details>
+    <p class="eyebrow">05 / 成品交付</p><h2>下載成品，風格可選擇收藏。</h2>
+    <p>完成實際 PPTX 後提供下載；建立 Google Slides 成功時，另提供開啟連結。Drive 保存結果分開顯示，未存入雲端不會標示已保存。</p>
+    <p>交付後可選擇儲存風格或略過。表單若出現傳送確認視窗，按「傳送」即可；傳送失敗時保留已填內容並提供重試。</p>
+    <div class="actions"><a class="button" data-release-download href="/ai-tools-platform/presentation-studio/downloads/Presentation-Studio-2026.10.26-t140000.zip" download="Presentation-Studio-2026.10.26-t140000.zip">下載安裝檔 · t140000</a></div>
+    <details><summary>版本與安裝檔資訊</summary><p>2026.10.26-t140000 · 2,381,069 bytes</p><p>Presentation-Studio-2026.10.26-t140000.zip</p><p>SHA-256：<code style="overflow-wrap:anywhere">33800013c8802c2c639ecc7e1389b9d10787e706724b0584853bc180bb56c62f</code></p></details>
   </section>
-  <footer class="footer" data-reading-exclude>Presentation Studio｜2026.10.24-t203600。適用於桌面 Codex；其他介面請參閱相容性說明。</footer>
+  <footer class="footer" data-reading-exclude>Presentation Studio｜2026.10.26-t140000 · 免費提供，安裝與可用功能請依上方說明確認。</footer>
 </article>
 </main>
 </body>
