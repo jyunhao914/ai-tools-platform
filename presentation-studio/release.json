@@ -1,10 +1,10 @@
 {
   "status": "released",
-  "version": "2026.10.26-t140000",
-  "filename": "Presentation-Studio-2026.10.26-t140000.zip",
-  "sha256": "33800013c8802c2c639ecc7e1389b9d10787e706724b0584853bc180bb56c62f",
-  "bytes": 2381069,
-  "release_date": "2026-10-26",
-  "supported_client": "desktop_codex",
-  "download_url": "/ai-tools-platform/presentation-studio/downloads/Presentation-Studio-2026.10.26-t140000.zip"
+  "version": "0.1.21",
+  "filename": "presentation-studio-text-0.1.21.zip",
+  "sha256": "391c255a5d19fb2d6eb22ba7407091e094ccc985ebfef119d70f5cea2a8dbd20",
+  "bytes": 2058566,
+  "release_date": "2026-11-10",
+  "supported_client": "chatgpt_plugin",
+  "download_url": "/ai-tools-platform/presentation-studio/downloads/presentation-studio-text-0.1.21.zip"
 }
