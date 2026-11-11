@@ -1,10 +1,10 @@
 {
   "status": "released",
-  "version": "0.1.21",
-  "filename": "presentation-studio-text-0.1.21.zip",
-  "sha256": "391c255a5d19fb2d6eb22ba7407091e094ccc985ebfef119d70f5cea2a8dbd20",
-  "bytes": 2058566,
-  "release_date": "2026-11-10",
+  "version": "0.1.25",
+  "filename": "presentation-studio-text-0.1.25.zip",
+  "sha256": "955ae645d3d4ff5a32863baaf1a7fbc2c246bb58d21ba6231732769f61498237",
+  "bytes": 2083398,
+  "release_date": "2026-11-11",
   "supported_client": "chatgpt_plugin",
-  "download_url": "/ai-tools-platform/presentation-studio/downloads/presentation-studio-text-0.1.21.zip"
+  "download_url": "/ai-tools-platform/presentation-studio/downloads/presentation-studio-text-0.1.25.zip"
 }
