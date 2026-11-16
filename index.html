@@ -142,6 +142,7 @@ html.lite .hero-card,html.lite .card{transition:none}
 .hero-badge{display:inline-block;padding:5px 14px;border-radius:99px;font-size:12.5px;font-weight:600;color:var(--accent);background:var(--accent-soft);border:1px solid rgba(99,102,241,0.22);margin-bottom:14px}
 .hero-title{font-size:clamp(27px,3.6vw,42px);font-weight:700;line-height:1.18;margin-bottom:12px;color:#fff;letter-spacing:-0.5px}
 .hero-sub{font-size:clamp(14px,1.6vw,16px);color:var(--text2);max-width:560px;margin:0 auto 26px;white-space:pre-line}
+.hero-sub:empty{display:none}
 .hero-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;width:100%;max-width:1152px;position:relative;z-index:1}
 .hero-card{position:relative;display:flex;flex-direction:column;min-width:0;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:15px 16px 13px;text-align:left;cursor:pointer;overflow:hidden;transition:background .25s,border-color .25s,transform .25s,box-shadow .25s}
 .hero-card::after{content:'';position:absolute;inset:0;border-radius:inherit;background:rgba(99,102,241,0.07);opacity:0;transition:opacity .25s;pointer-events:none}
@@ -673,8 +674,7 @@ html.lite .hero-card,html.lite .card{transition:none}
   <div class="hero-bg" id="heroBg"></div>
   <div class="hero-content">
     <h1 class="hero-title" id="heroTitle">Jyunhao AI工具資源平台</h1>
-    <p class="hero-sub" id="heroSub">為教師、學生、行政與影音製作人員
-整合最新 AI 科技工具，提升每日工作效能</p>
+    <p class="hero-sub" id="heroSub"></p>
   </div>
   <div class="hero-grid" id="heroGrid"></div>
 </section>
@@ -1270,6 +1270,7 @@ function buildHeroGrid(){
   var grid=$('heroGrid');
   grid.innerHTML='';
   PAGES.forEach(function(p,i){
+    if(p==='Gremini GEM'||p==='Chat GPTs')return;
     var meta=HERO_META[i]||{ico:'\uD83D\uDCCC',desc:''};
     var card=ce('div','hero-card');
     var icoHtml=meta.ico&&meta.ico.match(/\.(jpg|jpeg|png|webp|gif)$/i)
@@ -1799,7 +1800,7 @@ function applySiteInfo(){
   var n=document.querySelector('.nav-logo span');
   if(!document.documentElement.dataset.scene){
     if(_settings.site_title&&t)t.textContent=_settings.site_title;
-    if(_settings.site_subtitle&&s)s.textContent=_settings.site_subtitle;
+    if(s)s.textContent=String(_settings.site_subtitle||'').trim();
   }
   if(_settings.site_badge&&b)b.textContent=_settings.site_badge;
   if(_settings.site_footer&&f)f.textContent=_settings.site_footer;
