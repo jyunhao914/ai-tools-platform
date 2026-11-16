@@ -515,14 +515,14 @@
     "seo_og_image": "https://jyunhao914.github.io/ai-tools-platform/assets/og-hero.jpg?v=2",
     "announcement": "",
     "announcement_visible": "false",
-    "site_updated": "2026-11-16T02:32:36.363Z",
+    "site_updated": "2026-11-16T02:43:09.172Z",
     "site_scene": "",
     "home_featured": [
       "",
-      "tool_minicut",
       "1776513173234",
+      "tool_minicut",
+      "presentation-studio",
       "1776533629224",
-      "1774422838992",
       "outline-gpt"
     ]
   },
