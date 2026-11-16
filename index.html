@@ -645,7 +645,7 @@ html.lite .hero-card,html.lite .card{transition:none}
 </div>
 
 <nav class="nav" id="nav">
-  <div class="nav-logo" style="cursor:pointer" onclick="window.scrollTo({top:0,behavior:'smooth'});location.hash='';" title="回到首頁">
+  <div class="nav-logo" style="cursor:pointer" onclick="switchTab('');window.scrollTo({top:0,behavior:'smooth'});" title="回到首頁">
     <img class="nav-logo-icon" src="assets/logo.png" alt="logo">
     <span>Jyunhao AI工具資源平台</span>
   </div>
@@ -680,11 +680,6 @@ html.lite .hero-card,html.lite .card{transition:none}
 </section>
 
 <div id="blocksTop"></div>
-
-<section class="latest" id="latestSection" style="display:none">
-  <h2 class="latest-head">最新上架 <span id="latestSub">最近新增的內容</span></h2>
-  <div class="tools-grid" id="latestGrid"></div>
-</section>
 
 <section class="tools" id="tools">
   <div class="mobile-search-wrap" id="mobileSearchWrap">
@@ -939,7 +934,7 @@ function enableStudentMode(token){
   /* 卡片權限是前端過濾（資料源 repo data.json 已含全部卡片），
      直接重繪即可。舊版會向 GAS 取卡片，但 GAS 那份是遷移前的過期資料，
      一登入就會把整站換成舊內容——已移除。 */
-  renderCards();renderLatest();
+  renderCards();
 }
 
 function disableStudentMode(){
@@ -949,7 +944,7 @@ function disableStudentMode(){
   if(badge)badge.style.display='none';
   var menu=document.getElementById('studentBadgeMenu');
   if(menu)menu.remove();
-  renderCards();renderLatest();
+  renderCards();
 }
 
 function showStudentLogin(){
@@ -1073,73 +1068,66 @@ function buildStars(){
 }
 
 /* ====== NAV TABS ====== */
-/* ====== 最新上架（置頂優先，其餘按新增時間） ====== */
-var LATEST_N=3;
-function cardTime(c){
-  /* id 是建立時的毫秒時間戳（可能帶 _n 後綴）；文章有 publishDate 就以較大者為準 */
-  var t=parseInt(String(c.id||'').split('_')[0].replace(/\D/g,''),10)||0;
-  if(c.publishDate){var p=Date.parse(c.publishDate);if(!isNaN(p)&&p>t)t=p;}
-  return t;
+/* ====== 首頁精選與近期更新 ====== */
+var HOME_CARD_LIMIT=6;
+function cardTime(card){
+  var created=/^(\d{13})(?:_|$)/.exec(String(card.id||''));
+  return Math.max(created?Number(created[1]):0,Date.parse(card.publishDate)||0,
+    Date.parse(card.publishAt)||0,Date.parse(card.updatedAt)||0);
 }
-function renderLatest(){
-  var sec=$('latestSection'),grid=$('latestGrid');
-  if(!sec||!grid)return;
-  sec.style.display='none';return;
-  if(_searchActive){sec.style.display='none';return}
-  /* 只取掛在選單上的分類，才不會撈到未分類的殘留檔案 */
-  var valid={};
+function homeCards(){
+  var valid=new Set();
   NAV.forEach(function(n){
-    valid[n.name]=1;
-    (n.children||[]).forEach(function(k){valid[k]=1});
+    valid.add(n.name);
+    (n.children||[]).forEach(function(child){valid.add(child)});
   });
-  var pool=CARDS.filter(function(c){
-    if(c.visible===false||!schedOk(c))return false;
-    if(!valid[c.page||c.category])return false;
-    var perm=c.permission||'public';
-    if(perm==='student'&&_userRole==='public')return false;
-    if(perm==='admin'&&_userRole!=='admin')return false;
-    return true;
+  var pool=CARDS.filter(function(card){
+    var perm=card.permission||'public';
+    return card.visible!==false&&schedOk(card)&&valid.has(card.page||card.category)
+      &&(perm==='public'||perm==='student'&&_userRole!=='public'||perm==='admin'&&_userRole==='admin');
   });
-  pool.sort(function(a,b){
-    var pa=a.pinned?1:0,pb=b.pinned?1:0;
-    if(pa!==pb)return pb-pa;
-    return cardTime(b)-cardTime(a);
+  var slots=_settings.home_featured;
+  var featured=new Set();
+  var cards=[];
+  (Array.isArray(slots)?slots.slice(0,HOME_CARD_LIMIT):[]).forEach(function(id){
+    var card=pool.find(function(item){return item.id===id});
+    if(card&&!featured.has(id)){cards.push(card);featured.add(id)}
   });
-  var top=pool.slice(0,LATEST_N);
-  if(!top.length){sec.style.display='none';return}
-  grid.innerHTML='';
-  top.forEach(function(card){
-    var type=card.type||'link';
-    if(type==='article')renderOneArticleCard(grid,card);
-    else if(type==='file')renderOneFileCard(grid,card);
+  var recent=pool.filter(function(card){return !featured.has(card.id)})
+    .sort(function(a,b){return cardTime(b)-cardTime(a)});
+  return {cards:cards.concat(recent).slice(0,HOME_CARD_LIMIT),featured:featured};
+}
+function renderHomeCards(grid){
+  $('toolsHead').textContent='精選與近期更新';
+  $('subFilter').style.display='none';
+  var home=homeCards();
+  if(!home.cards.length){
+    grid.appendChild(ce('div','tools-empty','目前沒有可顯示的內容'));
+    return;
+  }
+  home.cards.forEach(function(card){
+    if(card.type==='article')renderOneArticleCard(grid,card);
+    else if(card.type==='file')renderOneFileCard(grid,card);
     else renderOneLinkCard(grid,card);
-    /* 置頂標記 */
-    if(card.pinned){
-      var el=grid.lastElementChild;
-      if(el){var f=ce('span','pin-flag','📌 置頂');el.appendChild(f)}
-    }
+    if(home.featured.has(card.id))grid.lastElementChild.appendChild(ce('span','pin-flag','📌 精選'));
   });
-  var pinned=top.filter(function(c){return c.pinned}).length;
-  var sub=$('latestSub');
-  if(sub)sub.textContent=pinned?('含 '+pinned+' 個置頂項目'):'最近新增的內容';
-  sec.style.display='';
   observeCards();
 }
 
-/* hash 路由：#父分類 或 #父分類/子分類 */
+/* 空白 hash 顯示首頁。分類與文章沿用各自的網址。 */
 function applyHashRoute(){
-  var h=decodeURIComponent(location.hash.replace('#',''));
-  if(h.indexOf('article=')===0){if(PAGES.length&&!_activeTab)_activeTab=PAGES[0];return}
+  var h=decodeURIComponent(location.hash.slice(1));
+  if(h.indexOf('article=')===0)return;
   var parts=h.split('/');
   var top=parts[0],sub=parts[1]||'';
+  _activeTab='';
+  _activeSub='';
   if(top&&PAGES.indexOf(top)>=0){
     _activeTab=top;
-    _activeSub=(sub&&childrenOf(top).indexOf(sub)>=0)?sub:'';
+    if(sub&&childrenOf(top).indexOf(sub)>=0)_activeSub=sub;
   }else if(top&&parentOf(top)){
-    /* 只給子分類名稱也能進去 */
-    _activeTab=parentOf(top);_activeSub=top;
-  }else if(PAGES.length&&!_activeTab){
-    _activeTab=PAGES[0];_activeSub='';
+    _activeTab=parentOf(top);
+    _activeSub=top;
   }
 }
 
@@ -1304,8 +1292,7 @@ function switchTab(tab,sub){
   _activeTab=tab;
   _activeSub=sub||'';
   location.hash=_activeSub?(tab+'/'+_activeSub):tab;
-  var searchInput=$('globalSearch');
-  if(searchInput&&searchInput.value){searchInput.value='';_searchActive=false;var tabs=$('navTabs');if(tabs)tabs.style.display='';}
+  clearSearch();
   buildNavTabs();
   renderCards();
 }
@@ -1406,6 +1393,7 @@ function renderCards(){
   if(_searchActive)return;
   var grid=$('toolsGrid');
   grid.innerHTML='';
+  if(!_activeTab){renderHomeCards(grid);return}
   if(_activeTab==='\u95DC\u65BC\u6211\u5011'){
     renderAboutPage();
     return;
@@ -1821,13 +1809,13 @@ function applySiteInfo(){
 
 /* ====== ARTICLE READER (public) ====== */
 var _currentArticleId=null;
-function openArticleReader(card){
+function openArticleReader(card,fromRoute){
   var overlay=$('articleOverlay');
   _currentArticleId=card.id;
   /* 分享網址用 #article=；不要把路徑改成 /cards/<id>.html——那會把 document.baseURI
      一起帶到 cards/ 底下，之後所有相對路徑（分類圖示、site.json、blocks.js、子頁 data.json）
      都會多一層而 404。分享鈕與 QR 另外自己組 /cards/<id>.html，不受這裡影響。 */
-  history.pushState(null,'',location.pathname.replace(/\/(cards\/[^/]*|index\.html?)?$/,'')+'/'+location.search+'#article='+encodeURIComponent(card.id));
+  if(!fromRoute)history.pushState(null,'',location.pathname.replace(/\/(cards\/[^/]*|index\.html?)?$/,'')+'/'+location.search+'#article='+encodeURIComponent(card.id));
   $('articleTitle').textContent=card.title||'';
   var cover=$('articleCover');
   if(card.coverImage){
@@ -1905,11 +1893,15 @@ function buildArticleToc(){
   };
 }
 
-function closeArticleReader(){
+function hideArticleReader(){
   $('articleOverlay').classList.remove('show');
   document.body.style.overflow='';
   _currentArticleId=null;
-  history.pushState(null,'',location.pathname.replace(/\/(cards\/[^/]*|index\.html?)?$/,'')+'/'+location.search+'#'+encodeURIComponent(_activeTab)+(_activeSub?'/'+encodeURIComponent(_activeSub):''));
+}
+function closeArticleReader(){
+  hideArticleReader();
+  var category=_activeTab?'#'+encodeURIComponent(_activeTab)+(_activeSub?'/'+encodeURIComponent(_activeSub):''):'';
+  history.pushState(null,'',location.pathname.replace(/\/(cards\/[^/]*|index\.html?)?$/,'')+'/'+location.search+category);
 }
 $('articleBack').onclick=closeArticleReader;
 $('articleBackBottom').onclick=closeArticleReader;
@@ -1920,7 +1912,7 @@ function checkArticleHash(){
   if(hash.indexOf('#article=')===0){
     var artId=hash.replace('#article=','');
     var card=CARDS.find(function(c){return c.id===artId});
-    if(card)openArticleReader(card);
+    if(card)openArticleReader(card,true);
   }
 }
 
@@ -2049,6 +2041,12 @@ function loadHubIndex(){
   }).catch(function(){});
 }
 
+function clearSearch(){
+  ['globalSearch','mobileSearch'].forEach(function(id){var input=$(id);if(input)input.value=''});
+  _searchActive=false;
+  $('navTabs').style.display='';
+}
+
 function initSearch(){
   var input=$('globalSearch');
   var mobileInput=$('mobileSearch');
@@ -2063,7 +2061,7 @@ function initSearch(){
       _searchActive=true;
       var tabs=$('navTabs');
       if(tabs)tabs.style.display='none';
-      var ls=$('latestSection');if(ls)ls.style.display='none';
+      $('subFilter').style.display='none';
       var results=CARDS.filter(function(c){
         if(c.visible===false)return false;
         var title=(c.title||'').toLowerCase();
@@ -2094,7 +2092,6 @@ function initSearch(){
       var tabs=$('navTabs');
       if(tabs)tabs.style.display='';
       renderCards();
-      renderLatest();
       observeCards();
     }
   }
@@ -2241,14 +2238,8 @@ function applyFullData(data,adminCards){
     if(data.settings){_settings=data.settings;applyAnnouncement();applySEO();applySiteInfo();}
   }
   mergeAdminExtra(CARDS,adminCards);
-  /* Set active tab if not yet set */
-  if(!_activeTab&&PAGES.length){
-    var hash=decodeURIComponent(location.hash.replace('#',''));
-    if(hash&&PAGES.indexOf(hash)>=0)_activeTab=hash;
-    else if(hash.indexOf('article=')===0)_activeTab=PAGES[0];
-    else{_activeTab=PAGES[0];location.hash=PAGES[0];}
-  }
-  buildNavTabs();buildHeroGrid();renderCards();renderLatest();updateVisit();observeCards();
+  applyHashRoute();
+  buildNavTabs();buildHeroGrid();renderCards();updateVisit();observeCards();
   checkArticleHash();
 }
 
@@ -2299,13 +2290,13 @@ function init(){
       }
       if(d.stats&&!_statsFresh){var _s=d.stats;_statsData=_s.tools||_s;_totalVisits=_s.total||0;_todayVisits=_s.today||0;}
       applyHashRoute();
-      buildNavTabs();buildHeroGrid();renderCards();renderLatest();updateVisit();observeCards();checkArticleHash();
+      buildNavTabs();buildHeroGrid();renderCards();updateVisit();observeCards();checkArticleHash();
       saveCache({cards:CARDS,pages:PAGES,nav:NAV,stats:{total:_totalVisits,today:_todayVisits,tools:_statsData},settings:_settings});
     }).catch(function(){});
   }
   applyHashRoute();
   if(_hasCache){
-    buildNavTabs();buildHeroGrid();renderCards();renderLatest();updateVisit();observeCards();
+    buildNavTabs();buildHeroGrid();renderCards();updateVisit();observeCards();
   }
   /* Resume login state（舊版 GAS 後台已移除，管理一律走 /manage.html） */
   {
@@ -2342,7 +2333,7 @@ function init(){
     var changed=false;
     CARDS.forEach(function(c){if(vmap[c.id]!=null&&vmap[c.id]!==c.views){c.views=vmap[c.id];changed=true}});
     if(data.stats){var _s=data.stats;_statsData=_s.tools||_s;_totalVisits=_s.total||0;_todayVisits=_s.today||0;updateVisit(true);}
-    if(changed&&!_searchActive){renderCards();renderLatest();}
+    if(changed&&!_searchActive){renderCards();}
   });
 
   /* Failsafe: if data never arrives after 20s, show error with reload button */
@@ -2359,9 +2350,14 @@ function init(){
   window.addEventListener('hashchange',function(){
     var h=decodeURIComponent(location.hash.replace('#',''));
     if(h.indexOf('article=')===0){checkArticleHash();return}
+    if(_currentArticleId)hideArticleReader();
     var prevTab=_activeTab,prevSub=_activeSub;
     applyHashRoute();
-    if(_activeTab!==prevTab||_activeSub!==prevSub){buildNavTabs();renderCards();}
+    if(_activeTab!==prevTab||_activeSub!==prevSub){
+      clearSearch();
+      buildNavTabs();
+      renderCards();
+    }
   });
   checkArticleHash();
 }
@@ -2835,10 +2831,7 @@ function renderZone(where,host){
 }
 function activeCats(){
   var h=decodeURIComponent((location.hash||'').replace(/^#/,''));
-  if(!h){
-    var first=(NAVDATA&&NAVDATA[0]&&NAVDATA[0].name)||'';
-    return first?['cat:'+first]:[];
-  }
+  if(!h)return [];
   if(h.indexOf('article=')===0)return [];
   var parts=h.split('/');
   var out=['cat:'+parts[0]];
@@ -2850,6 +2843,7 @@ function renderCatZone(){
   if(!host)return;
   host.innerHTML='';
   var wants=activeCats();
+  host.innerHTML='';
   (MODS||[]).forEach(function(m){
     if(wants.indexOf(m.where||'')<0)return;
     var sec=makeSec(m,true);
