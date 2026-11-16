@@ -1,4 +1,0 @@
-#target illustrator
-$.global.SVG_GRADIENT_REPAIR_TEST_SOURCE = '/Users/jyunhao/Documents/Codex/2026-11-13/new-chat-2/work/illustrator-gradient-repair-test/endoscopy-test.svg';
-$.global.SVG_GRADIENT_REPAIR_QUIET = false;
-$.evalFile(File('/Users/jyunhao/Documents/Codex/2026-11-13/new-chat-2/work/illustrator-gradient-repair/SVG_Gradient_Repair.jsx'));
