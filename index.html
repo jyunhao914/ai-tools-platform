@@ -1098,7 +1098,7 @@ function homeCards(){
   return {cards:cards.concat(recent).slice(0,HOME_CARD_LIMIT),featured:featured};
 }
 function renderHomeCards(grid){
-  $('toolsHead').textContent='精選與近期更新';
+  $('toolsHead').textContent='推薦工具';
   $('subFilter').style.display='none';
   var home=homeCards();
   if(!home.cards.length){
