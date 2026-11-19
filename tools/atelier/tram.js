@@ -69,7 +69,7 @@ function buildWay(p,lot,track,west,east){
 }
 
 function buildCar(p,track){
-  const car=group(p,0,0,track);
+  const car=group(p,0,0,track);car.name="cinema-tram";
   contact(car,0,0,3.42,1.03,.096);
   const wheels=[];
   for(const x of [-.99,.99]){

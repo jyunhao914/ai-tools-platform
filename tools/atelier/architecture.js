@@ -15,7 +15,18 @@ function elevation(face,w,h,material,bay){
   }
   if(!bay){patch(0,0,w,h);return}
   const {x=0,y,bw,bh,art}=bay, left=(w-bw)/2+x,right=left+bw,top=y+bh,depth=bay.depth??.42;
-  patch(0,0,w,y);patch(0,top,w,h);patch(0,y,left,top);patch(right,y,w,top);
+  if(bay.door){
+    const door=bay.door,dl=w/2+door.x-door.w/2,dr=dl+door.w;
+    const xs=[...new Set([0,left,right,dl,dr,w])].sort((a,b)=>a-b);
+    const ys=[...new Set([0,y,top,door.h,h])].sort((a,b)=>a-b);
+    for(let i=1;i<xs.length;i++)for(let j=1;j<ys.length;j++){
+      const mx=(xs[i-1]+xs[i])/2,my=(ys[j-1]+ys[j])/2;
+      if((mx>=left&&mx<=right&&my>=y&&my<=top)||(mx>=dl&&mx<=dr&&my<door.h))continue;
+      patch(xs[i-1],ys[j-1],xs[i],ys[j]);
+    }
+  }else{
+    patch(0,0,w,y);patch(0,top,w,h);patch(0,y,left,top);patch(right,y,w,top);
+  }
   const frame=group(face,x,y+bh/2,0);
   if(bay.index===undefined)panel(frame,art,0,0,-depth,bw+.07,bh+.04);
   else workingRoom(frame,art,bay.index,bw+.07,bh+.04,-depth);

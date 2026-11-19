@@ -22,8 +22,8 @@ function paintGrain(){
   const c=makeCanvas(192,192,(g,w,h)=>{
     g.fillStyle='#fffcf5';g.fillRect(0,0,w,h);
     const wash=g.createLinearGradient(0,0,w,h);wash.addColorStop(0,'#b6bac021');wash.addColorStop(.4,'#ffffff00');wash.addColorStop(1,'#8e948820');g.fillStyle=wash;g.fillRect(0,0,w,h);
-    drawNoise(g,w,h,8000,.19);g.fillStyle='#c4b8a749';g.fillRect(0,h-3,w,3);g.fillStyle='#fffbee';g.fillRect(2,1,w-4,1);
-    for(let i=0;i<50;i++){g.fillStyle=i%2?'#9e978822':'#fff7de66';g.fillRect(rand()*w,rand()*h,1+rand()*4,1)}
+    drawNoise(g,w,h,7500,.045);g.fillStyle='#c4b8a721';g.fillRect(0,h-3,w,3);g.fillStyle='#fffbee';g.fillRect(2,1,w-4,1);
+    for(let i=0;i<50;i++){g.fillStyle=i%2?'#9e978816':'#fff7de28';g.fillRect(rand()*w,rand()*h,1+rand()*4,1)}
   });
   pigment=canvasMap(c);return pigment;
 }

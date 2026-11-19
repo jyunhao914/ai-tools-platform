@@ -4,16 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>互動式 3D 微縮街區</title>
+  <title>映光街區・互動城鎮</title>
   <style>
     html,body,#scene{width:100%;height:100%;margin:0;overflow:hidden;background:transparent}
-    canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab;filter:saturate(1.10)}
-    canvas:active{cursor:grabbing}
-    canvas:focus-visible{outline:3px solid #c66442;outline-offset:-4px}
+    canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+    canvas:active{cursor:grabbing}canvas:focus-visible{outline:2px solid #f4c891;outline-offset:-3px}
   </style>
 </head>
 <body>
   <div id="scene"></div>
-  <script type="module" src="world.js"></script>
+  <script type="importmap">{"imports": {"./architecture.js": "./architecture.js?v=tw-street-1", "./atmosphere.js": "./atmosphere.js?v=tw-street-1", "./block.js": "./block.js?v=tw-street-1", "./craft.js": "./craft.js?v=tw-street-1", "./interiors.js": "./interiors.js?v=tw-street-1", "./street.js": "./street.js?v=tw-street-1", "./streets.js": "./streets.js?v=tw-street-1", "./taiwan-life.js": "./taiwan-life.js?v=tw-street-1", "./town.js": "./town.js?v=tw-street-1", "./tram.js": "./tram.js?v=tw-street-1"}}</script>
+  <script type="module">import('./world.js?v=tw-street-1').catch(e=>{console.error(e);parent.postMessage({channel:'atelier',type:'unavailable'},location.origin);});</script>
 </body>
 </html>

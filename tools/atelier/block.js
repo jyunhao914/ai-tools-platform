@@ -1,5 +1,6 @@
 import {T,palette as P,group,box,oval,cyl,rod,beam,tube,panel,plate,label,contact,animate,painted,makeCanvas} from './craft.js';
 import {shell,gable,railing,awning,sconce,blade,pipes,airUnit,skylight,tank,stairs,planter,ivy,spray} from './architecture.js';
+import {studioRoom, doorState} from './interiors.js';
 import {roofTile,zinc,tiled,lessonScreen} from './surfaces.js';
 import {projector,cameraSlider,softbox,press,server,brushArm} from './equipment.js';
 import {addTramLine} from './tram.js';
@@ -22,10 +23,8 @@ function cat(p,x,y,z){
   const tail=group(g,-.17,.09,-.02);tube(tail,P.wood,[[0,0,0],[-.10,.026,-.045],[-.17,.045,.038],[-.12,.067,.091]],.036);
   animate(tail,t=>tail.rotation.y=.3*Math.sin(t*1.1));return g;
 }
-function foldingDoors(p,art) {
+function foldingDoors(p) {
   const g=group(p,0,.08,.058);
-  box(g,P.walnut,0,.86,.02,1.66,1.77,.09);
-  panel(g,art,0,.86,.076,1.51,1.58,[.17,.12,.86,.87]);
   box(g,P.wood,0,1.73,.135,1.78,.125,.20);
   for(const side of [-1,1])box(g,P.walnut,side*.80,.86,.13,.13,1.73,.18);
   function ramp(t,a,b){const u=Math.max(0,Math.min(1,(t-a)/(b-a)));return u*u*(3-2*u)}
@@ -43,7 +42,7 @@ function foldingDoors(p,art) {
     for(const yy of [.30,1.35])cyl(leaf,P.brass,0,yy,.037,.028,.028,.13,12);
     animate(leaf,t=>{const u=t%18;
       const opening=ramp(u,4.10,5.23)-ramp(u,7.48,8.40)+ramp(u,10.17,11.15)-ramp(u,13.35,14.3);
-      leaf.rotation.y=side*1.28*opening;
+      leaf.rotation.y=side*1.40*Math.max(opening,doorState.film);
     });
   }
   box(g,'#bcb295',0,-.018,.19,1.85,.080,.41);
@@ -57,7 +56,8 @@ function verticalType(p,x,y,z,words) {
 }
 function filmingHouse(p,a,screen) {
   const g=group(p,.37,.20,1.04),w=4.11,d=2.68,h=4.49;
-  const f=shell(g,w,d,h,{front:a.wall0,right:a.wall0,back:a.wall3,left:a.wall2},{front:{bw:3.05,bh:1.58,y:2.61,index:1,art:a.room1,depth:.38}});
+  const f=shell(g,w,d,h,{front:a.wall0,right:a.wall0,back:a.wall3,left:a.wall2},{front:{bw:3.05,bh:1.58,y:2.61,index:1,art:a.room1,depth:.38,door:{x:0,w:1.47,h:1.83}}});
+  studioRoom(g,'film',w,d,a);
   // Continuous stepped cornices and ceramic piers tie the cinema elevations together.
   for(const [level,depth,col] of [[.28,.06,'#71877b'],[2.22,.10,'#b3a78c'],[4.53,.15,P.cream],[4.65,.07,P.jade]]){
     box(g,col,0,level,0,w+depth,.085,d+depth);
@@ -75,7 +75,7 @@ function filmingHouse(p,a,screen) {
   label(f.front,'AI 工具資源平台',0,2.225,.65,3.91,.43,'#254e49','#fff0ca',{size:.89});
   ledStrip(f.front,0,2.00,.653,3.76,20);
   for(let end of [-1,1])for(let j=0;j<3;j++)box(f.front,P.brass,end*(1.92-j*.048),2.236,.661,.017,.204+j*.044,.027);
-  foldingDoors(f.front,a.room2);
+  foldingDoors(f.front);
   posterBox(f.front,-1.59,1.15,.075,.43,.73,a.room2,'手部圖解');
   posterBox(f.front,1.58,1.14,.075,.44,.73,a.room1,'今日錄影');
   cameraSlider(f.front,-.93,2.82,.16);softbox(f.front,1.27,2.76,-.08);
@@ -100,7 +100,11 @@ function filmingHouse(p,a,screen) {
 }
 function printShop(p,a) {
   const g=group(p,-3.30,.20,.91,.025),w=2.65,d=2.88,h=3.22;
-  const f=shell(g,w,d,h,{front:a.wall1,right:a.wall3,back:a.wall1,left:a.wall3},{front:{bw:2.11,bh:1.14,y:.53,index:2,art:a.room2,depth:.30}});
+  const f=shell(g,w,d,h,{front:a.wall1,right:a.wall3,back:a.wall1,left:a.wall3},{front:{x:-.53,bw:1.25,bh:1.14,y:.53,index:2,art:a.room2,depth:.21,door:{x:.76,w:.87,h:1.68}}});
+  const door=group(f.front,.76,.02,.061);
+  for(const side of [-1,1])box(door,P.walnut,side*.46,.84,0,.055,1.67,.10);
+  box(door,P.wood,0,1.69,0,.99,.075,.12);
+  studioRoom(g,'print',w,d,a);
   gable(g,w,d,3.36,.68);awning(f.front,0,1.90,0,2.74,.43);
   box(f.front,P.walnut,0,2.01,.05,2.66,.18,.13);
   verticalType(f.front,-1.35,2.55,.29,'圖像設計');

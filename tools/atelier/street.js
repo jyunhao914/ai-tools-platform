@@ -7,20 +7,32 @@ function garment(p,material,profile,x,y,z,squish){
   const verts=profile.map(([r,h])=>new T.Vector2(r,h));const m=mesh(p,new T.LatheGeometry(verts,16),material,x,y,z);m.scale.z=squish;return m;
 }
 export function person(p,x,y,z,yaw,coat,action='stand') {
-  const root=group(p,x,y,z,yaw), hips=group(root,0,.385,0),skin='#dbaa84',hair='#3a3634',denim='#414e58';
-  const body=group(hips,0,.015,0);
-  garment(body,coat,[[.136,0],[.16,.045],[.136,.15],[.157,.255],[.139,.285],[.070,.314]],0,0,0,.67);
-  cyl(body,skin,0,.32,0,.057,.063,.095);
-  const head=group(body,0,.444,0);
-  oval(head,skin,0,0,0,.104,.134,.093);
-  for(const s of [-1,1]){
-    oval(head,skin,s*.098,-.009,0,.021,.034,.017);
-    oval(head,hair,s*.040,.012,.083,.010,.008,.006);
-    rod(head,hair,[s*.025,.036,.083],[s*.061,.041,.076],.006);
+  const root=group(p,x,y,z,yaw),hips=group(root,0,.391,0),body=group(hips,0,.012,0);
+  const variant=[...coat].reduce((sum,c)=>sum+c.charCodeAt(0),0)%5;
+  const skin=['#c88e6b','#d5a181','#b78060','#dfb391','#cc9876'][variant],hair=['#312c2b','#423733','#302e2d','#57514a','#292a29'][variant];
+  const denim=['#4b5359','#535757','#414b51','#655b50','#42474d'][variant];
+  garment(body,coat,[[.125,0],[.143,.030],[.132,.13],[.153,.239],[.143,.271],[.078,.298]],0,0,0,.68);
+  for(const side of [-1,1]){
+    const collar=box(body,coat,side*.035,.281,.056,.068,.057,.024,true);collar.rotation.z=side*.52;
   }
-  oval(head,skin,0,-.013,.092,.018,.019,.022);
-  oval(head,hair,0,.062,-.011,.110,.085,.095);
-  oval(head,hair,-.053,.041,.051,.053,.061,.041).rotation.z=-.63;
+  cyl(body,skin,0,.31,-.002,.050,.058,.09);
+  const head=group(body,0,.432,.004);
+  garment(head,skin,[[.033,-.117],[.062,-.101],[.082,-.071],[.093,-.028],[.099,.026],[.096,.061],[.079,.087],[.040,.103]],0,0,0,.89);
+  for(const side of [-1,1]){
+    oval(head,skin,side*.093,-.010,-.004,.015,.028,.014);
+    oval(head,'#bf906e',side*.032,-.006,.078,.019,.007,.007);
+    oval(head,hair,side*.036,.000,.083,.009,.006,.005);
+    rod(head,hair,[side*.023,.024,.082],[side*.057,.030,.071],.005);
+  }
+  oval(head,skin,0,-.013,.081,.016,.029,.018);
+  oval(head,skin,0,-.031,.089,.018,.012,.013);
+  oval(head,'#9e695b',0,-.061,.074,.026,.004,.006);
+  oval(head,hair,0,.056,-.015,.102,.063,.088);
+  oval(head,hair,0,.012,-.053,.099,.083,.055);
+  for(let j=0;j<5;j++){
+    const xx=(j-2)*.030,lock=oval(head,hair,xx,.047+Math.abs(xx)*.23,.049,.032,.032+.012*(j%2),.027);lock.rotation.z=.58;
+  }
+  if(variant===1||variant===4){oval(head,hair,0,-.013,-.089,.055,.058,.047);oval(head,hair,.013,-.072,-.094,.036,.056,.032);}
   if(action==='cook'){
     cyl(head,P.paper,0,.123,0,.112,.108,.075);oval(head,P.paper,0,.168,0,.132,.067,.114);
     box(body,'#e2d8bd',0,.125,.103,.21,.27,.026,true);
@@ -30,20 +42,27 @@ export function person(p,x,y,z,yaw,coat,action='stand') {
     const strap=box(body,P.walnut,0,.16,.108,.027,.31,.022);strap.rotation.z=-.50;
     box(body,action==='read'?P.wood:P.jade,.116,.045,.04,.11,.14,.12,true);
   }
-  let arms=[],legs=[];
+  let arms=[],legs=[],shins=[],elbows=[];
   for(const s of [-1,1]){
     const arm=group(body,s*.138,.247,0);arms.push(arm);
     const forward=action==='cook'?(s===1?.17:.055):action==='cycle'?.15:action==='read'?.12:.022;
     const elbow=[s*.039,-.129,forward*.31],hand=[s*.028,-.19,forward];
-    rod(arm,coat,[0,0,0],elbow,.056,.063,12);rod(arm,skin,elbow,hand,.032,.044,12);oval(arm,skin,...hand,.037,.047,.035);
+    rod(arm,coat,[0,0,0],elbow,.048,.059,12);
+    const fore=group(arm,...elbow),tip=hand.map((v,i)=>v-elbow[i]);elbows.push(fore);
+    rod(fore,skin,[0,0,0],tip,.026,.039,12);oval(fore,skin,...tip,.029,.040,.024);
+    oval(fore,skin,tip[0]-s*.020,tip[1]+.008,tip[2]+.01,.014,.021,.012);
     const knee=group(hips,s*.073,0,0);legs.push(knee);
     const bent=action==='cycle'?.14:.027;
     rod(knee,denim,[0,.035,0],[0,-.169,bent],.057,.072,12);
-    rod(knee,denim,[0,-.166,bent],[0,-.31,action==='cycle'?-.035:0],.041,.056,12);
-    oval(knee,P.walnut,0,-.327,.038,.059,.043,.096);
+    const shin=group(knee,0,-.166,bent);shins.push(shin);
+    rod(shin,denim,[0,0,0],[0,-.147,(action==='cycle'?-.035:0)-bent],.035,.052,12);
+    const foot=group(shin,0,-.169,(action==='cycle'?-.035:0)-bent);
+    oval(foot,variant%2?'#5d5048':'#6a6d67',0,0,.025,.052,.040,.085);
+    oval(foot,'#3e413d',0,-.026,.026,.055,.015,.087);
+    box(foot,'#b2aba0',0,.021,.067,.046,.008,.020,true);
   }
   if(action==='read'){const book=box(body,P.clay,0,.095,.168,.233,.14,.018);book.rotation.x=-.52}
-  return {root,hips,body,head,arms,legs};
+  return {root,hips,body,head,arms,legs,shins,elbows};
 }
 export function ground(p){
   const {x,z,width,depth,roadWidth}=lot;
