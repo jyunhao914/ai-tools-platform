@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>互動式 3D 微縮街區</title>
+  <style>
+    html,body,#scene{width:100%;height:100%;margin:0;overflow:hidden;background:transparent}
+    canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab;filter:saturate(1.10)}
+    canvas:active{cursor:grabbing}
+    canvas:focus-visible{outline:3px solid #c66442;outline-offset:-4px}
+  </style>
+</head>
+<body>
+  <div id="scene"></div>
+  <script type="module" src="world.js"></script>
+</body>
+</html>
