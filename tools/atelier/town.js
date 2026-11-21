@@ -3,6 +3,7 @@ import {T, palette as P, group, box, panel, mesh, cyl, rod, tube, label, painted
 import {roofTile, zinc, cloth} from './surfaces.js';
 import {person} from './street.js';
 import {air} from './atmosphere.js';
+import {neighborhood} from './neighborhood.js';
 import {taiwanStreet} from './taiwan-life.js';
 
 const facades=['#d7ad8c','#d9cdb0','#b8c5b7','#d6b4a5','#b7bec0'];
@@ -42,7 +43,7 @@ function hillRing(p,radius,base,height,color,phase){
 }
 function skyline(scene){
   scene.fog=new T.Fog('#dfdfc9',23,84);
-  return [hillRing(scene,78,2.1,13.5,'#b8cbcd',.32),hillRing(scene,65,.2,8.5,'#a4bcb1',2)];
+  return [hillRing(scene,141,2.1,13.5,'#b8cbcd',.32),hillRing(scene,126,.2,8.5,'#a4bcb1',2)];
 }
 function roof(p,w,d,y,peak,material){
   const half=d/2+.17,run=Math.hypot(half,peak);
@@ -138,7 +139,7 @@ function streetLight(p,x,z){
   cyl(p,lampGlow,x+.43,2.79,z,.147,.076,.10,10);
 }
 function clockTower(p){
-  const g=group(p,19,.10,1.10);box(g,'#b98a67',0,3.2,0,1.66,6.4,1.65);
+  const g=group(p,19,.10,-3.66);box(g,'#b98a67',0,3.2,0,1.66,6.4,1.65);
   for(let f=0;f<4;f++){
     const face=group(g,0,0,0,f*Math.PI/2);
     box(face,P.cream,0,5.49,.839,1.46,1.49,.09);
@@ -175,15 +176,15 @@ export function buildTown(scene,art){
   asphalt.map.wrapS=asphalt.map.wrapT=T.RepeatWrapping;
   paving(town,0,0,220,220,asphalt,-.01);
   const rows=[
-    {z:.70,angle:0,x:[-27,-23.6,-19.8,-15.9,-12.4,8.8,12.4,16.1,22.4,26.1]},
-    {z:10.6,angle:Math.PI,x:[-26,-22.3,-18.5,-14.7,-10.8,-6.8,-3.2,.65,4.55,10.4,14.3,18.1,22,25.8]},
+    {z:.70,angle:0,x:[-27,-23.6,-19.8,-15.9,-12.4,26.1]},
+    {z:10.6,angle:Math.PI,x:[-26,-22.3,-18.5,-14.7,-10.8,-6.8,-3.2,.65,4.55,22,25.8]},
     {z:-11.7,angle:0,x:[-24,-20,-16,-12,-7.9,-3.8,.4,4.4,8.4,12.5,16.6,20.7,24.8]},
     {z:20.0,angle:Math.PI,x:[-24,-19.7,-15.4,-11,-6.7,-2.5,1.8,6.1,10.4,14.7,19,23]},
     {z:-20.2,angle:0,x:[-22,-17.8,-13.5,-9.2,-4.9,-.6,3.7,8,12.3,16.6,20.9]}
   ];
   for(const [j,row] of rows.entries()){
     const buildings=group(scene);
-    row.x.forEach((x,i)=>dwelling(buildings,art,x,row.z+(i%3-.6)*.16,row.angle,i+j*7,j<2));
+    row.x.forEach((x,i)=>{if(j<2&&x<=-9)return;dwelling(buildings,art,x,row.z+(i%3-.6)*.16,row.angle,i+j*7,j<2);});
     batch(buildings);
   }
   for(const side of [-1,1]){
@@ -197,7 +198,7 @@ export function buildTown(scene,art){
     batch(end);
     paving(town,side*30.3,.3,3.65,47,tile,.112);
   }
-  for(const [x,z,w,d] of [[0,9.9,57,4.75],[-19,.45,19,5.05],[18,.45,23,5.05],[0,-12,57,4.8],[0,20,57,4.7],[0,-20.2,55,4.4]]){
+  for(const [x,z,w,d] of [[0,9.9,57,4.75],[-19,.45,19,5.05],[18.56,.45,20.16,5.05],[0,-12,57,4.8],[0,20,57,4.7],[0,-20.2,55,4.4]]){
     box(town,'#b3a891',x,.037,z,w,.16,d);paving(town,x,z,w-.05,d-.06,tile,.123);
   }
   for(const x of [-24,-15.8,8.2,16.1,23.7]){
@@ -210,6 +211,6 @@ export function buildTown(scene,art){
     for(let j=0;j<2;j++)tube(town,'#4f5652',[[x-.12*j,4.02-j*.1,2.8],[x-.12*j,3.69-j*.10,5.5],[x-.12*j,4.02-j*.1,8.25]],.012);
   }
   clockTower(town);boulevardLife(town);
-  taiwanStreet(town);batch(town);
+  taiwanStreet(town);neighborhood(town,art);batch(town);
   return {hills,road:asphalt,lamps:lampGlow,windows:Object.entries(art).filter(([name])=>!name.startsWith('wall')).map(([,m],i)=>[m,i%2])};
 }

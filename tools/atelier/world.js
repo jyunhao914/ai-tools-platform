@@ -1,8 +1,14 @@
 import {T,batch,movement,group} from './craft.js';
 import {loadArt} from './surfaces.js';
 import {buildDistrict} from './block.js';
+import {promenade} from './promenade.js';
+import {buildCity} from './city.js';
+import {buildLane,wetLane} from './lane.js';
 import {buildTown} from './town.js';
 import {streetVisit} from './streets.js';
+import {paintNotes} from './wall.js';
+import {studioLight} from './interiors.js';
+import {wallUI} from './wall-ui.js';
 import {atmosphere} from './atmosphere.js';
 
 const stage=document.querySelector('#scene');
@@ -17,7 +23,7 @@ async function start(){
   const nativeRatio=Math.min(devicePixelRatio,1.60);
   renderer.setPixelRatio(nativeRatio);
   renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.shadowMap.autoUpdate=false;
-  const scene=new T.Scene(),camera=new T.PerspectiveCamera(60,1,.035,124);
+  const scene=new T.Scene(),camera=new T.PerspectiveCamera(60,1,.035,220);
   const canvas=renderer.domElement;canvas.tabIndex=0;canvas.setAttribute('aria-label','城鎮街景，拖曳環顧，WASD 或方向鍵移動。點選店面可入內，Esc 返回街道。');
   stage.append(canvas);
   const hemi=new T.HemisphereLight(0xfff3de,0xb6b6a8,1.72);scene.add(hemi);
@@ -28,8 +34,15 @@ async function start(){
   const art=await loadArt();
   const district=group(scene);buildDistrict(district,art);batch(district);
   const town=buildTown(scene,art);
+  const lane=buildLane(scene),fest=promenade(scene),reflect=wetLane(scene,lane,fest);buildCity(scene);
   const sky=atmosphere(scene,camera,sun,hemi,bounce,town,report);
-  const visit=streetVisit(camera,canvas,report,reduced,district.getObjectByName('cinema-tram'));
+  const notes=wallUI(paintNotes,()=>{report('wallClosed');canvas.focus({preventScroll:true});});
+  function openWall(){if(visit.mode==='film'){visit.step(0);notes.open();report('wallOpen');}}
+  const visit=streetVisit(camera,canvas,(type,details)=>{
+    if(type==='openWall'){openWall();return;}
+    if(type==='place'){studioLight.visible=details.place==='film';if(studioLight.visible)notes.load();}
+    report(type,details);
+  },reduced,district.getObjectByName('cinema-tram'));
   let lastFrame=null,elapsed=0,lastShadow=-1,presented=false;
   let viewportWidth=0,viewportHeight=0,ratio=nativeRatio,sample=0,frames=0,shadowInterval=.26;
   function resize(){
@@ -42,6 +55,7 @@ async function start(){
   window.addEventListener('message',event=>{
     if(event.origin!==location.origin||event.source!==parent||event.data?.channel!=='atelier')return;
     const data=event.data;
+    if(data.type==='wall'){openWall();return;}
     if(data.type==='climate')sky.set(data);
     if(data.type==='toggle')setPaused(!paused);
     if(data.type==='go')visit.go(data.place);
@@ -68,7 +82,7 @@ async function start(){
     sky.update(elapsed,dt);
     movement.forEach(fn=>fn(elapsed));
     if(lastShadow<0||elapsed-lastShadow>=shadowInterval){renderer.shadowMap.needsUpdate=true;lastShadow=elapsed;}
-    tune(dt);renderer.render(scene,camera);
+    tune(dt);reflect(renderer,camera,elapsed);renderer.render(scene,camera);
     if(!presented){presented=true;report('ready');}
   });
 }

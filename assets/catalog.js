@@ -461,8 +461,11 @@ var _visitReady=false,_statsFresh=false;
 setTimeout(function(){if(!_visitReady){_visitReady=true;updateVisit()}},6000);
 function updateVisit(isFresh){
   if(isFresh){_visitReady=true;_statsFresh=true;}
-  if(!_visitReady)return;
   var n=totalViews();
+  if(n>0||_statsFresh){
+    document.dispatchEvent(new CustomEvent('catalog-visits',{detail:{total:n,today:_statsFresh?Math.max(0,Number(_todayVisits)||0):null}}));
+  }
+  if(!_visitReady)return;
   var el=$('navVisit');
   if(n>0||_statsFresh){
     el.innerHTML='\uD83D\uDC41 '+n.toLocaleString()+' \u6B21\u700F\u89BD'+' <span>\u00B7 \u4ECA\u65E5 '+_todayVisits.toLocaleString()+'</span>';

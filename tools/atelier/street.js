@@ -38,7 +38,7 @@ export function person(p,x,y,z,yaw,coat,action='stand') {
     box(body,'#e2d8bd',0,.125,.103,.21,.27,.026,true);
   }else if(action==='cycle'){
     oval(head,P.jade,0,.088,0,.117,.069,.107);box(head,P.brass,0,.067,.11,.142,.022,.065,true);
-  }else{
+  }else if(action!=='sport'&&action!=='uniform'){
     const strap=box(body,P.walnut,0,.16,.108,.027,.31,.022);strap.rotation.z=-.50;
     box(body,action==='read'?P.wood:P.jade,.116,.045,.04,.11,.14,.12,true);
   }
@@ -55,7 +55,7 @@ export function person(p,x,y,z,yaw,coat,action='stand') {
     const bent=action==='cycle'?.14:.027;
     rod(knee,denim,[0,.035,0],[0,-.169,bent],.057,.072,12);
     const shin=group(knee,0,-.166,bent);shins.push(shin);
-    rod(shin,denim,[0,0,0],[0,-.147,(action==='cycle'?-.035:0)-bent],.035,.052,12);
+    rod(shin,action==='sport'?skin:denim,[0,0,0],[0,-.147,(action==='cycle'?-.035:0)-bent],.035,.052,12);
     const foot=group(shin,0,-.169,(action==='cycle'?-.035:0)-bent);
     oval(foot,variant%2?'#5d5048':'#6a6d67',0,0,.025,.052,.040,.085);
     oval(foot,'#3e413d',0,-.026,.026,.055,.015,.087);

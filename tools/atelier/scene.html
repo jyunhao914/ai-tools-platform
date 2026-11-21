@@ -10,10 +10,18 @@
     canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
     canvas:active{cursor:grabbing}canvas:focus-visible{outline:2px solid #f4c891;outline-offset:-3px}
   </style>
+<link rel="stylesheet" href="wall.css">
 </head>
 <body>
   <div id="scene"></div>
-  <script type="importmap">{"imports": {"./architecture.js": "./architecture.js?v=tw-street-1", "./atmosphere.js": "./atmosphere.js?v=tw-street-1", "./block.js": "./block.js?v=tw-street-1", "./craft.js": "./craft.js?v=tw-street-1", "./interiors.js": "./interiors.js?v=tw-street-1", "./street.js": "./street.js?v=tw-street-1", "./streets.js": "./streets.js?v=tw-street-1", "./taiwan-life.js": "./taiwan-life.js?v=tw-street-1", "./town.js": "./town.js?v=tw-street-1", "./tram.js": "./tram.js?v=tw-street-1"}}</script>
-  <script type="module">import('./world.js?v=tw-street-1').catch(e=>{console.error(e);parent.postMessage({channel:'atelier',type:'unavailable'},location.origin);});</script>
+<dialog id="community-board" aria-labelledby="board-title">
+  <header class="board-heading"><div><h2 id="board-title">工作室留言牆</h2><p>可以分享工具用法、提問，或留下想看的教學。</p></div><button type="button" id="board-close" autofocus>回到室內 ×</button></header>
+  <div class="board-columns"><div><button type="button" id="board-refresh">更新留言</button><ol id="board-entries" aria-label="最新留言"></ol><p id="board-empty" role="status">載入留言中…</p></div>
+  <form id="board-form"><h3>貼一張便條</h3><label for="board-name">暱稱（選填）</label><input maxlength="24" id="board-name" placeholder="訪客" autocomplete="off">
+  <label for="board-body">留言內容</label><textarea id="board-body" maxlength="500" rows="4" required placeholder="想和大家分享什麼？"></textarea>
+  <div class="board-send"><small>留言會公開顯示</small><button type="submit">貼上留言牆</button></div><p id="board-status" role="status"></p></form></div>
+</dialog>
+  <script type="importmap">{"imports": {"./architecture.js": "./architecture.js?v=studio-tables-1", "./atmosphere.js": "./atmosphere.js?v=studio-tables-1", "./block.js": "./block.js?v=studio-tables-1", "./craft.js": "./craft.js?v=studio-tables-1", "./interiors.js": "./interiors.js?v=studio-tables-1", "./street.js": "./street.js?v=studio-tables-1", "./streets.js": "./streets.js?v=studio-tables-1", "./taiwan-life.js": "./taiwan-life.js?v=studio-tables-1", "./town.js": "./town.js?v=studio-tables-1", "./tram.js": "./tram.js?v=studio-tables-1"}}</script>
+  <script type="module">import('./world.js?v=studio-tables-1').catch(e=>{console.error(e);parent.postMessage({channel:'atelier',type:'unavailable'},location.origin);});</script>
 </body>
 </html>

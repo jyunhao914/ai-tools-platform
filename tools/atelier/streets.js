@@ -1,4 +1,7 @@
 import {T} from './craft.js';
+import {sights} from './city-places.js';
+import {workstationAt} from './workstations.js';
+import {hitsWall} from './wall.js';
 import {rooms,doorState} from './interiors.js';
 
 const vector=a=>new T.Vector3(...a);
@@ -6,18 +9,19 @@ const clamp=T.MathUtils.clamp;
 const smooth=x=>x*x*(3-2*x);
 const eyeHeight=1.20;
 const route=[
-  [[-8.25,1.29,7.22], [2.1,1.82,3.56]],
-  [[-6.25,1.31,7.06], [1.22,1.91,3.46]],
-  [[-3.48,1.41,6.96], [.70,2.20,2.66]],
-  [[-.89,1.69,7.03], [1.75,2.05,2.64]],
-  [[2.19,2.16,7.25], [3.70,1.93,2.18]],
-  [[5.34,3.10,7.45], [1.43,2.29,1.47]],
-  [[7.05,4.62,7.35], [-1.90,2.55,.28]]
+  [[-25.8,1.22,4.30], [-8.3,2.03,5.52]],
+  [[-24.6,1.23,4.36], [-7.1,2.01,5.56]],
+  [[-22.1,1.21,4.52], [-4.7,1.91,5.48]],
+  [[-19.7,1.22,4.68], [-3.3,1.82,5.37]],
+  [[-16.2,1.23,4.74], [-.7,1.85,4.51]],
+  [[-12.2,1.22,4.91], [.2,1.91,3.74]],
+  [[-2.65,1.30,5.65], [.37,2.05,2.15]]
 ];
+const streetViews={clinic:[[7.1,1.43,6.53],[10.62,1.22,.63]],fruit:[[18.6,1.38,5.85],[20.75,1.07,1.45]],market:[[10.0,1.62,7.48],[15.2,1.26,.91]],court:[[13.85,1.58,8.20],[14.00,1.16,13.75]]};
 const cameraRail=new T.CatmullRomCurve3(route.map(v=>vector(v[0])));
 const lookRail=new T.CatmullRomCurve3(route.map(v=>vector(v[1])));
 const WEST=-9.78,EAST=6.94,frontWalk=3.27;
-const townBounds=[[-26,26,3.05,8.48],[-10.9,-9.33,-8.85,7.76],[6.48,7.44,-8.85,7.77],[-27.9,27.9,-9.30,-7.76],[-28.8,-27.3,-17.4,17.4],[27.3,28.8,-17.4,17.4],[-28.7,28.7,15,17.25],[-28.7,28.7,-17.4,-15.2],[-28.4,28.4,3.85,7.3]];
+const townBounds=[[9.4,18.4,8.46,9.07],[-26,26,3.05,8.48],[-10.9,-9.33,-8.85,7.76],[6.48,7.44,-8.85,7.77],[-27.9,27.9,-9.30,-7.76],[-28.8,-27.3,-17.4,17.4],[27.3,28.8,-17.4,17.4],[-28.7,28.7,15,17.25],[-28.7,28.7,-17.4,-15.2],[-28.4,28.4,3.85,7.3]];
 function inRect(x,z,b){return x>=b[0]&&x<=b[1]&&z>=b[2]&&z<=b[3];}
 function roomAt(x,z){return Object.entries(rooms).find(([,r])=>inRect(x,z,r.bounds))?.[0];}
 function inDoor(x,z,r){return Math.abs(x-r.door[0])<r.width*.43&&z>=r.bounds[3]-.12&&z<=3.22;}
@@ -46,8 +50,8 @@ export function streetVisit(camera,canvas,report,reduced,tram){
     camera.aspect=width/height;camera.fov=sceneFov();camera.updateProjectionMatrix();if(tour)setTour(tourTime);
   }
   function setTour(t){
-    const u=clamp(t/13,0,1);
-    cameraRail.getPoint(u,camera.position);lookRail.getPoint(u,aim);if(camera.aspect<.85)aim.z+=1.15*Math.max(0,1-u*2);face(aim);
+    const u=clamp(t/9.5,0,1);
+    cameraRail.getPoint(u,camera.position);lookRail.getPoint(u,aim);face(aim);
   }
   function clearMotion(){walking=0;keys.clear();}
   function manual(){
@@ -55,14 +59,24 @@ export function streetVisit(camera,canvas,report,reduced,tram){
     if(trip){trip=null;announce(roomAt(camera.position.x,camera.position.z)||'street');}
     tour=false;
   }
-  function getRoom(clientX,clientY){
-    if(rooms[mode]||trip||camera.position.z<2.24)return null;
+  function getTarget(clientX,clientY){
+    if(trip)return null;
     const bounds=canvas.getBoundingClientRect();cursor.set((clientX-bounds.left)/bounds.width*2-1,1-(clientY-bounds.top)/bounds.height*2);
-    camera.updateMatrixWorld();ray.setFromCamera(cursor,camera);let id=null,best=Infinity;
+    camera.updateMatrixWorld();ray.setFromCamera(cursor,camera);
+    if(mode==='film')return hitsWall(ray)?'wall':workstationAt(ray);
+    if(rooms[mode]||camera.position.z<2.24)return null;
+    let id=null,best=Infinity;
     for(const [key,box] of entrances){if(ray.ray.intersectBox(box,hit)){const d=ray.ray.origin.distanceTo(hit);if(d<best){best=d;id=key;}}}
     return id;
   }
   function go(destination){
+    if(Object.hasOwn(sights,destination)){
+      manual();clearMotion();const place=sights[destination];
+      camera.position.fromArray(place.eye);face(vector(place.look));announce(destination);return;
+    }
+    if(Object.hasOwn(sights,mode)&&['street','overview','film','print'].includes(destination)){
+      tour=false;trip=null;clearMotion();camera.position.fromArray(route[0][0]);face(vector(route[0][1]));announce('street');
+    }
     if(destination!=='overview'&&destination!=='street'&&!rooms[destination])return;
     report('explore');tour=false;clearMotion();
     if(trip?.dest===destination)return;
@@ -112,6 +126,10 @@ export function streetVisit(camera,canvas,report,reduced,tram){
     if(progress===1){trip=null;face(run.look);announce(run.dest);}
   }
   function walkable(x,z){
+    if(Object.hasOwn(sights,mode)){
+      const [cx,,cz]=sights[mode].eye;
+      return Math.abs(x-cx)<2.4&&Math.abs(z-cz)<1.35;
+    }
     if(Object.values(rooms).some(r=>inRect(x,z,r.bounds)||inDoor(x,z,r)))return true;
     if(!townBounds.some(b=>inRect(x,z,b)))return false;
     if(tram&&Math.abs(z-tram.position.z)<.62&&Math.abs(x-tram.position.x)<1.78)return false;
@@ -122,7 +140,7 @@ export function streetVisit(camera,canvas,report,reduced,tram){
     const dx=(Math.sin(yaw)*forward+Math.cos(yaw)*side)*dt*speed/norm;
     const dz=(-Math.cos(yaw)*forward+Math.sin(yaw)*side)*dt*speed/norm;
     if(walkable(p.x+dx,p.z))p.x+=dx;if(walkable(p.x,p.z+dz))p.z+=dz;
-    const dest=roomAt(p.x,p.z)||'street';if(dest!==mode)announce(dest);
+    const dest=roomAt(p.x,p.z)||'street';if(!Object.hasOwn(sights,mode)&&dest!==mode)announce(dest);
     p.y=T.MathUtils.lerp(p.y,eyeHeight,1-Math.exp(-dt*5));applyLook();
   }
   function step(value){
@@ -132,7 +150,7 @@ export function streetVisit(camera,canvas,report,reduced,tram){
   }
   function update(dt,play){
     if(trip){advanceTrip(dt);return;}
-    if(tour&&play&&!reduced.matches){tourTime+=dt;setTour(tourTime);if(tourTime>=13)tour=false;}
+    if(tour&&play&&!reduced.matches){tourTime+=dt;setTour(tourTime);if(tourTime>=9.5)tour=false;}
     if(mode==='overview')return;
     if(keys.has('ArrowLeft')||keys.has('ArrowRight')){yaw+=(Number(keys.has('ArrowRight'))-Number(keys.has('ArrowLeft')))*dt*1.52;applyLook();}
     const forward=walking+Number(keys.has('w')||keys.has('ArrowUp'))-Number(keys.has('s')||keys.has('ArrowDown'));
@@ -150,7 +168,7 @@ export function streetVisit(camera,canvas,report,reduced,tram){
   });
   canvas.addEventListener('pointermove',e=>{
     const p=pointers.get(e.pointerId);
-    if(!p){if(e.pointerType==='mouse')canvas.style.cursor=getRoom(e.clientX,e.clientY)?'pointer':'grab';return;}
+    if(!p){if(e.pointerType==='mouse')canvas.style.cursor=getTarget(e.clientX,e.clientY)?'pointer':'grab';return;}
     const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
     if(Math.hypot(p.x-p.ox,p.y-p.oy)>5)dragged=true;
     if(pointers.size===2){
@@ -164,7 +182,7 @@ export function streetVisit(camera,canvas,report,reduced,tram){
   });
   canvas.addEventListener('pointerup',e=>{
     const start=pointers.get(e.pointerId);pointers.delete(e.pointerId);
-    if(start&&!dragged){const destination=getRoom(e.clientX,e.clientY);if(destination)go(destination);}
+    if(start&&!dragged){const destination=getTarget(e.clientX,e.clientY);if(destination==='wall')report('openWall');else if(destination&&mode==='film')report('toolsFor',{station:destination});else if(destination)go(destination);}
   });
   canvas.addEventListener('pointercancel',e=>pointers.delete(e.pointerId));
   canvas.addEventListener('wheel',e=>{
@@ -181,5 +199,7 @@ export function streetVisit(camera,canvas,report,reduced,tram){
   canvas.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));
   window.addEventListener('blur',clearMotion);document.addEventListener('visibilitychange',()=>{if(document.hidden)clearMotion();});
   setTour(0);
+  const viewpoint=streetViews[new URL(location.href).searchParams.get('street')];
+  if(Array.isArray(viewpoint)){tour=false;camera.position.copy(vector(viewpoint[0]));face(vector(viewpoint[1]));}
   return {resize,update,go,step,get mode(){return mode;}};
 }

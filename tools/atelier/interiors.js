@@ -1,9 +1,12 @@
 import {T,palette as P,group,box,panel,rod,cyl,oval,label,animate} from './craft.js';
-import {cameraSlider,softbox,press,brushArm} from './equipment.js';
+import {cameraSlider,press,brushArm} from './equipment.js';
+import {creativeStudio} from './workstations.js';
+import {mountWall} from './wall.js';
 import {person} from './street.js';
+export let studioLight;
 export const doorState={film:0};
 export const rooms={
-  film:{label:'錄影棚', door:[.37,2.46], eye:[.44,1.36,2.00], aim:[.45,1.12,-.10], bounds:[-1.24,1.97,-.03,2.19], width:1.40},
+  film:{label:'AI 工具資源平台', door:[.37,2.46], eye:[.37,1.49,2.16], aim:[.37,1.38,-.02], bounds:[-1.24,1.97,-.03,2.19], width:1.40},
   print:{label:'設計室', door:[-2.50,2.36], eye:[-2.65,1.25,1.92], aim:[-3.41,1.00,-.10], bounds:[-4.39,-2.21,-.28,2.12], width:.80}
 };
 const warm=new T.MeshBasicMaterial({color:'#ffe0a1'});
@@ -11,11 +14,6 @@ const pine=['#937459','#b18b69','#aa8566','#ba9170'];
 function desk(p,x,z,w,d,h){
   box(p,P.wood,x,h,z,w,.069,d,true);
   for(const side of [-1,1])for(const depth of [-1,1])box(p,P.walnut,x+side*w*.43,h*.49,z+depth*d*.37,.048,h,.048);
-}
-function screen(p,art,x,y,z,w,h,caption){
-  box(p,P.ink,x,y,z,w+.066,h+.07,.085,true);
-  panel(p,art,x,y,z+.046,w,h,[.13,.16,.91,.86]);
-  label(p,caption,x,y-h*.5-.093,z+.045,w,.10,'#384c48','#fee7b0');
 }
 function framedPrint(p,art,x,y,z,w,h){
   box(p,P.walnut,x,y,z,w+.08,h+.08,.055);
@@ -27,20 +25,17 @@ function hangingLight(p,x,z){
 }
 function filmSet(p,w,d,art){
   const back=-d/2+.105;
-  box(p,'#3a504a',0,.77,back+.031,w-.14,1.55,.08);
-  for(let j=0;j<14;j++)box(p,'#715e45',-1.84+j*.072,.80,back+.087,.035,1.58,.037);
-  screen(p,art.room1,-.20,1.02,back+.135,1.04,.61,'CAM 01  ·  LIVE');
-  const tally=new T.MeshBasicMaterial({color:'#ff7654'});box(p,tally,.40,1.35,back+.15,.061,.061,.033);
-  desk(p,-.42,back+.44,1.58,.49,.63);cameraSlider(p,-.73,.69,back+.51);
-  for(let i=0;i<9;i++)box(p,i%3?P.ink:P.clay,-.17+i*.045,.69,back+.50,.03,.022,.09);
-  const lamp=group(p,1.44,0,-.65,-.67);softbox(lamp,0,0,0);
-  const tripod=group(p,.84,0,.46,-.68);
-  for(let j=0;j<3;j++){const a=j*2.095;rod(tripod,P.metal,[0,.59,0],[.20*Math.sin(a),.02,.20*Math.cos(a)],.022);}
-  box(tripod,P.ink,0,.67,0,.20,.17,.27,true);rod(tripod,P.ink,[0,.68,-.09],[0,.68,-.27],.081,.062);
-  const talent=person(p,.72,0,back+.45,-.20,'#b96951','read');talent.root.scale.setScalar(1.04);
-  animate(talent.head,t=>talent.head.rotation.y=.17*Math.sin(t*.9));
-  animate(talent.arms[1],t=>talent.arms[1].rotation.x=-.25+.14*Math.sin(t*1.34));
-  for(let j=0;j<4;j++)box(p, j%2?'#6e7c71':'#5e7169',w/2-.074,1.13,-.89+j*.34,.09,.73,.22,true);
+  studioLight=creativeStudio(p);
+  const notice=group(p,1.18,1.53,back+.13);notice.scale.setScalar(.66);
+  mountWall(notice,0,0,0);
+  const camera=group(p,-1.70,0,.16,.49);camera.scale.setScalar(.67);
+  for(let j=0;j<3;j++){
+    const a=j*Math.PI*2/3;rod(camera,P.metal,[0,.62,0],[.24*Math.sin(a),.02,.24*Math.cos(a)],.022);
+  }
+  cameraSlider(camera,0,.63,0);
+  const operator=person(p,-1.68,.04,.62,Math.PI-.22,'#b96448','read');
+  animate(operator.head,t=>operator.head.rotation.x=.08+.09*Math.sin(t*1.05));
+  animate(operator.arms[0],t=>operator.arms[0].rotation.x=-.38+.13*Math.sin(t*1.2));
 }
 function printDesk(p,w,d,art){
   const back=-d/2+.11;
@@ -63,10 +58,10 @@ export function studioRoom(parent,id,w,d,art){
   box(p,'#a1876c',0,.019,0,w-.04,.038,d-.04);
   const strips=10;
   for(let j=0;j<strips;j++)box(p,pine[j%4],-w/2+(j+.5)*w/strips,.047,0,w/strips-.013,.026,d-.06);
-  for(const side of [-1,1])box(p,id==='film'?'#6f7a69':'#ccaf8a',side*(w/2-.065),1.00,0,.077,2.01,d-.12);
+  for(const side of [-1,1])box(p,id==='film'?'#9cb7a6':'#ccaf8a',side*(w/2-.065),1.00,0,.077,2.01,d-.12);
   box(p,'#c4ab85',0,1,-d/2+.055,w-.05,2.01,.065);
-  box(p,id==='film'?'#857b66':'#d6c0a4',0,1.99,0,w-.07,.045,d-.04);
+  box(p,id==='film'?'#d6c5a7':'#d6c0a4',0,1.99,0,w-.07,.045,d-.04);
   for(let j=0;j<4;j++)box(p,P.walnut,0,1.93,-d*.39+j*d*.25,w-.03,.077,.075);
-  hangingLight(p,-w*.25,-.13);hangingLight(p,w*.24,.17);
+  if(id!=='film'){hangingLight(p,-w*.25,-.13);hangingLight(p,w*.24,.17);}
   if(id==='film')filmSet(p,w,d,art);else printDesk(p,w,d,art);
 }

@@ -40,7 +40,7 @@ function plume(parent,x,y,z,size=1,exhaust=false){
     });
   }
 }
-function gait(a,phase,strength,bag=false){
+export function gait(a,phase,strength,bag=false){
   const s=Math.sin(phase),c=Math.cos(phase);
   a.hips.position.y=.392+Math.abs(c)*.020*strength;
   a.hips.position.x=.017*s*strength;a.hips.rotation.y=.062*s*strength;
@@ -53,7 +53,7 @@ function gait(a,phase,strength,bag=false){
     a.elbows[i].rotation.x=-.21-.09*Math.max(0,-step)*strength;
   }
 }
-function articulated(a){
+export function articulated(a){
   [a.root,a.hips,a.body,a.head,...a.legs,...a.shins,...a.arms,...a.elbows].forEach(o=>o.userData.moves=true);
 }
 function umbrella(parent,color){
@@ -115,7 +115,7 @@ function streetPlate(p,x,z,words,english,yaw){
   const other=group(g,.01,2.49,-.30,Math.PI/2);
   box(other,'#dce5d8',0,0,0,.79,.22,.04,true);label(other,'光影巷',0,0,.022,.75,.195,'#287266','#fff1cb');
 }
-function scooter(parent,x,z,yaw,col,riderColor){
+export function scooter(parent,x,z,yaw,col,riderColor){
   const g=group(parent,x,.028,z,yaw),car=group(g),wheels=[];
   contact(g,0,0,.51,1.30,.007);
   for(const zz of [-.39,.40]){

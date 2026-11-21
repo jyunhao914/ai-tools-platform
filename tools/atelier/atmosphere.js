@@ -94,9 +94,9 @@ function rainyStreet(scene){
   };
 }
 const colors={
-  daySky:C('#467fa7'),dayLow:C('#e6dfc9'),nightSky:C('#182a48'),nightLow:C('#606f83'),sunset:C('#f3b78e'),
-  overSky:C('#8798a7'),overLow:C('#c6cccb'),nightCloud:C('#44546b'),cloudWhite:C('#f4eee0'),cloudGray:C('#8996a2'),
-  amber:C('#ffb474'),white:C('#ffebcc'),moon:C('#a3c4e3'),bottom:C('#b9b9a0'),darkBottom:C('#7a7880'),
+  daySky:C('#409cce'),dayLow:C('#d3eceb'),nightSky:C('#182a48'),nightLow:C('#606f83'),sunset:C('#f3b78e'),
+  overSky:C('#8798a7'),overLow:C('#d6e4e3'),nightCloud:C('#44546b'),cloudWhite:C('#f4eee0'),cloudGray:C('#8996a2'),
+  amber:C('#ffb474'),white:C('#fff4e3'),moon:C('#a3c4e3'),bottom:C('#c0c3b2'),darkBottom:C('#7a7880'),
   nightHill:C('#697b8b'),nightFog:C('#627686')
 };
 export function atmosphere(scene,camera,sun,hemi,bounce,streets,report){

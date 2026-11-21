@@ -1,0 +1,9 @@
+.town-cover{max-width:1200px;margin:26px auto 0;padding:0 24px}
+.town-cover-inner{overflow:hidden;position:relative;isolation:isolate;border-radius:18px;background:#254c46 url('neighborhood-market.webp') right 48% / 69% auto no-repeat}
+.town-cover-inner:before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#193f39 3%,#234b44 34%,#264c46e3 43%,#263f321c 68%)}
+.town-cover-heading{padding:clamp(24px,4.1vw,62px);color:#fffbeb}
+.town-cover h2{font:750 clamp(36px,4vw,64px)/1.15 "PingFang TC","Microsoft JhengHei",system-ui,sans-serif;letter-spacing:-.04em;margin:0}
+.town-cover p{color:#e2e9dc;margin:13px 0 24px;font-size:16px}
+.town-cover-links{display:flex;gap:10px}.town-cover-links a{display:inline-flex;align-items:center;justify-content:center;padding:8px 16px;border-radius:7px;min-height:42px;text-decoration:none;font:650 15px/1.4 system-ui,sans-serif;cursor:pointer}
+.town-cover-links a{background:#fff2d7;color:#234338}.town-cover-links a+a{background:#24483ed9;color:#fff2d7;border:1px solid #bacabb}
+@media(max-width:700px){.town-cover{padding:0 16px;margin-top:16px}.town-cover-inner{background-size:cover}.town-cover-inner:before{background:linear-gradient(90deg,#16352eea,#16382fba 57%,#16382f55)}.town-cover-heading{padding:26px 19px}.town-cover p{font-size:14px;margin:10px 0 15px}.town-cover h2{font-size:clamp(32px,7.9vw,46px)}}
