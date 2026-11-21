@@ -6,8 +6,8 @@ import {air} from './atmosphere.js';
 import {neighborhood} from './neighborhood.js';
 import {taiwanStreet} from './taiwan-life.js';
 
-const facades=['#d7ad8c','#d9cdb0','#b8c5b7','#d6b4a5','#b7bec0'];
-const shopColors=['#934c43','#37655c','#536875','#966c42'];
+const facades=['#f2d2bc','#f1ecd9','#b9dfce','#f2c8b9','#c6dfe9'];
+const shopColors=['#cc533f','#168b84','#37649b','#d08d34'];
 const stores=['蘭芳花店','巷口豆花','日新印刷','青果行','明昌電器','光華書局','光影照相館','家常便當','中藥行','五金行','聲音工坊','診所'];
 const lampGlow=new T.MeshBasicMaterial({color:'#ffe1a4'});
 function streetTile(){
@@ -69,18 +69,30 @@ function shopSign(parent,text,x,y,z,w,h,color,square=false){
 }
 function dwelling(row,art,x,z,yaw,i,near=true){
   const p=group(row,x,.11,z,yaw),w=2.85+(i%4)*.26,d=2.6+(i%3)*.24,h=2.5+((i*7)%5)*.48;
-  box(p, facades[i%5],0,h/2-.02,0,w,h,d);
+  if(near){
+    box(p,facades[i%5],0,h/2-.02,-.40,w,h,d-.80);
+    for(const side of [-1,1])box(p,facades[i%5],side*(w/2-.05),h/2-.02,d/2-.40,.10,h,.80);
+  }else box(p,facades[i%5],0,h/2-.02,0,w,h,d);
   const front=group(p,0,0,d/2+.018);
-  panel(front,art['wall'+i%4],0,h/2,0,w,h);
+  if(near)panel(front,art['wall'+i%4],0,(h+1.90)/2,0,w,h-1.90,[0,1.9/h,1,1]);
+  else panel(front,art['wall'+i%4],0,h/2,0,w,h);
   const rear=group(p,0,0,-d/2-.012,Math.PI);
   panel(rear,art['wall'+((i+2)%4)],0,h/2,0,w,h,[.04,.13,.94,.98]);
   for(const s of [-1,1]){
     const wall=panel(p,art['wall'+((i+1)%4)],s*(w/2+.012),h/2,0,d,h,[.09,.07,.85,.94]);wall.rotation.y=s*Math.PI/2;
   }
   if(near){
-    box(front,P.walnut,0,1.09,.027,w-.12,1.88,.082);
-    const display=panel(front,art[i%3?'room'+i%4:'rental'],-w*.15,1.00,.080,w*.56,1.21,[.16,.16,.88,.89]);
-    display.castShadow=false;
+    box(front,P.walnut,0,.22,-.28,w-.13,.38,.63);
+    box(front,facades[(i+2)%5],0,1.0,-.72,w-.13,1.62,.09);
+    for(const side of [-1,1])box(front,P.wood,side*(w*.46),1.06,-.26,.11,1.73,.58);
+    for(let tier=0;tier<2;tier++){
+      const sy=.56+tier*.52;box(front,P.wood,-w*.14,sy,-.31,w*.55,.048,.34);
+      for(let item=0;item<6;item++){
+        const cx=w*(-.36+item*.085);
+        if(i%2)cyl(front,shopColors[(i+item+tier)%4],cx,sy+.13,-.28,.067,.058,.20,8);
+        else box(front,shopColors[(item+tier)%4],cx,sy+.13,-.25,.13,.22,.13,true);
+      }
+    }
     for(const px of [-.406,-.147,.121])box(front,P.wood,w*px,1.02,.116,.055,1.43,.048);
     box(front,'#4e7773',w*.30,.93,.066,w*.23,1.65,.12);
     box(front,'#92aaa1',w*.30,1.12,.145,w*.16,.83,.045);box(front,P.brass,w*.385,.76,.163,.03,.16,.043);

@@ -1,6 +1,8 @@
 import {T, palette as P, group, box, oval, cyl, rod, beam, hoop, plate, panel, label, painted, makeCanvas, drawNoise, contact, animate} from './craft.js';
 import {person} from './street.js';
 
+let cueStart=0;
+export function restartTram(time){cueStart=time;}
 const RUN=8.0, STOP=3.35, LEG=RUN+STOP, DOOR=-.79;
 const STEP=.33, PLATFORM=.21, WHEEL=.134, RAIL_Y=.091;
 const amber='#e99a4a', enamel='#ae543e', dark='#354440';
@@ -190,7 +192,7 @@ export function addTramLine(p,lot) {
   const riders=[passenger(p,false,track,west),passenger(p,true,track,east)];
   let wasEastbound;
   animate(null,t=>{
-    const state=service(t+3.0,west,east);
+    const state=service(t-cueStart+2.7,west,east);
     car.position.x=state.x;
     body.rotation.z=.0028*Math.sin((state.x-west)*6.0)*state.speed;
     for(const axle of wheels)axle.rotation.z=-(state.x-west)/WHEEL;

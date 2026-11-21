@@ -29,6 +29,7 @@
         <div class="header-tools"><details id="climate" hidden><summary aria-label="街景時間與臺中天氣"><span class="clock">臺灣時間</span><span class="conditions"></span><span aria-hidden="true">⌄</span></summary>
         <div class="settings"><label>街景時間<select name="when"><option value="auto">臺灣現在時間</option><option value="dawn">凌晨</option><option value="morning">早晨</option><option value="noon">正午</option><option value="dusk">黃昏</option><option value="night">夜間</option></select></label>
         <label>街景天氣<select name="weather"><option value="auto">跟隨臺中天氣</option><option value="clear">預覽晴天</option><option value="cloud">預覽多雲</option><option value="rain">預覽細雨</option></select></label><p class="source"><span></span> <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a></p></div></details>
+        <button id="audio" type="button" aria-label="開啟聲音" aria-pressed="false" hidden><span aria-hidden="true">♪</span></button>
         <button id="pause" type="button" aria-pressed="false" hidden><i aria-hidden="true"></i><span>暫停動態</span></button></div></header>
       <div class="dock">
         <section class="intro"><h1>AI 工具資源平台</h1>
@@ -36,25 +37,40 @@
         </section>
         <nav id="explore" aria-label="探索城鎮" hidden>
           <p id="copy">拖曳環顧，點店門入內。</p>
-          <div class="destinations" aria-label="街區地點"><button type="button" id="guide-launch">臺中導覽圖</button><button type="button" data-go="film">走進平台室內</button><select id="station-tools" aria-label="依工作台找工具" hidden><option value="">依工作台找工具</option><option value="video">影片剪輯台</option><option value="slides">簡報製作桌</option><option value="illustration">圖像工作區</option></select><button type="button" id="open-wall" hidden>讀寫留言牆</button><button type="button" data-go="overview">全景</button><button type="button" data-go="street" hidden>回街上</button></div>
+          <div class="destinations" aria-label="街區地點"><button type="button" id="replay" hidden>重播開場</button><button type="button" id="guide-launch">導覽</button><button type="button" data-go="film">走進平台室內</button><select id="studio-floor" hidden aria-label="選擇工作室樓層"><option value="film">1F 創作工作區</option><option value="record">2F 錄影棚</option><option value="podcast">2F 收音室</option></select><select id="station-tools" aria-label="依工作台找工具" hidden><option value="">依工作台找工具</option><option value="video">影片剪輯台</option><option value="slides">簡報製作桌</option><option value="illustration">圖像工作區</option></select><button type="button" id="open-wall" hidden>讀寫留言牆</button><button type="button" data-go="overview">全景</button><button type="button" data-go="street" hidden>回街上</button></div>
           <div class="steps" aria-label="步行"><button data-step="-1" type="button" aria-label="後退">↓</button><button data-step="1" type="button" aria-label="前進">前進 ↑</button></div>
         </nav>
       </div>
-      <dialog id="city-guide" aria-labelledby="guide-title"><div class="guide-bar"><h2 id="guide-title">臺中導覽圖</h2><button id="guide-close" autofocus>關閉 ×</button></div>
+      <dialog id="city-guide" aria-labelledby="guide-title"><div class="guide-bar"><h2 id="guide-title">導覽</h2><button id="guide-close" autofocus>關閉 ×</button></div>
       <div class="guide-columns"><div><svg id="guide-map" role="img" aria-label="臺中市行政區圖"></svg><p>點選有標記的行政區，探索街景。</p><button id="guide-studio">走進 AI 平台工作室 →</button></div>
       <div><select id="guide-area" aria-label="選擇行政區"><option value="">所有景點</option></select><div id="guide-places"></div></div></div></dialog>
     </div>`;
-  const style=document.createElement('link');style.rel='stylesheet';style.href=new URL('world.css?v=studio-tables-1',base);
+  const style=document.createElement('link');style.rel='stylesheet';style.href=new URL('world.css?v=open-studio-entry-1',base);
   view.querySelector('style').after(style);
   const stage=view.querySelector('#scene'),enter=view.querySelector('.enter'),count=enter.querySelector('small');
   const taiwanHour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Taipei',hour:'2-digit',hourCycle:'h23'}).format(new Date()));
   if(taiwanHour>=18||taiwanHour<6)stage.style.backgroundImage='url("'+new URL('town-poster-night.webp',base)+'")';
   const pause=view.querySelector('#pause'),nav=view.querySelector('#explore'),copy=view.querySelector('#copy');
+  const audio=view.querySelector('#audio');
+  let sound,roomActive=false;
+  import(new URL('sound.js?v=open-studio-entry-1',base)).then(({townSound})=>{
+    sound=townSound();sound.room(roomActive);
+    audio.hidden=!(window.AudioContext||window.webkitAudioContext);
+  });
+  audio.onclick=async()=>{
+    stopCountdown();audio.disabled=true;
+    try{
+      const on=await sound.toggle();
+      audio.setAttribute('aria-pressed',String(on));
+      audio.setAttribute('aria-label',on?'關閉聲音':'開啟聲音');audio.title=audio.getAttribute('aria-label');
+    }finally{audio.disabled=false;}
+  };
+  audio.title='開啟聲音';
   const climate=view.querySelector('#climate');
   const catalog=new URL(location.href);catalog.searchParams.delete('street');catalog.searchParams.delete('sight');catalog.searchParams.delete('light');catalog.searchParams.set('view','tools');enter.href=catalog;
   dialog.append(host);document.body.prepend(dialog);
-  const frame=document.createElement('iframe');frame.title='互動式 3D 微縮街區';const sceneUrl=new URL('scene.html?v=studio-tables-1',base);
-  const street=url.searchParams.get('street');if(exploreOnArrival&&['market','court','clinic','fruit'].includes(street))sceneUrl.searchParams.set('street',street);
+  const frame=document.createElement('iframe');frame.title='互動式 3D 微縮街區';const sceneUrl=new URL('scene.html?v=open-studio-entry-1',base);
+  const street=url.searchParams.get('street');if(exploreOnArrival&&['shopfront','shops','market','court','clinic','fruit','photo'].includes(street))sceneUrl.searchParams.set('street',street);
   frame.src=sceneUrl;
   const previousOverflow=document.documentElement.style.overflow;
   const listeners=new AbortController(),options={signal:listeners.signal};
@@ -85,7 +101,7 @@
   function stopCountdown(){counting=false;clearInterval(clock);count.hidden=true;}
   function enterPlatform(){
     if(!dialog.open)return;
-    stopCountdown();clearTimeout(loadingTimer);listeners.abort();
+    stopCountdown();clearTimeout(loadingTimer);listeners.abort();sound?.close();
     document.documentElement.style.overflow=previousOverflow;
     if(exploreOnArrival){url.searchParams.delete('view');url.searchParams.delete('street');url.searchParams.delete('sight');url.searchParams.delete('light');history.replaceState(history.state,'',url);}
     dialog.close();dialog.remove();
@@ -109,9 +125,10 @@
     stage.className='still';stage.querySelector('.loader')?.remove();pause.hidden=true;nav.hidden=true;climate.hidden=true;
     if(terminal)frame.remove();startClock();
   }
-  const placeNames={film:'AI 工具資源平台',print:'設計室',overview:'全景',street:'街道'};
+  const placeNames={film:'AI 工具資源',store:'7-ELEVEN',record:'二樓錄影棚',podcast:'二樓收音室',print:'設計室',overview:'全景',street:'街道'};
   let sightNames={};
-  const initialSight=url.searchParams.get('sight');
+  const requestedSight=url.searchParams.get('sight');
+  const initialSight=requestedSight==='fab'?'science':requestedSight;
   const landmarks=import(new URL('city-places.js',base)).then(({sights})=>{
     sightNames=sights;for(const [id,place] of Object.entries(sights))placeNames[id]=place.name;
     return sights;
@@ -120,11 +137,15 @@
   view.querySelector('#guide-launch').onclick=async()=>{stopCountdown();(await guideReady)();};
   function showPlace(place,travel){
     if(!placeNames[place])return;
+    view.querySelector('#replay').hidden=true;
     nav.dataset.place=place;nav.dataset.travel=String(travel);
     copy.textContent=travel?'正在前往'+placeNames[place]+'…':place==='street'?'拖曳環顧，點店門入內。':place==='overview'?'拖曳轉動全景，點店面或回街上。':'在'+placeNames[place]+'內，可以移動或轉身看街景。';
     if(Object.hasOwn(sightNames,place))copy.textContent=placeNames[place]+'　·　拖曳環顧';
     nav.querySelector('[data-go="street"]').hidden=place==='street';
-    nav.querySelector('[data-go="film"]').hidden=place==='film';
+    const inStudio=['film','record','podcast'].includes(place);
+    nav.querySelector('[data-go="film"]').hidden=inStudio;
+    const floors=view.querySelector('#studio-floor');floors.hidden=!inStudio;floors.disabled=travel;
+    if(inStudio)floors.value=place;
     view.querySelector('#open-wall').hidden=place!=='film'||travel;
     view.querySelector('#station-tools').hidden=place!=='film'||travel;
     if(place==='film'&&!travel)copy.textContent='點工作台的螢幕找工具，也可以在牆上貼留言。';
@@ -132,20 +153,23 @@
     for(const b of nav.querySelectorAll('[data-go]'))b.setAttribute('aria-pressed',String(b.dataset.go===place));
   }
   const stationQueries={video:'剪輯',slides:'簡報',illustration:'插畫'};
+  let stationOpening=false;
   function stationCatalog(key){
     if(nav.dataset.place!=='film'||nav.dataset.travel==='true'||!Object.hasOwn(stationQueries,key))return;
+    if(stationOpening)return;stationOpening=true;post('stationFocus',{key});sound?.cue('station');
     const roomURL=new URL(location.href);roomURL.searchParams.set('view','town');roomURL.searchParams.set('street','studio');roomURL.searchParams.delete('sight');
     history.replaceState(history.state,'',roomURL);
     const results=new URL(location.href);
     for(const name of ['view','street','sight','light'])results.searchParams.delete(name);
     results.searchParams.set('q',stationQueries[key]);results.hash='tools';
-    location.assign(results.href);
+    setTimeout(()=>location.assign(results.href),170);
   }
   const stationChoice=view.querySelector('#station-tools');
   stationChoice.onchange=()=>{const key=stationChoice.value;stationChoice.value='';stationCatalog(key);};
   function receive(event){
     if(event.origin!==location.origin||event.source!==frame.contentWindow||event.data?.channel!=='atelier')return;
     const {type,paused,place}=event.data;
+    if(type==='cue'){sound?.cue(event.data.name);return;}
     if(type==='toolsFor'){stationCatalog(event.data.station);return;}
     if(type==='climate'){
       climate.querySelector('.clock').textContent=(event.data.when==='auto'?'臺灣 ':'預覽 ')+event.data.time;
@@ -155,12 +179,13 @@
       climate.querySelector('.source a').hidden=source==='manual';return;
     }
     if(type==='wallOpen'||type==='wallClosed'){
-      const open=type==='wallOpen';view.querySelector('header').hidden=open;view.querySelector('.dock').hidden=open;
+      const open=type==='wallOpen';if(open)sound?.cue('board');view.querySelector('header').hidden=open;view.querySelector('.dock').hidden=open;
       if(open)stopCountdown();return;
     }
     if(type==='unavailable'){clearTimeout(loadingTimer);poster(true);return;}
+    if(type==='tourEnd'){view.querySelector('#replay').hidden=!exploreOnArrival;return;}
     if(type==='explore'){stopCountdown();return;}
-    if(type==='place'||type==='travel'){showPlace(place,type==='travel');return;}
+    if(type==='place'||type==='travel'){if(type==='place'){roomActive=['film','record','podcast','store'].includes(place);sound?.room(roomActive);}showPlace(place,type==='travel');return;}
     if(type==='ready'){
       clearTimeout(loadingTimer);stage.className='ready';stage.querySelector('.loader')?.remove();
       pause.hidden=false;nav.hidden=false;climate.hidden=false;showPlace('street',false);startClock();
@@ -170,7 +195,8 @@
         post('climate',{when:'noon',weather});
       }
       if(exploreOnArrival&&initialSight)landmarks.then(sights=>{if(Object.hasOwn(sights,initialSight)){stopCountdown();post('go',{place:initialSight});}});
-      if(exploreOnArrival&&street==='studio'){stopCountdown();post('go',{place:'film'});}
+      const deepLinks={studio:'film',record:'record',podcast:'podcast',store:'store'};
+      if(exploreOnArrival&&Object.hasOwn(deepLinks,street)){stopCountdown();post('go',{place:deepLinks[street]});}
     }
     if(type==='playback'||type==='ready'){pause.setAttribute('aria-pressed',String(paused));pause.querySelector('span').textContent=paused?'播放動態':'暫停動態';}
   }
@@ -180,7 +206,9 @@
   for(const select of climate.querySelectorAll('select'))select.addEventListener('change',()=>{
     stopCountdown();post('climate',{when:climate.querySelector('[name=when]').value,weather:climate.querySelector('[name=weather]').value});
   });
+  view.querySelector('#studio-floor').onchange=e=>{stopCountdown();post('go',{place:e.target.value});};
   view.querySelector('#open-wall').addEventListener('click',()=>post('wall'));
+  view.querySelector('#replay').onclick=()=>{stopCountdown();post('replay');};
   pause.addEventListener('click',()=>{stopCountdown();post('toggle');});
   for(const b of nav.querySelectorAll('[data-go]'))b.addEventListener('click',()=>{stopCountdown();post('go',{place:b.dataset.go});});
   for(const b of nav.querySelectorAll('[data-step]')){
@@ -196,7 +224,8 @@
   frame.addEventListener('error',()=>poster(true));
   window.addEventListener('message',receive,options);
   window.addEventListener('hashchange',()=>{if(location.hash)enterPlatform();},options);
-  document.addEventListener('visibilitychange',syncClock,options);
+  document.addEventListener('visibilitychange',()=>{syncClock();sound?.visibility();},options);
+  window.addEventListener('pagehide',()=>sound?.close(),options);
   dialog.showModal();document.documentElement.style.overflow='hidden';
   stage.append(frame);
   // Even a failed module request leaves the separate catalog link usable throughout.

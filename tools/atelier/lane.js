@@ -1,4 +1,4 @@
-import {T,group,box,panel,rod,tube,label,makeCanvas,painted,batch} from './craft.js';
+import {T,group,box,panel,rod,oval,cyl,tube,label,makeCanvas,painted,batch} from './craft.js';
 import {airUnit,pipes} from './architecture.js';
 import {scooter} from './taiwan-life.js';
 import {air} from './atmosphere.js';
@@ -7,9 +7,9 @@ const loader=new T.TextureLoader();
 export function elevationMaterial(name){
   const map=loader.load(new URL('elevations/'+name+'.webp',import.meta.url).href);
   map.colorSpace=T.SRGBColorSpace;map.anisotropy=6;
-  return new T.MeshStandardMaterial({map,roughness:.78,emissive:'#ffffff',emissiveMap:map,emissiveIntensity:.13});
+  return new T.MeshStandardMaterial({map,roughness:.78,emissive:'#ffffff',emissiveMap:map,emissiveIntensity:.22});
 }
-const enamel=['#eee1ac','#315c4c','#e4d8c3','#5b423a'];
+const enamel=['#fff5de','#25637c','#f5e3dc','#263d67'];
 function blade(g,x,words,index){
   const w=.49,h=1.16,z=.59,y=2.17;
   for(const level of [y-.49,y+.5])rod(g,'#3d4947',[x,level,.02],[x,level,z+.19],.025);
@@ -29,7 +29,22 @@ function frontage(parent,x,z,yaw,i,mats){
   panel(p,mats[i],0,h/2,.011,w,h);
   for(const side of [-1,1]){const face=group(p,side*w/2,h/2,-1.56,side*Math.PI/2);panel(face,mats[(i+2)%4],0,0,.009,3.12,h);}
   for(const y of [h*.37,h*.69,h])box(p,'#b6b4a5',0,y,.055,w+.055,.056,.16);
-  const awning=box(p,['#686e5e','#705c51','#798172','#78876a'][i],0,h*.36,.22,w*.96,.045,.52);awning.rotation.x=.09;
+  const awning=box(p,['#537f95','#c26850','#417588','#426492'][i],0,h*.36,.22,w*.96,.045,.52);awning.rotation.x=.09;
+  const terrace=group(p,0,h+.03,-1.55);
+  for(const side of [-1,1]){
+    box(terrace,'#d3cebb',0,.10,side*1.52,3.99,.20,.080);
+    box(terrace,'#d3cebb',side*1.95,.10,0,.075,.20,3.03);
+  }
+  if(i%2){
+    for(const x of [-1.53,-.92]){box(terrace,'#b98365',x,.12,-.1,.42,.23,1.92,true);
+      for(let j=0;j<5;j++)oval(terrace,j%2?'#609968':'#89aa62',x,.35,-.89+j*.38,.17,.24,.23);}
+    for(const x of [.30,1.58])for(const z of [-.35,.92])cyl(terrace,'#9c8370',x,.40,z,.024,.024,.80,10);
+    for(let j=0;j<7;j++)box(terrace,'#cfab83',.30+j*.21,.82,.28,.080,.060,1.40);
+  }else{
+    cyl(terrace,'#a9bdc3',1.24,.56,-.58,.33,.33,.98,28);
+    for(const h of [.19,.39,.71,.98])cyl(terrace,'#d5ddda',1.24,h,-.58,.338,.338,.023,24);
+    for(let j=0;j<6;j++)box(terrace,'#698d9f',-.88+j*.22,.22,.63,.18,.07,1.00);
+  }
   pipes(p,-w*.48,.06,.055,h*.92);airUnit(p,w*.36,h*.56,.14,.82);
   blade(p,-w*.35,['春和茶行','四季青果','林家鍋貼','光影相館'][i],i);
   for(let k=0;k<2;k++)tube(p,'#3f4543',[[-w*.5,3.6-k*.065,.22],[0,3.47-k*.07,.27],[w*.5,3.55-k*.07,.22]],.012);
@@ -46,10 +61,18 @@ export function buildLane(scene){
   return street;
 }
 // The wet asphalt samples a mirrored camera view of the street. Water coverage varies in world space.
-export function wetLane(scene,street,fest){
+export function wetLane(scene,street,fest,visitors){
   const target=new T.WebGLRenderTarget(480,272),mirror=new T.PerspectiveCamera(),projection=new T.Matrix4();
   const reflected=new T.Scene();reflected.add(street.clone(true),new T.HemisphereLight(0xfff8ed,0x929b94,1.65));
-  reflected.add(fest.clone(true));
+  const poses=[];
+  // Source and reflection share geometry, while moving joints have separate transforms.
+  function reflectGroup(original){
+    const copy=original.clone(true),sources=[],copies=[];
+    original.traverse(o=>sources.push(o));copy.traverse(o=>copies.push(o));
+    sources.forEach((o,i)=>{if(o.userData.moves)poses.push([o,copies[i]]);});
+    reflected.add(copy);
+  }
+  reflectGroup(fest);reflectGroup(visitors);
   const brightness=reflected.children[1],view=new T.Vector3(),dest=new T.Vector3();
   const u={reflection:{value:target.texture},project:{value:projection},wet:{value:0},time:{value:0},day:{value:1}};
   const shader=new T.ShaderMaterial({uniforms:u,vertexShader:`varying vec3 pos;varying vec4 coord;uniform mat4 project;void main(){vec4 p=modelMatrix*vec4(position,1.);pos=p.xyz;coord=project*p;gl_Position=projectionMatrix*viewMatrix*p;}`,fragmentShader:`
@@ -64,12 +87,14 @@ export function wetLane(scene,street,fest){
   #include <colorspace_fragment>
   }`});
   const road=new T.Mesh(new T.PlaneGeometry(19.75,4.45),shader);road.rotation.x=-Math.PI/2;road.position.set(-18.25,.001,5.35);scene.add(road);
-  let last=-Infinity;const previous=new T.Matrix4();
+  let last=-Infinity;
   return (r,c,t)=>{
     u.wet.value=air.rain;u.time.value=t;u.day.value=air.day;
     const now=performance.now()/1000;
-    if(c.position.x>1||c.position.x< -37||Math.abs(c.position.z-5)>14||now-last<.15&&c.matrixWorld.equals(previous))return;
-    last=now;c.updateMatrixWorld();previous.copy(c.matrixWorld);mirror.copy(c,false);mirror.position.y=.002-c.position.y;
+    if(c.position.x>1||c.position.x< -37||Math.abs(c.position.z-5)>14||now-last<.12)return;
+    last=now;c.updateMatrixWorld();
+    for(const [o,copy] of poses){copy.position.copy(o.position);copy.quaternion.copy(o.quaternion);copy.scale.copy(o.scale);copy.visible=o.visible;}
+    mirror.copy(c,false);mirror.position.y=.002-c.position.y;
     c.getWorldDirection(view);view.y*=-1;mirror.up.set(0,-1,0);mirror.lookAt(dest.copy(mirror.position).add(view));mirror.updateMatrixWorld();
     projection.multiplyMatrices(mirror.projectionMatrix,mirror.matrixWorldInverse);
     reflected.background=scene.fog.color;brightness.intensity=.64+air.day*1.16;

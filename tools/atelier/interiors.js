@@ -1,3 +1,4 @@
+import {slabWithOpening,receptionPartitions} from './studio-building.js';
 import {T,palette as P,group,box,panel,rod,cyl,oval,label,animate} from './craft.js';
 import {cameraSlider,press,brushArm} from './equipment.js';
 import {creativeStudio} from './workstations.js';
@@ -6,7 +7,8 @@ import {person} from './street.js';
 export let studioLight;
 export const doorState={film:0};
 export const rooms={
-  film:{label:'AI 工具資源平台', door:[.37,2.46], eye:[.37,1.49,2.16], aim:[.37,1.38,-.02], bounds:[-1.24,1.97,-.03,2.19], width:1.40},
+  film:{label:'AI 工具資源', door:[.37,2.46], eye:[.37,1.49,2.16], aim:[.37,1.38,-.02], bounds:[-1.24,1.97,-.03,2.19], width:1.40},
+  store:{label:'7-ELEVEN',door:[4.10,2.36],eye:[3.41,1.29,2.19],aim:[4.36,.96,1.00],bounds:[2.72,5.42,.85,2.19],width:.92},
   print:{label:'設計室', door:[-2.50,2.36], eye:[-2.65,1.25,1.92], aim:[-3.41,1.00,-.10], bounds:[-4.39,-2.21,-.28,2.12], width:.80}
 };
 const warm=new T.MeshBasicMaterial({color:'#ffe0a1'});
@@ -25,7 +27,7 @@ function hangingLight(p,x,z){
 }
 function filmSet(p,w,d,art){
   const back=-d/2+.105;
-  studioLight=creativeStudio(p);
+  studioLight=creativeStudio(p,art);
   const notice=group(p,1.18,1.53,back+.13);notice.scale.setScalar(.66);
   mountWall(notice,0,0,0);
   const camera=group(p,-1.70,0,.16,.49);camera.scale.setScalar(.67);
@@ -55,6 +57,12 @@ function printDesk(p,w,d,art){
 }
 export function studioRoom(parent,id,w,d,art){
   const p=group(parent,0,.20,0);
+  if(id==='film'){
+    box(p,'#abbac9',0,.036,0,w-.04,.056,d-.04);
+    for(const side of [-1,1])box(p,'#adbccc',side*(w/2-.065),1,0,.077,2.01,d-.12);
+    slabWithOpening(p,1.99,d-.04);receptionPartitions(p);
+    filmSet(p,w,d,art);return;
+  }
   box(p,'#a1876c',0,.019,0,w-.04,.038,d-.04);
   const strips=10;
   for(let j=0;j<strips;j++)box(p,pine[j%4],-w/2+(j+.5)*w/strips,.047,0,w/strips-.013,.026,d-.06);
@@ -63,5 +71,5 @@ export function studioRoom(parent,id,w,d,art){
   box(p,id==='film'?'#d6c5a7':'#d6c0a4',0,1.99,0,w-.07,.045,d-.04);
   for(let j=0;j<4;j++)box(p,P.walnut,0,1.93,-d*.39+j*d*.25,w-.03,.077,.075);
   if(id!=='film'){hangingLight(p,-w*.25,-.13);hangingLight(p,w*.24,.17);}
-  if(id==='film')filmSet(p,w,d,art);else printDesk(p,w,d,art);
+  printDesk(p,w,d,art);
 }

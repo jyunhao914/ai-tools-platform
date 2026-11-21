@@ -1,69 +1,10 @@
+import {person} from './ensemble.js';
+export {person};
 import {T,palette as P,rand,group,mesh,box,oval,cyl,rod,beam,tube,hoop,plate,panel,label,animate,contact,makeCanvas,canvasMap} from './craft.js';
 import {spray,planter,seat,awning} from './architecture.js';
 import {pavement,roadway} from './surfaces.js';
 const TAU=Math.PI*2, roadY=.015, walkY=.22;
 export const lot={x:-1.47,z:-1.36,width:15.56,depth:12.45,roadWidth:.89,railApron:1.72};
-function garment(p,material,profile,x,y,z,squish){
-  const verts=profile.map(([r,h])=>new T.Vector2(r,h));const m=mesh(p,new T.LatheGeometry(verts,16),material,x,y,z);m.scale.z=squish;return m;
-}
-export function person(p,x,y,z,yaw,coat,action='stand') {
-  const root=group(p,x,y,z,yaw),hips=group(root,0,.391,0),body=group(hips,0,.012,0);
-  const variant=[...coat].reduce((sum,c)=>sum+c.charCodeAt(0),0)%5;
-  const skin=['#c88e6b','#d5a181','#b78060','#dfb391','#cc9876'][variant],hair=['#312c2b','#423733','#302e2d','#57514a','#292a29'][variant];
-  const denim=['#4b5359','#535757','#414b51','#655b50','#42474d'][variant];
-  garment(body,coat,[[.125,0],[.143,.030],[.132,.13],[.153,.239],[.143,.271],[.078,.298]],0,0,0,.68);
-  for(const side of [-1,1]){
-    const collar=box(body,coat,side*.035,.281,.056,.068,.057,.024,true);collar.rotation.z=side*.52;
-  }
-  cyl(body,skin,0,.31,-.002,.050,.058,.09);
-  const head=group(body,0,.432,.004);
-  garment(head,skin,[[.033,-.117],[.062,-.101],[.082,-.071],[.093,-.028],[.099,.026],[.096,.061],[.079,.087],[.040,.103]],0,0,0,.89);
-  for(const side of [-1,1]){
-    oval(head,skin,side*.093,-.010,-.004,.015,.028,.014);
-    oval(head,'#bf906e',side*.032,-.006,.078,.019,.007,.007);
-    oval(head,hair,side*.036,.000,.083,.009,.006,.005);
-    rod(head,hair,[side*.023,.024,.082],[side*.057,.030,.071],.005);
-  }
-  oval(head,skin,0,-.013,.081,.016,.029,.018);
-  oval(head,skin,0,-.031,.089,.018,.012,.013);
-  oval(head,'#9e695b',0,-.061,.074,.026,.004,.006);
-  oval(head,hair,0,.056,-.015,.102,.063,.088);
-  oval(head,hair,0,.012,-.053,.099,.083,.055);
-  for(let j=0;j<5;j++){
-    const xx=(j-2)*.030,lock=oval(head,hair,xx,.047+Math.abs(xx)*.23,.049,.032,.032+.012*(j%2),.027);lock.rotation.z=.58;
-  }
-  if(variant===1||variant===4){oval(head,hair,0,-.013,-.089,.055,.058,.047);oval(head,hair,.013,-.072,-.094,.036,.056,.032);}
-  if(action==='cook'){
-    cyl(head,P.paper,0,.123,0,.112,.108,.075);oval(head,P.paper,0,.168,0,.132,.067,.114);
-    box(body,'#e2d8bd',0,.125,.103,.21,.27,.026,true);
-  }else if(action==='cycle'){
-    oval(head,P.jade,0,.088,0,.117,.069,.107);box(head,P.brass,0,.067,.11,.142,.022,.065,true);
-  }else if(action!=='sport'&&action!=='uniform'){
-    const strap=box(body,P.walnut,0,.16,.108,.027,.31,.022);strap.rotation.z=-.50;
-    box(body,action==='read'?P.wood:P.jade,.116,.045,.04,.11,.14,.12,true);
-  }
-  let arms=[],legs=[],shins=[],elbows=[];
-  for(const s of [-1,1]){
-    const arm=group(body,s*.138,.247,0);arms.push(arm);
-    const forward=action==='cook'?(s===1?.17:.055):action==='cycle'?.15:action==='read'?.12:.022;
-    const elbow=[s*.039,-.129,forward*.31],hand=[s*.028,-.19,forward];
-    rod(arm,coat,[0,0,0],elbow,.048,.059,12);
-    const fore=group(arm,...elbow),tip=hand.map((v,i)=>v-elbow[i]);elbows.push(fore);
-    rod(fore,skin,[0,0,0],tip,.026,.039,12);oval(fore,skin,...tip,.029,.040,.024);
-    oval(fore,skin,tip[0]-s*.020,tip[1]+.008,tip[2]+.01,.014,.021,.012);
-    const knee=group(hips,s*.073,0,0);legs.push(knee);
-    const bent=action==='cycle'?.14:.027;
-    rod(knee,denim,[0,.035,0],[0,-.169,bent],.057,.072,12);
-    const shin=group(knee,0,-.166,bent);shins.push(shin);
-    rod(shin,action==='sport'?skin:denim,[0,0,0],[0,-.147,(action==='cycle'?-.035:0)-bent],.035,.052,12);
-    const foot=group(shin,0,-.169,(action==='cycle'?-.035:0)-bent);
-    oval(foot,variant%2?'#5d5048':'#6a6d67',0,0,.025,.052,.040,.085);
-    oval(foot,'#3e413d',0,-.026,.026,.055,.015,.087);
-    box(foot,'#b2aba0',0,.021,.067,.046,.008,.020,true);
-  }
-  if(action==='read'){const book=box(body,P.clay,0,.095,.168,.233,.14,.018);book.rotation.x=-.52}
-  return {root,hips,body,head,arms,legs,shins,elbows};
-}
 export function ground(p){
   const {x,z,width,depth,roadWidth}=lot;
   const walkWidth=width-2*roadWidth, walkDepth=depth-2*roadWidth;
@@ -128,7 +69,7 @@ export function tree(p,x,z,s=1){
   }
 }
 export function noodleStand(p){
-  const g=group(p,3.60,walkY,1.61,-.23);
+  const g=group(p,6.58,walkY,1.61,-.23);
   box(g,'#527970',0,.37,.02,1.54,.70,.68,true);
   box(g,'#c1c0a8',0,.75,0,1.63,.075,.76,true);
   for(let s of [-1,1]){rod(g,P.walnut,[s*.74,0,-.26],[s*.74,1.71,-.26],.038);rod(g,P.walnut,[s*.74,.56,.35],[s*.74,1.64,.35],.028)}
@@ -150,11 +91,12 @@ export function noodleStand(p){
   animate(spoon,t=>spoon.rotation.y=.6*Math.sin(t*2.15));
   const steamArt=canvasMap(makeCanvas(64,64,g=>{let gr=g.createRadialGradient(32,32,1,32,32,31);gr.addColorStop(0,'rgba(255,249,222,.65)');gr.addColorStop(1,'rgba(255,249,222,0)');g.fillStyle=gr;g.fillRect(0,0,64,64)}));
   for(let j=0;j<6;j++){const sm=new T.SpriteMaterial({map:steamArt,transparent:true,depthWrite:false}),v=new T.Sprite(sm);g.add(v);animate(v,t=>{let u=(t*.38+j/6)%1;v.position.set(-.26+Math.sin(u*6+j)*.068,1+u*.63,.04);v.scale.set(.10+u*.21,.12+u*.23,1);sm.opacity=.67*Math.sin(u*Math.PI)})}
-  const l=group(g,-.86,1.43,.32);oval(l,'#d97855',0,0,0,.131,.22,.13);for(let i=0;i<4;i++)hoop(l,'#aa654c',0,-.12+i*.08,0,.119,.008).rotation.x=Math.PI/2;
+  const l=group(g,.76,1.43,.38);oval(l,'#d97855',0,0,0,.131,.22,.13);for(let i=0;i<4;i++)hoop(l,'#aa654c',0,-.12+i*.08,0,.119,.008).rotation.x=Math.PI/2;
   animate(l,t=>l.rotation.z=.065*Math.sin(t*1.23));
   label(g,'麵',-.53,.46,.378,.28,.32,'#546e61','#faf0d1');
 }
-export function streetLife(p){
+export function streetLife(p,detailedCast){
+  if(!detailedCast){
   const reader=person(p,-3.32,walkY,3.02,-.75,'#9f654d','read');
   animate(reader.head,t=>reader.head.rotation.y=.16*Math.sin(t*.65));
   const walker=person(p,.35,walkY,3.30,0,'#817a9b');
@@ -170,6 +112,7 @@ export function streetLife(p){
   }
   animate(walker.root,t=>{const [x,z,a,moving]=journey(t);walker.root.position.x=x;walker.root.position.z=z;walker.root.rotation.y=a;walker.root.visible=moving===1;walker.hips.position.y=.385+.012*Math.abs(Math.sin(t*4.2))});
   for(let s=0;s<2;s++){animate(walker.legs[s],t=>walker.legs[s].rotation.x=Math.sin(t*4.2+s*Math.PI)*.39);animate(walker.arms[s],t=>walker.arms[s].rotation.x=-Math.sin(t*4.2+s*Math.PI)*.26)}
+  }
   // A courier follows the street around the island, tangent to each bend.
   const cycle=group(p),wheelPivots=[];
   contact(cycle,0,0,.54,1.35,.012);

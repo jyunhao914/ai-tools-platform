@@ -9,9 +9,9 @@ export function rand() {
   return state / 4294967296;
 }
 export const palette = {
-  ink: '#303c41', metal: '#495958', brass: '#c79a5f', jade: '#397568',
-  mint: '#9bb9a6', cream: '#f4e4be', red: '#a74636', clay: '#ca7055',
-  wood: '#956144', walnut: '#4e3e34', paper: '#fff2d7', blue: '#577483',
+  ink: '#303c41', metal: '#495958', brass: '#c79a5f', jade: '#237f85',
+  mint: '#a3cbc6', cream: '#f4f1e6', red: '#a74636', clay: '#e47459',
+  wood: '#956144', walnut: '#4e3e34', paper: '#fff2d7', blue: '#456f9e',
 };
 const solids = new Map();
 let vertexPaint;

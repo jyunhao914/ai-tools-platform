@@ -1,12 +1,17 @@
+import {highlightStation} from './workstations.js';
 import {T,batch,movement,group} from './craft.js';
 import {loadArt} from './surfaces.js';
-import {buildDistrict} from './block.js';
+import {buildDistrict,restartStudioArrival} from './block.js';
+import {restartTram} from './tram.js';
+import {loadCitizens,citizens} from './citizens.js';
+import {festival,restartFestival} from './festival.js';
 import {promenade} from './promenade.js';
 import {buildCity} from './city.js';
 import {buildLane,wetLane} from './lane.js';
 import {buildTown} from './town.js';
 import {streetVisit} from './streets.js';
 import {paintNotes} from './wall.js';
+import {productionLight} from './studio-building.js';
 import {studioLight} from './interiors.js';
 import {wallUI} from './wall-ui.js';
 import {atmosphere} from './atmosphere.js';
@@ -31,19 +36,21 @@ async function start(){
   sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-19,right:19,top:16,bottom:-16,near:.5,far:58});
   sun.shadow.normalBias=.014;sun.shadow.bias=-.00016;sun.shadow.camera.updateProjectionMatrix();scene.add(sun);
   const bounce=new T.DirectionalLight(0xe1e9f4,.48);bounce.position.set(6,4,-5);scene.add(bounce);
-  const art=await loadArt();
-  const district=group(scene);buildDistrict(district,art);batch(district);
+  const [art,cast]=await Promise.all([loadArt(),loadCitizens()]);
+  const district=group(scene);buildDistrict(district,art,!!cast);batch(district);
   const town=buildTown(scene,art);
-  const lane=buildLane(scene),fest=promenade(scene),reflect=wetLane(scene,lane,fest);buildCity(scene);
+  const lane=buildLane(scene),fest=promenade(scene),visitors=festival(scene,!!cast),reflect=wetLane(scene,lane,fest,visitors);buildCity(scene);
+  const poseCitizens=citizens(scene,cast,visitors.getObjectByName('festival-print'),camera,report);
   const sky=atmosphere(scene,camera,sun,hemi,bounce,town,report);
   const notes=wallUI(paintNotes,()=>{report('wallClosed');canvas.focus({preventScroll:true});});
   function openWall(){if(visit.mode==='film'){visit.step(0);notes.open();report('wallOpen');}}
   const visit=streetVisit(camera,canvas,(type,details)=>{
     if(type==='openWall'){openWall();return;}
-    if(type==='place'){studioLight.visible=details.place==='film';if(studioLight.visible)notes.load();}
+    if(type==='place'){productionLight.visible=['record','podcast'].includes(details.place);studioLight.visible=details.place==='film';if(studioLight.visible)notes.load();}
     report(type,details);
   },reduced,district.getObjectByName('cinema-tram'));
   let lastFrame=null,elapsed=0,lastShadow=-1,presented=false;
+  const shadowCenter=new T.Vector3(Infinity,0,0);
   let viewportWidth=0,viewportHeight=0,ratio=nativeRatio,sample=0,frames=0,shadowInterval=.26;
   function resize(){
     const w=Math.max(1,stage.clientWidth),h=Math.max(1,stage.clientHeight);
@@ -55,10 +62,12 @@ async function start(){
   window.addEventListener('message',event=>{
     if(event.origin!==location.origin||event.source!==parent||event.data?.channel!=='atelier')return;
     const data=event.data;
+    if(data.type==='stationFocus')highlightStation(data.key);
     if(data.type==='wall'){openWall();return;}
     if(data.type==='climate')sky.set(data);
     if(data.type==='toggle')setPaused(!paused);
     if(data.type==='go')visit.go(data.place);
+    if(data.type==='replay'){restartFestival(elapsed);restartTram(elapsed);restartStudioArrival(elapsed);visit.replay();}
     if(data.type==='step')visit.step(Math.sign(data.value)||0);
   });
   reduced.addEventListener('change',e=>setPaused(e.matches));
@@ -77,11 +86,11 @@ async function start(){
   renderer.setAnimationLoop(now=>{
     if(document.hidden){lastFrame=null;return;}
     const dt=lastFrame===null?0:Math.max(0,(now-lastFrame)/1000);lastFrame=now;
-    visit.update(Math.min(dt,.15),!paused);
+    visit.update(Math.min(dt,.15),!paused,dt);
     if(!paused)elapsed+=dt;
     sky.update(elapsed,dt);
-    movement.forEach(fn=>fn(elapsed));
-    if(lastShadow<0||elapsed-lastShadow>=shadowInterval){renderer.shadowMap.needsUpdate=true;lastShadow=elapsed;}
+    movement.forEach(fn=>fn(elapsed));poseCitizens(elapsed);
+    if(!shadowCenter.equals(sun.target.position)||lastShadow<0||elapsed-lastShadow>=shadowInterval){shadowCenter.copy(sun.target.position);renderer.shadowMap.needsUpdate=true;lastShadow=elapsed;}
     tune(dt);reflect(renderer,camera,elapsed);renderer.render(scene,camera);
     if(!presented){presented=true;report('ready');}
   });

@@ -143,7 +143,9 @@ export function atmosphere(scene,camera,sun,hemi,bounce,streets,report){
     uniforms.t.value=t;uniforms.cover.value=cover;uniforms.daylight.value=air.day;sky.position.copy(camera.position);
     hemi.color.copy(colors.moon).lerp(colors.white,air.day);hemi.groundColor.copy(colors.darkBottom).lerp(colors.bottom,air.day);
     hemi.intensity=.90+air.day*(.82+cover*.26);
-    sun.position.copy(sunDir).multiplyScalar(26);
+    camera.getWorldDirection(sun.target.position).multiplyScalar(7).add(camera.position);
+    sun.target.position.set(Math.round(sun.target.position.x/4)*4,1,Math.round(sun.target.position.z/4)*4);
+    sun.target.updateMatrixWorld();sun.position.copy(sunDir).multiplyScalar(26).add(sun.target.position);
     sun.intensity=(.55+1.75*Math.max(0,sunDir.y))*air.day*(1-cover*.84)*(.96+.04*Math.sin(t*.17));
     sun.color.copy(colors.amber).lerp(colors.white,smooth(.03,.48,sunDir.y));
     bounce.color.copy(colors.moon);bounce.intensity=.37+night*.20;

@@ -1,6 +1,6 @@
 import {sights} from './city-places.js';
 const zones={
-  '西屯區':['marketnight','mall','opera','lin','avenue','hospital','chapel','science','fab'],
+  '西屯區':['hospital','marketnight','mall','opera','lin','avenue','chapel','science'],
   '南屯區':['park','metro'],'北屯區':['stadium'],'北區':['lake'],'大甲區':['temple']
 };
 export function cityGuide(root,onGo){
@@ -8,7 +8,7 @@ export function cityGuide(root,onGo){
   let zone='';
   function select(name){
     zone=name;area.value=name;list.replaceChildren();
-    const ids=name?zones[name]:Object.keys(sights);
+    const ids=name?zones[name]:['hospital',...Object.keys(sights).filter(id=>id!=='hospital')];
     for(const id of ids){const b=document.createElement('button');b.type='button';b.textContent=sights[id].name;b.onclick=()=>{dialog.close();onGo(id);};list.append(b);}
     for(const el of map.querySelectorAll('[data-zone]'))el.classList.toggle('selected',el.dataset.zone===name);
   }

@@ -11,9 +11,22 @@ export function foundation(p,w,d) {
 function elevation(face,w,h,material,bay){
   function patch(l,b,r,t) {
     if(r-l<.005||t-b<.005)return;
-    panel(face,material,(l+r)/2-w/2,(b+t)/2,0,r-l,t-b,[l/w,b/h,r/w,t/h]);
+    box(face,'#d3c7b9',(l+r)/2-w/2,(b+t)/2,-.063,r-l,t-b,.12);
+    panel(face,material,(l+r)/2-w/2,(b+t)/2,.001,r-l,t-b,[l/w,b/h,r/w,t/h]);
   }
-  if(!bay){patch(0,0,w,h);return}
+  if(!bay){
+    if(w<1.55||h<2.6){patch(0,0,w,h);return;}
+    const base=h*.54,top=base+h*.25,left=w*.19,right=w*.80;
+    patch(0,0,w,base);patch(0,top,w,h);patch(0,base,left,top);patch(right,base,w,top);
+    const cw=right-left,ch=top-base,mid=(left+right-w)/2,cy=(base+top)/2;
+    box(face,'#425960',mid,cy,-.20,cw,ch,.036);
+    for(const dir of [-1,1])box(face,'#93a397',mid+dir*cw*.49,cy,-.09,.036,ch,.21);
+    box(face,'#75867c',mid,cy,-.068,.040,ch,.09);
+    box(face,'#c4bb9f',mid,base,.021,cw+.12,.068,.27);
+    box(face,'#afa993',mid,top,-.035,cw+.06,.066,.18);
+    for(let i=0;i<3;i++)box(face,'#83938c',mid-cw*.33+i*cw*.083,cy,-.13,.04,ch*.94,.031);
+    return;
+  }
   const {x=0,y,bw,bh,art}=bay, left=(w-bw)/2+x,right=left+bw,top=y+bh,depth=bay.depth??.42;
   if(bay.door){
     const door=bay.door,dl=w/2+door.x-door.w/2,dr=dl+door.w;
@@ -28,8 +41,7 @@ function elevation(face,w,h,material,bay){
     patch(0,0,w,y);patch(0,top,w,h);patch(0,y,left,top);patch(right,y,w,top);
   }
   const frame=group(face,x,y+bh/2,0);
-  if(bay.index===undefined)panel(frame,art,0,0,-depth,bw+.07,bh+.04);
-  else workingRoom(frame,art,bay.index,bw+.07,bh+.04,-depth);
+  if(!bay.openStudio)workingRoom(frame,art,bay.index??4,bw+.07,bh+.04,-depth);
   for(let k of [-1,1]){
     box(frame,k===1?P.walnut:'#8b6c51',k*(bw/2+.018),0,-depth/2,.06,bh,depth+.03);
     box(frame,P.walnut,k*(bw/2+.04),0,.045,.09,bh+.19,.10);

@@ -1,5 +1,6 @@
 import {T,palette as P,group,box,oval,cyl,rod,beam,tube,panel,plate,label,contact,animate,painted,makeCanvas} from './craft.js';
 import {shell,gable,railing,awning,sconce,blade,pipes,airUnit,skylight,tank,stairs,planter,ivy,spray} from './architecture.js';
+import {upperStudio,cornerStore} from './studio-building.js';
 import {studioRoom, doorState} from './interiors.js';
 import {roofTile,zinc,tiled,lessonScreen} from './surfaces.js';
 import {projector,cameraSlider,softbox,press,server,brushArm} from './equipment.js';
@@ -23,29 +24,34 @@ function cat(p,x,y,z){
   const tail=group(g,-.17,.09,-.02);tube(tail,P.wood,[[0,0,0],[-.10,.026,-.045],[-.17,.045,.038],[-.12,.067,.091]],.036);
   animate(tail,t=>tail.rotation.y=.3*Math.sin(t*1.1));return g;
 }
-function foldingDoors(p) {
+let studioArrival=0;
+export function restartStudioArrival(t){studioArrival=t;}
+function slidingStudioDoors(p) {
   const g=group(p,0,.08,.058);
-  box(g,P.wood,0,1.73,.135,1.78,.125,.20);
-  for(const side of [-1,1])box(g,P.walnut,side*.80,.86,.13,.13,1.73,.18);
-  function ramp(t,a,b){const u=Math.max(0,Math.min(1,(t-a)/(b-a)));return u*u*(3-2*u)}
+  const aluminum='#49616b',stainless='#b1c3c6';
+  box(g,aluminum,0,1.75,.135,1.68,.105,.17,true);
+  box(g,stainless,0,1.69,.16,1.68,.023,.046);
+  box(g,'#254855',0,1.766,.229,.15,.038,.027,true);
+  const glass=new T.MeshPhysicalMaterial({color:'#b9e5ef',roughness:.085,metalness:.10,transparent:true,opacity:.13,side:T.DoubleSide,depthWrite:false});
   for(const side of [-1,1]){
-    const leaf=group(g,side*.755,.045,.168),inner=-side*.374;
-    box(leaf,P.red,inner,.81,0,.746,1.62,.070);
-    box(leaf,'#805441',inner,1.045,.041,.605,.882,.03);
-    for(let col=0;col<2;col++)for(let row=0;row<3;row++){
-      const xx=inner+(col-.5)*.252,yy=.78+row*.268;
-      box(leaf,['#b99c76','#b7a680','#c4ad86'][(col+row)%3],xx,yy,.064,.22,.235,.028);
-      box(leaf,'#d8c19a',xx-.056,yy+.043,.08,.026,.105,.008);
-    }
-    box(leaf,'#813d32',inner,.34,.046,.60,.44,.028);box(leaf,'#a44e3c',inner,.34,.066,.50,.34,.026);
-    rod(leaf,P.brass,[inner-side*.23,.65,.10],[inner-side*.23,.83,.10],.014);
-    for(const yy of [.30,1.35])cyl(leaf,P.brass,0,yy,.037,.028,.028,.13,12);
-    animate(leaf,t=>{const u=t%18;
-      const opening=ramp(u,4.10,5.23)-ramp(u,7.48,8.40)+ramp(u,10.17,11.15)-ramp(u,13.35,14.3);
-      leaf.rotation.y=side*1.40*Math.max(opening,doorState.film);
+    box(g,aluminum,side*.785,.865,.11,.053,1.72,.11);
+    const leaf=group(g,side*.373,.046,.193);
+    leaf.name=side<0?'studio-glass-left':'studio-glass-right';
+    box(leaf,glass,0,.808,0,.732,1.596,.021);
+    for(const edge of [-1,1])box(leaf,stainless,edge*.363,.808,.004,.022,1.61,.035);
+    for(const y of [.015,1.60])box(leaf,aluminum,0,y,.004,.748,.032,.044);
+    for(let i=-2;i<=2;i++)box(leaf,'#dae9e9',i*.117,.86,.015,.046,.013,.004);
+    let opening=0,previous=null;
+    animate(leaf,t=>{
+      const u=(t-studioArrival)%18;
+      const arrival=T.MathUtils.smoothstep(u,6.65,7.85)-T.MathUtils.smoothstep(u,12.9,14.1);
+      const request=Math.max(arrival,doorState.film);
+      const dt=previous===null?0:t-previous;previous=t;
+      opening=dt===0?request:T.MathUtils.damp(opening,request,7,dt);
+      leaf.position.x=side*(.373+.744*opening);
     });
   }
-  box(g,'#bcb295',0,-.018,.19,1.85,.080,.41);
+  box(g,'#aab7b7',0,-.012,.14,1.63,.054,.31);
 }
 function verticalType(p,x,y,z,words) {
   const sign=group(p,x,y,z);
@@ -54,13 +60,36 @@ function verticalType(p,x,y,z,words) {
   box(sign,P.clay,0,0,.088,.35,1.61,.047,true);
   for(let i=0;i<words.length;i++)label(sign,words[i],0,.56-i*.37,.118,.31,.34,'#bd6752','#fff1d4',{size:.85});
 }
+// A small rotating aperture crowns the cinema marquee, with stepped enamel wings.
+function cinemaCrest(front){
+  const crest=group(front,0,2.56,.59);
+  const glow=new T.MeshBasicMaterial({color:'#ffe1a0'});
+  for(const side of [-1,1]){
+    for(let i=0;i<3;i++){
+      const length=.94-i*.19,y=.006+i*.063;
+      box(crest,P.jade,side*(.16+length/2),y,0,length,.060,.065,true);
+      box(crest,P.brass,side*(.16+length/2),y+.022,.04,length,.012,.019);
+      oval(crest,glow,side*(.16+length),y,.05,.018,.018,.010);
+    }
+  }
+  const disc=group(crest,0,.104,.03);
+  for(const [radius,z,material] of [[.234,0,P.brass],[.205,.025,P.clay],[.170,.05,P.ink]]){
+    oval(disc,material,0,0,z,radius,radius,.030);
+  }
+  const shutter=group(disc,0,0,.081);
+  for(let i=0;i<6;i++){
+    const arm=group(shutter);arm.rotation.z=i*Math.PI/3;
+    rod(arm,P.brass,[.033,.072,.004],[.13,-.043,.004],.010);
+  }
+  animate(shutter,t=>shutter.rotation.z=.33*t);
+}
 function filmingHouse(p,a,screen) {
   const g=group(p,.37,.20,1.04),w=4.11,d=2.68,h=4.49;
-  const f=shell(g,w,d,h,{front:a.wall0,right:a.wall0,back:a.wall3,left:a.wall2},{front:{bw:3.05,bh:1.58,y:2.61,index:1,art:a.room1,depth:.38,door:{x:0,w:1.47,h:1.83}}});
-  studioRoom(g,'film',w,d,a);
+  const f=shell(g,w,d,h,{front:a.wall0,right:a.wall0,back:a.wall3,left:a.wall2},{front:{bw:3.05,bh:1.58,y:2.61,openStudio:true,index:1,art:a.room1,depth:.38,door:{x:0,w:1.47,h:1.83}}});
+  studioRoom(g,'film',w,d,a);upperStudio(g,a);
   // Continuous stepped cornices and ceramic piers tie the cinema elevations together.
   for(const [level,depth,col] of [[.28,.06,'#71877b'],[2.22,.10,'#b3a78c'],[4.53,.15,P.cream],[4.65,.07,P.jade]]){
-    box(g,col,0,level,0,w+depth,.085,d+depth);
+    for(const side of [-1,1]){box(g,col,0,level,side*d/2,w+depth,.085,depth);box(g,col,side*w/2,level,0,depth,.085,d);}
   }
   for(let s of [-1,1]){
     box(f.front,P.jade,s*1.88,3.41,.04,.14,2.00,.17);
@@ -72,10 +101,11 @@ function filmingHouse(p,a,screen) {
   box(f.front,'#263d3c',0,2.22,.30,4.09,.53,.68,true);
   box(f.front,P.clay,0,2.47,.31,4.13,.078,.70,true);
   box(f.front,P.brass,0,1.956,.31,4.12,.051,.70,true);
-  label(f.front,'AI 工具資源平台',0,2.225,.65,3.91,.43,'#254e49','#fff0ca',{size:.89});
+  label(f.front,'AI 工具資源',0,2.225,.65,3.91,.43,'#24375d','#f3f8ff',{size:.89});
   ledStrip(f.front,0,2.00,.653,3.76,20);
   for(let end of [-1,1])for(let j=0;j<3;j++)box(f.front,P.brass,end*(1.92-j*.048),2.236,.661,.017,.204+j*.044,.027);
-  foldingDoors(f.front);
+  cinemaCrest(f.front);
+  slidingStudioDoors(f.front);
   posterBox(f.front,-1.59,1.15,.075,.43,.73,a.room2,'手部圖解');
   posterBox(f.front,1.58,1.14,.075,.44,.73,a.room1,'今日錄影');
   cameraSlider(f.front,-.93,2.82,.16);softbox(f.front,1.27,2.76,-.08);
@@ -148,7 +178,7 @@ function planningRoom(p,a) {
   airUnit(f.right,-.38,1.57,.13,.65);cat(g,.68,3.79,.60);
 }
 function controlRoom(p,a) {
-  const g=group(p,2.97,.20,-1.62,Math.PI/2),w=3.49,d=2.66,h=3.76;
+  const g=group(p,2.97,.20,-2.40,Math.PI/2),w=3.49,d=2.66,h=3.76;
   const f=shell(g,w,d,h,{front:a.wall2,right:a.wall3,back:a.wall0,left:a.wall2},{front:{bw:2.62,bh:1.51,y:1.74,index:3,art:a.room3,depth:.37}});
   box(f.front,P.jade,0,1.60,.15,3.47,.20,.42);label(f.front,'課 程 控 制 室',0,1.60,.373,2.05,.16,'#365f55','#ffecca');
   server(f.front,1.28,1.78,.09);
@@ -180,11 +210,11 @@ function courtyard(p) {
   stairs(steps,0,0,.48,.62,1.23,1.32);
   planter(p,-.74,.20,-3.40,.37,true);planter(p,-4.70,.20,-1.02,.40);planter(p,4.77,.20,.47,.36);
 }
-export function buildDistrict(p,a){
+export function buildDistrict(p,a,detailedCast){
   const screen=lessonScreen(a);
   ground(p);contact(p,lot.x,lot.z,lot.width-1.1,lot.depth-1.25,.202);
-  filmingHouse(p,a,screen);printShop(p,a);planningRoom(p,a);controlRoom(p,a);
-  courtyard(p);utilities(p);noodleStand(p);streetLife(p);
+  cornerStore(p);filmingHouse(p,a,screen);printShop(p,a);planningRoom(p,a);controlRoom(p,a);
+  courtyard(p);utilities(p);noodleStand(p);streetLife(p,detailedCast);
   cameraRental(p,a);soundStudio(p,a);screeningYard(p,screen);
   addTramLine(p,lot);addPigeons(p);
 }
