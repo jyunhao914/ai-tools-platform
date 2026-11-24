@@ -610,8 +610,11 @@ function renderCards(){
     if(perm==='admin'&&_userRole!=='admin')return false;
     return true;
   });
-  /* Pinned entries lead each category without changing the saved order of peers. */
-  filtered.sort(function(a,b){return (b.pinned?1:0)-(a.pinned?1:0);});
+  if(_activeTab==='工具箱'){
+    filtered.sort(function(a,b){return publicationTime(b)-publicationTime(a)});
+  }else{
+    filtered.sort(function(a,b){return (b.pinned?1:0)-(a.pinned?1:0)});
+  }
   /* 子分類篩選列 */
   var chipBar=$('subFilter');
   if(chipBar){
