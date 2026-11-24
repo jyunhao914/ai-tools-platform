@@ -461,6 +461,26 @@
       "content": "下載 GPT 或 Gemini 版，依照設定步驟將簡報 PDF 轉成逐頁旁白，再匯入 Voicebox。",
       "coverImage": "assets/slides-script-cover.jpg",
       "publishDate": "2026-11-24T11:25:33+08:00"
+    },
+    {
+      "id": "image-reconstruction-guide",
+      "type": "article",
+      "title": "GPT 高解析原樣重建",
+      "desc": "把 PPT、PDF 或海報圖片重建成可編輯的簡報。附 ChatGPT 外掛安裝步驟、圖解與兩個使用範例。",
+      "content": "把 PPT、PDF 或海報圖片重建成可編輯的簡報。附 ChatGPT 外掛安裝步驟、圖解與兩個使用範例。",
+      "extra": "{\"content\": \"<p>只有活動海報的圖片，卻需要把標題換掉？「高解析原樣重建」會分開處理文字與背景，讓你在 PowerPoint 裡選取文字修改。手上若是一整份簡報或 PDF，也可以直接交給外掛逐頁轉換。</p>\\n<p><button type=\\\"button\\\" popovertarget=\\\"rebuild-access\\\" style=\\\"padding:.7em 1.3em;border:0;border-radius:8px;background:#16574c;color:white;font:inherit;cursor:pointer\\\">取得外掛</button></p>\\n<div id=\\\"rebuild-access\\\" popover style=\\\"max-width:min(85vw,400px);padding:24px;border:1px solid #b9cfc4;border-radius:14px\\\"><h3 style=\\\"margin-top:0\\\">請洽詢管理員</h3><p>請來信索取「高解析原樣重建」0.1.26 版的下載方式。</p><p><a href=\\\"mailto:zxc80057@gmail.com?subject=洽詢高解析原樣重建外掛\\\">聯絡管理員</a></p><button type=\\\"button\\\" popovertarget=\\\"rebuild-access\\\" popovertargetaction=\\\"hide\\\">關閉</button></div>\\n<h2>哪些內容可以再編輯？</h2>\\n<figure style=\\\"margin:1em 0\\\"><img src=\\\"assets/reconstruction-text-example.png\\\" alt=\\\"海報重建示意：左圖的標題與山景合在一起，右圖的標題有獨立文字框。\\\" style=\\\"display:block;width:100%;height:auto;border-radius:12px\\\"><figcaption>圖解示意：把「山城散步」改成新的活動名稱時，只要編輯標題文字框，山景底圖可以沿用。</figcaption></figure>\\n<ul><li><strong>PPT、PPTX：</strong>依原順序處理整份簡報，保留原生文字與表格，再辨識插圖裡需要重建的文字。</li><li><strong>PDF：</strong>依頁面擷取文字與可辨識的有框線表格。掃描頁會使用文字辨識；無框線表格可能以分開的文字框呈現。</li><li><strong>單張圖片：</strong>依你指定的尺寸重建文字並保留構圖。照片、商標或藝術字可指定保留在底圖上。</li></ul>\\n<h2>安裝外掛</h2>\\n<ol><li>向管理員取得 <code>image-reconstruction-0.1.26-plugin.zip</code>，保留 ZIP 原檔。</li><li>若工作區已提供這個外掛，在 ChatGPT 側欄開啟「Plugins」，搜尋「高解析原樣重建」並選擇安裝。</li><li>若是首次匯入 ZIP，請有上傳權限的工作區管理員在 ChatGPT 網頁版開啟「Admin console → Plugins → Add → Upload plugin」，選取 ZIP 並依畫面完成匯入。回到使用者的外掛目錄安裝。</li><li>開一個新對話，在輸入框輸入 <code>@</code>，搜尋並選取「高解析原樣重建」。若目錄或上傳選項未出現，請管理員確認工作區是否已開放外掛與上傳權限。</li></ol>\\n<p><a href=\\\"https://help.openai.com/en/articles/20001256-plugins-in-chatgpt\\\">OpenAI 官方外掛安裝與使用說明</a></p>\\n<h2>用法一：整份 PDF 轉成可編輯簡報</h2>\\n<p>選好外掛，直接上傳整份原始文件並輸入：</p>\\n<blockquote>請逐頁把這份 PDF 轉成可編輯的 PowerPoint。保留頁序、文字與表格；有辨識不清楚的地方，請列出頁碼。</blockquote>\\n<p>下載 PPTX 後，先比對頁數，再抽查數字、單位與表格。點進文字框試改一行，就能確認哪些文字可編輯。</p>\\n<h2>用法二：重建一張海報，保留底圖</h2>\\n<p>上傳原圖並選取外掛，再告訴它尺寸和想拿到的檔案。例如：</p>\\n<blockquote>請重建這張海報，維持原比例，長邊 6000 px。標題和內文要能修改，商標保留原樣。請給我可編輯的 PPTX 和無文字底圖 PNG。</blockquote>\\n<p>若只上傳圖片，外掛會先問尺寸，再問輸出格式。選 A 可指定長邊像素，預設為 8,000 px；選 B 可填實際列印寬高與單位，依 300 PPI 換算。若新尺寸和原圖比例不同，可選擇調整寬高、留白或裁切。</p>\\n<h2>圖片輸出怎麼選？</h2>\\n<ul><li><strong>1｜SVG：</strong>要用向量編輯器繼續改文字或調版面時選這項。</li><li><strong>2｜PPTX：</strong>要交給同事在 PowerPoint 改標題、內文時選這項。</li><li><strong>3｜無文字底圖 PNG：</strong>要重新排字時使用。被指定保留的商標或特殊字樣仍會留在圖上。</li><li><strong>4｜完整圖 PNG：</strong>需要含全部文字的成品圖，可直接放進文件或分享。</li></ul>\\n<p>可以複選。例如回覆「2+3」就會得到可改字的簡報和可重新排版的底圖。來源若模糊，請在輸出後核對人名、細字和標點。</p>\\n\"}",
+      "category": "工具箱",
+      "page": "工具箱",
+      "coverImage": "assets/reconstruction-guide-cover.jpg",
+      "imageUrls": [
+        "assets/reconstruction-guide-cover.jpg"
+      ],
+      "permission": "public",
+      "visible": true,
+      "tag": "ChatGPT 外掛",
+      "linkUrl": "",
+      "views": 0,
+      "publishDate": "2026-11-24T16:03:52+08:00"
     }
   ],
   "pages": [
