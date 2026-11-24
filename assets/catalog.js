@@ -687,7 +687,7 @@ function catalogSummary(card){
 function fullArticle(card){var ex=cardExtra(card);return ex.content&&ex.content.length>(card.content||'').length?ex.content:(card.content||'');}
 function downloadOptions(card){
   // Both assistant editions are explained and linked within the same guide.
-  if(card.id==='1785291000000')return [];
+  if(card.id==='1785291000000'||card.downloadGrant)return [];
   var doc=new DOMParser().parseFromString(fullArticle(card),'text/html'),seen=new Set(),items=[];
   doc.querySelectorAll('a[href]').forEach(function(a){
     var raw=a.getAttribute('href'),url;
@@ -1016,6 +1016,15 @@ function openArticleReader(card,fromRoute){
     }
   }catch(e){}
   _renderArticle(_localHtml);
+  if(card.downloadGrant && card.id!=='image-reconstruction-guide'){
+    var entry=document.createElement('div');
+    entry.dataset.grantEntry=card.id;
+    var link=document.createElement('a');
+    link.href='assets/reconstruction-access.html?article='+encodeURIComponent(card.id);
+    link.textContent='取得授權下載';entry.appendChild(link);
+    $('articleContent').appendChild(entry);
+    if(window.renderGrantEntries)window.renderGrantEntries();
+  }
   /* repo data.json 為唯一資料源；舊 GAS getArticle 會用停用後台的舊內文蓋掉新內容，已移除 */
   overlay.classList.add('show');
   overlay.scrollTop=0;
