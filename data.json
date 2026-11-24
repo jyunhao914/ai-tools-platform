@@ -352,25 +352,6 @@
       "extra": "{}"
     },
     {
-      "id": "presentation_script_gem_1",
-      "category": "工具箱",
-      "title": "簡報講稿助手（Gemini 版）",
-      "desc": "上傳 PPT 或大綱，產出每張投影片可以直接念的口白逐字稿（含時長、互動提問、講者小提示、開場結尾範本、關鍵金句）。需要 Gemini 帳號。",
-      "linkUrl": "https://drive.google.com/file/d/1ZKgV-aBfMhYnlHywr1WDprh9kYioCSSi/view?usp=sharing",
-      "tag": "Gemini Skill",
-      "imageUrls": [
-        "assets/script-gem-cover.jpg"
-      ],
-      "iconUrl": "",
-      "views": 0,
-      "type": "link",
-      "permission": "public",
-      "meta1": "",
-      "meta2": "下載 Skill（ZIP）",
-      "meta3": "",
-      "extra": "{}"
-    },
-    {
       "id": "news_release_gem_1",
       "category": "工具箱",
       "title": "新聞稿產生器 (Gemini Gem)",
@@ -460,23 +441,22 @@
     {
       "id": "1785291000000",
       "category": "簡報轉影片",
-      "title": "簡報講稿助手（GPT 版）",
-      "desc": "上傳 PDF 自動產生逐頁講稿，輸出格式直接相容 Voicebox 軟體（每頁以空白行分隔，可貼到記事本 / Word / Google Docs）。可指定影片總長、目標對象、語氣風格。",
-      "linkUrl": "https://drive.google.com/file/d/1Nikj53JjUJG7V1NUdYg962jTaDd2Zbwd/view?usp=sharing",
-      "tag": "GPT Skill",
-      "imageUrls": [
-        "assets/voicebox-script-gpt-thumb.jpg"
-      ],
+      "title": "簡報講稿助手",
+      "desc": "下載 GPT 或 Gemini 版，依照設定步驟將簡報 PDF 轉成逐頁旁白，再匯入 Voicebox。",
+      "linkUrl": "",
+      "tag": "使用教學",
+      "imageUrls": [],
       "iconUrl": "",
       "views": 0,
-      "type": "link",
+      "type": "article",
       "permission": "public",
-      "meta1": "open",
-      "meta2": "下載 Skill（ZIP）",
-      "meta3": "{\"i\":\"\",\"s\":\"primary\",\"c\":\"\"}",
-      "extra": "{\"linkBehavior\":\"open\",\"linkBtnLabel\":\"下載 Skill（ZIP）\",\"linkBtnIcon\":\"\",\"copyContent\":\"\",\"btnStyle\":\"primary\"}",
+      "meta1": "",
+      "meta2": "",
+      "meta3": "",
+      "extra": "{\"content\": \"<p>下載 GPT 或 Gemini 版，依照設定步驟將簡報 PDF 轉成逐頁旁白，再匯入 Voicebox。</p>\\n<h2>GPT 版</h2>\\n<p><a href=\\\"https://drive.google.com/file/d/1Nikj53JjUJG7V1NUdYg962jTaDd2Zbwd/view?usp=sharing\\\"><strong>下載 GPT 版（ZIP）</strong></a></p>\\n<ol><li><strong>設定助手。</strong>如果 ChatGPT 側欄有 Plugins → Skills，選 Create → Upload from your computer，上傳剛下載的 ZIP，待掃描完成後確認已安裝。</li>\\n<li><strong>一般對話也能使用。</strong>若帳號沒有 Skills 選項，解壓縮 ZIP，把「助手指令.txt」和簡報 PDF 一起上傳到同一個對話。若已安裝 Skill，只需上傳 PDF。</li>\\n<li><strong>產生講稿。</strong>輸入「請用簡報講稿助手，依照這份 PDF 為初學者寫一份 5 分鐘的繁體中文講稿，每頁一段。請提供可匯入 Voicebox 的 TXT 檔。」若使用指令檔，在開頭加上「請依照附件《助手指令.txt》執行」。</li></ol>\\n<p><a href=\\\"https://help.openai.com/en/articles/20001066-skills-in-chatgpt\\\">ChatGPT 官方 Skill 安裝說明</a></p>\\n<h2>Gemini 版</h2>\\n<p><a href=\\\"https://drive.google.com/file/d/1ZKgV-aBfMhYnlHywr1WDprh9kYioCSSi/view?usp=sharing\\\"><strong>下載 Gemini 版（ZIP）</strong></a></p>\\n<ol><li><strong>準備指令。</strong>解壓縮 ZIP，打開「助手指令.txt」並複製全文。</li>\\n<li><strong>設定助手。</strong>在 Gemini 網頁版，若帳號提供「Gems → 新增 Gem」，名稱填「簡報講稿助手」，將全文貼到指令欄後儲存。若介面沒有新增 Gem，可直接開新對話，貼上指令並附上簡報 PDF。</li>\\n<li><strong>產生講稿。</strong>開啟已儲存的助手並上傳 PDF，或接續剛才貼上指令的對話。輸入「請把這份簡報寫成給新進同仁聽的 8 分鐘旁白。語氣自然，每頁一段，段落之間留一個空白行。」</li></ol>\\n<p><a href=\\\"https://support.google.com/gemini/answer/15146780?hl=zh-Hant\\\">Gemini 官方 Gem 設定說明</a></p>\\n<h2>把講稿匯入 Voicebox</h2>\\n<p>核對講稿段數與投影片頁數，封面、過場和結尾各算一頁。下載產生的 TXT；若回覆直接顯示講稿，就複製正文並存成 UTF-8 純文字檔。保留每頁之間的一個空白行，再將檔案上傳至 Voicebox。</p>\"}",
       "page": "簡報轉影片",
-      "visible": true
+      "visible": true,
+      "content": "下載 GPT 或 Gemini 版，依照設定步驟將簡報 PDF 轉成逐頁旁白，再匯入 Voicebox。"
     }
   ],
   "pages": [
