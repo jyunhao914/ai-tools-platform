@@ -51,3 +51,5 @@ element('download').onclick = async () => {
     element('status').textContent='已送出 ZIP，這個網址已失效。';
   } catch(error) {element('status').textContent=error.message;button.disabled=false;}
 };
+element('exchange').querySelector('button').disabled=false;
+element('download').disabled=false;
