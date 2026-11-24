@@ -260,10 +260,9 @@ function buildStars(){}
 /* ====== NAV TABS ====== */
 /* ====== 首頁精選與近期更新 ====== */
 var HOME_CARD_LIMIT=6;
-function cardTime(card){
-  var created=/^(\d{13})(?:_|$)/.exec(String(card.id||''));
-  return Math.max(created?Number(created[1]):0,Date.parse(card.publishDate)||0,
-    Date.parse(card.publishAt)||0,Date.parse(card.updatedAt)||0);
+function publicationTime(card){
+  var time=Date.parse(card.publishDate);
+  return Number.isFinite(time)?time:-Infinity;
 }
 function cardExtra(card){try{return typeof card.extra==='string'?JSON.parse(card.extra||'{}'):(card.extra||{})}catch(e){return {}}}
 function isVisibleCard(card){
@@ -276,7 +275,7 @@ function homeCards(){
   NAV.forEach(function(n){if(!showNavigationCategory(n.name))return;valid.add(n.name);(n.children||[]).forEach(function(c){valid.add(c)})});
   var pool=CARDS.filter(function(card){return isVisibleCard(card)&&valid.has(card.page||card.category)});
   var featured=new Set(),cards=[];
-  var recent=pool.slice().sort(function(a,b){return cardTime(b)-cardTime(a)});
+  var recent=pool.slice().sort(function(a,b){return publicationTime(b)-publicationTime(a)});
   if(_catalogView==='recent')return {cards:recent,featured:featured};
   var slots=Array.isArray(_settings.home_featured)?_settings.home_featured:[];
   for(var i=0;i<HOME_CARD_LIMIT;i++){
