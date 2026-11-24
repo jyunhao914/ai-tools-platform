@@ -673,6 +673,8 @@ function catalogSummary(card){
 }
 function fullArticle(card){var ex=cardExtra(card);return ex.content&&ex.content.length>(card.content||'').length?ex.content:(card.content||'');}
 function downloadOptions(card){
+  // Both assistant editions are explained and linked within the same guide.
+  if(card.id==='1785291000000')return [];
   var doc=new DOMParser().parseFromString(fullArticle(card),'text/html'),seen=new Set(),items=[];
   doc.querySelectorAll('a[href]').forEach(function(a){
     var raw=a.getAttribute('href'),url;
