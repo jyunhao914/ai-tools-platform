@@ -278,12 +278,15 @@ function homeCards(){
   var featured=new Set(),cards=[];
   var recent=pool.slice().sort(function(a,b){return cardTime(b)-cardTime(a)});
   if(_catalogView==='recent')return {cards:recent,featured:featured};
-  var slots=_settings.home_featured;
-  (Array.isArray(slots)?slots.slice(0,HOME_CARD_LIMIT):[]).forEach(function(id){
-    var card=pool.find(function(item){return item.id===id});
-    if(card&&!featured.has(id)){cards.push(card);featured.add(id)}
-  });
-  return {cards:cards.concat(recent.filter(function(c){return !featured.has(c.id)})).slice(0,HOME_CARD_LIMIT),featured:featured};
+  var slots=Array.isArray(_settings.home_featured)?_settings.home_featured:[];
+  for(var i=0;i<HOME_CARD_LIMIT;i++){
+    var card=pool.find(function(item){return item.id===slots[i]});
+    if(card&&featured.has(card.id))card=null;
+    if(card)featured.add(card.id);
+    cards.push(card);
+  }
+  var fallback=recent.filter(function(card){return !featured.has(card.id)});
+  return {cards:cards.map(function(card){return card||fallback.shift()}).filter(Boolean),featured:featured};
 }
 function updateCatalogTabs(){
   ['Recommended','Recent'].forEach(function(name){var el=$('view'+name),active=!_activeTab&&!_searchActive&&_catalogView===(name==='Recent'?'recent':'recommended');el.classList.toggle('active',active);el.setAttribute('aria-pressed',String(active))});
