@@ -459,7 +459,8 @@
       "page": "簡報轉影片",
       "visible": true,
       "content": "下載 GPT 或 Gemini 版，依照設定步驟將簡報 PDF 轉成逐頁旁白，再匯入 Voicebox。",
-      "coverImage": "assets/slides-script-cover.jpg"
+      "coverImage": "assets/slides-script-cover.jpg",
+      "publishDate": "2026-11-24T11:25:33+08:00"
     }
   ],
   "pages": [

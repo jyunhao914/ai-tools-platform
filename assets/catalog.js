@@ -285,8 +285,16 @@ function homeCards(){
     if(card)featured.add(card.id);
     cards.push(card);
   }
-  var fallback=recent.filter(function(card){return !featured.has(card.id)});
-  return {cards:cards.map(function(card){return card||fallback.shift()}).filter(Boolean),featured:featured};
+  // An automatic slot can promote a later selection. Fill its vacated slot
+  // from the remaining recent cards, so each tool appears only once.
+  var used=new Set();
+  cards.forEach(function(card,index){
+    if(card&&!used.has(card.id)){used.add(card.id);return}
+    var next=recent.find(function(item){return !used.has(item.id)});
+    if(!next){cards[index]=null;return}
+    cards[index]=next;used.add(next.id);
+  });
+  return {cards:cards.filter(Boolean),featured:featured};
 }
 function updateCatalogTabs(){
   ['Recommended','Recent'].forEach(function(name){var el=$('view'+name),active=!_activeTab&&!_searchActive&&_catalogView===(name==='Recent'?'recent':'recommended');el.classList.toggle('active',active);el.setAttribute('aria-pressed',String(active))});
