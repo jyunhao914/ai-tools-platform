@@ -1037,7 +1037,7 @@ function buildArticleToc(){
   var tocLinks=$('articleTocLinks');
   var toc=$('articleToc');
   tocLinks.innerHTML='';
-  var headings=content.querySelectorAll('h2,h3');
+  var headings=content.querySelectorAll(':is(h2,h3):not([popover] *)');
   if(headings.length<2){toc.style.display='none';return}
   toc.style.display='';
   headings.forEach(function(h,i){
