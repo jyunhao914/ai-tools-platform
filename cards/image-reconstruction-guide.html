@@ -23,7 +23,7 @@
 <p>例如要沿用去年的活動海報：保留山景、商標和配色，把標題與活動日期分離成文字物件。交給同事時，用 PowerPoint 開啟 PPTX 就能改字、調字級或移動文字框；交給設計師時，可用支援 SVG 文字的向量編輯器繼續排版。</p>
 <figure style="margin:1em 0"><img src="assets/reconstruction-text-example.png" alt="海報重建示意：左圖的標題與山景合在一起，右圖的標題有獨立文字框。" style="display:block;width:100%;height:auto;border-radius:12px"><figcaption>圖解示意：把「山城散步」改成新的活動名稱時，只要編輯標題文字框，山景底圖可以沿用。</figcaption></figure>
 <h2>特色二｜提高輸出像素，依 300 PPI 製作大圖</h2>
-<figure style="margin:1em 0"><img src="assets/reconstruction-ppi-example.png" width="1024" height="790" alt="同一個圓以 8 × 8 和 32 × 32 像素繪製，後者的邊緣較細緻。60 × 90 公分海報以 300 PPI 輸出，需 7,087 × 10,630 px。" style="display:block;width:100%;max-width:1024px;height:auto;border-radius:12px"><figcaption>列印尺寸換算：公分 ÷ 2.54 × 300，寬、高各自向上取整。長邊輸出上限為 32,000 px。</figcaption></figure>
+<figure style="margin:1em 0"><img src="assets/reconstruction-pixel-comparison.png" width="1024" height="365" alt="同一個圓由粗像素格與細像素格構成，右側曲線邊緣更細緻。" style="display:block;width:100%;max-width:1024px;height:auto;border-radius:12px"></figure>
 <p>單張圖片有兩種指定尺寸的方式。若已知道交件規格，可以直接指定長邊像素；若要印成海報，就輸入紙張的寬、高與單位，外掛會按每英吋 300 個像素換算實際需要的畫布。</p>
 <ul><li><strong>按像素輸出：</strong>例如一張 16:9 橫圖，指定長邊 8,000 px，輸出尺寸就是 8,000 × 4,500 px。同一比例若指定長邊上限 32,000 px，對應畫布為 32,000 × 18,000 px。</li>
 <li><strong>按列印尺寸輸出：</strong>一張寬 60、高 90 公分的直式海報，以 300 PPI 製作，需 7,087 × 10,630 px。若原稿比例不同，可選擇等比留白或裁切。</li></ul>
