@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>找不到此頁｜AI 工具資源平台</title></head>
+<body><main><h1>找不到此頁</h1><p><a href="/ai-tools-platform/">回到 AI 工具資源平台</a></p></main>
+<script>
+const downloads = {
+  "/ai-tools-platform/downloads/slides-script-gemini.zip": "https://drive.google.com/file/d/1ZKgV-aBfMhYnlHywr1WDprh9kYioCSSi/view",
+  "/ai-tools-platform/downloads/slides-script-gpt.zip": "https://drive.google.com/file/d/1Nikj53JjUJG7V1NUdYg962jTaDd2Zbwd/view",
+  "/ai-tools-platform/downloads/voicebox-script.zip": "https://drive.google.com/file/d/14VLQJGQkUZXq-ctQVS7HTw7e8XlRGl1K/view",
+  "/ai-tools-platform/downloads/voicebox-script/SKILL.md": "https://drive.google.com/file/d/18DL9JsHLb3sfjTt9h_4c2qn5ykOG6bzr/view",
+  "/ai-tools-platform/presentation-studio/downloads/Presentation-Studio-2026.10.23-t181824.zip": "https://drive.google.com/file/d/12W50XXdPlyEF486GsFZJVHwYDwJ827g_/view",
+  "/ai-tools-platform/presentation-studio/downloads/Presentation-Studio-2026.10.24-t094000.zip": "https://drive.google.com/file/d/14m06fgMMyvXixJRQwY7F_ENW2HBBNtOi/view",
+  "/ai-tools-platform/presentation-studio/downloads/Presentation-Studio-2026.10.24-t203600.zip": "https://drive.google.com/file/d/1KQjBO0OA_KQYKJfHUQ_k0tQSHbg8Bgu4/view",
+  "/ai-tools-platform/presentation-studio/downloads/Presentation-Studio-2026.10.26-t140000.zip": "https://drive.google.com/file/d/1nETLPMTblpKb5oKmWxOImmoRU9WN_YPq/view",
+  "/ai-tools-platform/presentation-studio/downloads/presentation-studio-text-0.1.21.zip": "https://drive.google.com/file/d/1SR_O4nqTFo1OUayQu7Q9WhC3tZ2twdy-/view",
+  "/ai-tools-platform/presentation-studio/downloads/presentation-studio-text-0.1.25.zip": "https://drive.google.com/file/d/1VR8M_zyP7jmBGu5XJ29fTeAKfIkeMAQ3/view"
+};
+const target = downloads[location.pathname];
+if (typeof target === 'string') {
+  document.querySelector('h1').textContent = '下載檔案已移至 Google Drive';
+  const link = document.querySelector('a');
+  link.href = target;
+  link.textContent = '開啟 Google Drive 下載頁';
+  location.replace(target);
+}
+</script></body></html>
