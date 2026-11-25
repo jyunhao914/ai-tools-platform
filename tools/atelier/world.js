@@ -3,10 +3,8 @@ import {T,batch,movement,group} from './craft.js';
 import {loadArt} from './surfaces.js';
 import {buildDistrict,restartStudioArrival} from './block.js';
 import {restartTram} from './tram.js';
-import {loadCitizens,citizens} from './citizens.js';
 import {festival,restartFestival} from './festival.js';
 import {promenade} from './promenade.js';
-import {buildCity} from './city.js';
 import {buildLane,wetLane} from './lane.js';
 import {buildTown} from './town.js';
 import {streetVisit} from './streets.js';
@@ -36,11 +34,23 @@ async function start(){
   sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-19,right:19,top:16,bottom:-16,near:.5,far:58});
   sun.shadow.normalBias=.014;sun.shadow.bias=-.00016;sun.shadow.camera.updateProjectionMatrix();scene.add(sun);
   const bounce=new T.DirectionalLight(0xe1e9f4,.48);bounce.position.set(6,4,-5);scene.add(bounce);
-  const [art,cast]=await Promise.all([loadArt(),loadCitizens()]);
-  const district=group(scene);buildDistrict(district,art,!!cast);batch(district);
+  const art=await loadArt();
+  const district=group(scene);buildDistrict(district,art,true);batch(district);
   const town=buildTown(scene,art);
-  const lane=buildLane(scene),fest=promenade(scene),visitors=festival(scene,!!cast),reflect=wetLane(scene,lane,fest,visitors);buildCity(scene);
-  const poseCitizens=citizens(scene,cast,visitors.getObjectByName('festival-print'),camera,report);
+  let poseCitizens=null,reflect=null;
+  async function addNeighborhood(){
+    const characters=import('./citizens.js').then(async m=>({files:await m.loadCitizens(),create:m.citizens})).catch(error=>{
+      console.warn('Street characters could not be loaded',error);return null;
+    });
+    const {buildCity}=await import('./city.js');
+    const lane=buildLane(scene),fest=promenade(scene),visitors=festival(scene,true);
+    reflect=wetLane(scene,lane,fest,visitors);
+    await new Promise(resolve=>requestAnimationFrame(resolve));
+    buildCity(scene);
+    const cast=await characters;
+    if(cast)poseCitizens=cast.create(scene,cast.files,visitors.getObjectByName('festival-print'),camera,report);
+    renderer.shadowMap.needsUpdate=true;
+  }
   const sky=atmosphere(scene,camera,sun,hemi,bounce,town,report);
   const notes=wallUI(paintNotes,()=>{report('wallClosed');canvas.focus({preventScroll:true});});
   function openWall(){if(visit.mode==='film'){visit.step(0);notes.open();report('wallOpen');}}
@@ -49,7 +59,7 @@ async function start(){
     if(type==='place'){productionLight.visible=['record','podcast'].includes(details.place);studioLight.visible=details.place==='film';if(studioLight.visible)notes.load();}
     report(type,details);
   },reduced,district.getObjectByName('cinema-tram'));
-  let lastFrame=null,elapsed=0,lastShadow=-1,presented=false;
+  let lastFrame=null,elapsed=0,lastShadow=-1,presented=false,alignPending=false;
   const shadowCenter=new T.Vector3(Infinity,0,0);
   let viewportWidth=0,viewportHeight=0,ratio=nativeRatio,sample=0,frames=0,shadowInterval=.26;
   function resize(){
@@ -66,6 +76,11 @@ async function start(){
     if(data.type==='wall'){openWall();return;}
     if(data.type==='climate')sky.set(data);
     if(data.type==='toggle')setPaused(!paused);
+    if(data.type==='alignOpening'&&Number.isFinite(data.seconds)){
+      const seconds=T.MathUtils.clamp(data.seconds,0,10);
+      visit.alignOpening(seconds);const origin=elapsed-seconds;
+      restartFestival(origin);restartTram(origin);restartStudioArrival(origin);alignPending=true;
+    }
     if(data.type==='go')visit.go(data.place);
     if(data.type==='replay'){restartFestival(elapsed);restartTram(elapsed);restartStudioArrival(elapsed);visit.replay();}
     if(data.type==='step')visit.step(Math.sign(data.value)||0);
@@ -89,10 +104,14 @@ async function start(){
     visit.update(Math.min(dt,.15),!paused,dt);
     if(!paused)elapsed+=dt;
     sky.update(elapsed,dt);
-    movement.forEach(fn=>fn(elapsed));poseCitizens(elapsed);
+    movement.forEach(fn=>fn(elapsed));poseCitizens?.(elapsed);
     if(!shadowCenter.equals(sun.target.position)||lastShadow<0||elapsed-lastShadow>=shadowInterval){shadowCenter.copy(sun.target.position);renderer.shadowMap.needsUpdate=true;lastShadow=elapsed;}
-    tune(dt);reflect(renderer,camera,elapsed);renderer.render(scene,camera);
-    if(!presented){presented=true;report('ready');}
+    tune(dt);reflect?.(renderer,camera,elapsed);renderer.render(scene,camera);
+    if(alignPending){alignPending=false;report('aligned');}
+    if(!presented){
+      presented=true;report('ready');
+      requestAnimationFrame(()=>setTimeout(()=>addNeighborhood().catch(error=>console.warn('Additional street details could not be loaded',error)),0));
+    }
   });
 }
 start().catch(error=>{console.error(error);report('unavailable');});

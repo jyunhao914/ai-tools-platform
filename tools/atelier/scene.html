@@ -10,6 +10,8 @@
     canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
     canvas:active{cursor:grabbing}canvas:focus-visible{outline:2px solid #f4c891;outline-offset:-3px}
   </style>
+<link rel="preload" as="image" crossorigin="anonymous" href="street-art.webp" fetchpriority="high">
+<link rel="modulepreload" href="three.js">
 <link rel="stylesheet" href="wall.css">
 </head>
 <body>
@@ -21,7 +23,11 @@
   <label for="board-body">留言內容</label><textarea id="board-body" maxlength="500" rows="4" required placeholder="想和大家分享什麼？"></textarea>
   <div class="board-send"><small>留言會公開顯示</small><button type="submit">貼上留言牆</button></div><p id="board-status" role="status"></p></form></div>
 </dialog>
-  <script type="importmap">{"imports":{"./store-visit.js":"./store-visit.js?v=open-studio-entry-1","./architecture.js":"./architecture.js?v=open-studio-entry-1","./atmosphere.js":"./atmosphere.js?v=open-studio-entry-1","./block.js":"./block.js?v=open-studio-entry-1","./craft.js":"./craft.js?v=open-studio-entry-1","./interiors.js":"./interiors.js?v=open-studio-entry-1","./street.js":"./street.js?v=open-studio-entry-1","./streets.js":"./streets.js?v=open-studio-entry-1","./taiwan-life.js":"./taiwan-life.js?v=open-studio-entry-1","./town.js":"./town.js?v=open-studio-entry-1","./tram.js":"./tram.js?v=open-studio-entry-1","./studio-building.js":"./studio-building.js?v=open-studio-entry-1","./room-motion.js":"./room-motion.js?v=open-studio-entry-1","./ensemble.js":"./ensemble.js?v=open-studio-entry-1","./citizens.js":"./citizens.js?v=open-studio-entry-1","./parks.js":"./parks.js?v=open-studio-entry-1"}}</script>
-  <script type="module">import('./world.js?v=open-studio-entry-1').catch(e=>{console.error(e);parent.postMessage({channel:'atelier',type:'unavailable'},location.origin);});</script>
+  <script type="importmap">{"imports":{"./surfaces.js":"./surfaces.js?v=fast-street-1","./store-visit.js":"./store-visit.js?v=fast-street-1","./architecture.js":"./architecture.js?v=fast-street-1","./atmosphere.js":"./atmosphere.js?v=fast-street-1","./block.js":"./block.js?v=fast-street-1","./craft.js":"./craft.js?v=fast-street-1","./interiors.js":"./interiors.js?v=fast-street-1","./street.js":"./street.js?v=fast-street-1","./streets.js":"./streets.js?v=fast-street-1","./taiwan-life.js":"./taiwan-life.js?v=fast-street-1","./town.js":"./town.js?v=fast-street-1","./tram.js":"./tram.js?v=fast-street-1","./studio-building.js":"./studio-building.js?v=fast-street-1","./room-motion.js":"./room-motion.js?v=fast-street-1","./ensemble.js":"./ensemble.js?v=fast-street-1","./citizens.js":"./citizens.js?v=fast-street-1","./parks.js":"./parks.js?v=fast-street-1"}}</script>
+  <link rel="modulepreload" href="craft.js?v=fast-street-1">
+  <link rel="modulepreload" href="surfaces.js?v=fast-street-1">
+  <link rel="modulepreload" href="block.js?v=fast-street-1">
+  <link rel="modulepreload" href="town.js?v=fast-street-1">
+  <script type="module">import('./world.js?v=fast-street-1').catch(e=>{console.error(e);parent.postMessage({channel:'atelier',type:'unavailable'},location.origin);});</script>
 </body>
 </html>

@@ -1,14 +1,26 @@
 import {T, rand, painted, makeCanvas, canvasMap, drawNoise, animate} from './craft.js';
 
 export async function loadArt() {
-  const loader=new T.TextureLoader();
-  const urls=['wall0','wall1','wall2','wall3','room0','room1','room2','room3','rental','sound'];
-  const entries=await Promise.all(urls.map(async name=>{
-    const map=await loader.loadAsync(new URL(name+'.webp', import.meta.url).href);map.colorSpace=T.SRGBColorSpace;map.anisotropy=8;
-    const material=!name.startsWith('wall')?new T.MeshBasicMaterial({map}):new T.MeshStandardMaterial({map,roughness:.91});
+  const image=await new T.ImageLoader().loadAsync(new URL('street-art.webp',import.meta.url).href);
+  const tiles=[
+    ['wall0',0,0,623,623],
+    ['wall1',623,0,623,623],
+    ['wall2',1246,0,623,623],
+    ['wall3',1869,0,623,623],
+    ['room0',0,623,624,415],
+    ['room1',624,623,624,415],
+    ['room2',1248,623,624,415],
+    ['room3',1872,623,624,415],
+    ['rental',0,1038,624,310],
+    ['sound',624,1038,624,310]
+  ];
+  return Object.fromEntries(tiles.map(([name,x,y,w,h])=>{
+    const canvas=makeCanvas(w,h,ctx=>ctx.drawImage(image,x,y,w,h,0,0,w,h));
+    const material=painted(canvas,!name.startsWith('wall'));
+    material.map.anisotropy=8;
+    if(name.startsWith('wall'))material.roughness=.91;
     return [name,material];
   }));
-  return Object.fromEntries(entries);
 }
 export const roofTile=painted(makeCanvas(768,384,(g,w,h)=>{
   g.fillStyle='#914f40';g.fillRect(0,0,w,h);

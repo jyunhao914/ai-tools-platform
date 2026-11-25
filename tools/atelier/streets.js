@@ -63,6 +63,10 @@ export function streetVisit(camera,canvas,report,reduced,tram){
     camera.fov=T.MathUtils.lerp(55,53,glide)+narrow*T.MathUtils.lerp(26,40,glide);
     camera.updateProjectionMatrix();face(aim);
   }
+  function alignOpening(seconds){
+    if(!tour)return;
+    tourTime=clamp(seconds,0,duration);setTour(tourTime);
+  }
   function replay(){
     trip=null;clearMotion();tour=true;tourTime=0;announce('street');setTour(0);
   }
@@ -249,5 +253,5 @@ export function streetVisit(camera,canvas,report,reduced,tram){
   setTour(0);
   const viewpoint=streetViews[new URL(location.href).searchParams.get('street')];
   if(Array.isArray(viewpoint)){tour=false;camera.position.copy(vector(viewpoint[0]));face(vector(viewpoint[1]));}
-  return {resize,update,go,step,replay,get mode(){return mode;}};
+  return {resize,update,go,step,replay,alignOpening,get mode(){return mode;}};
 }

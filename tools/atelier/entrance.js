@@ -45,15 +45,41 @@
       <div class="guide-columns"><div><svg id="guide-map" role="img" aria-label="臺中市行政區圖"></svg><p>點選有標記的行政區，探索街景。</p><button id="guide-studio">走進 AI 平台工作室 →</button></div>
       <div><select id="guide-area" aria-label="選擇行政區"><option value="">所有景點</option></select><div id="guide-places"></div></div></div></dialog>
     </div>`;
-  const style=document.createElement('link');style.rel='stylesheet';style.href=new URL('world.css?v=open-studio-entry-1',base);
+  const style=document.createElement('link');style.rel='stylesheet';style.href=new URL('world.css?v=fast-street-1',base);
   view.querySelector('style').after(style);
   const stage=view.querySelector('#scene'),enter=view.querySelector('.enter'),count=enter.querySelector('small');
   const taiwanHour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Taipei',hour:'2-digit',hourCycle:'h23'}).format(new Date()));
   if(taiwanHour>=18||taiwanHour<6)stage.style.backgroundImage='url("'+new URL('town-poster-night.webp',base)+'")';
+  let opening=null;
+  function releaseOpening(){
+    if(!opening)return;
+    opening.pause();opening.removeAttribute('src');opening.load();opening.remove();opening=null;
+  }
+  function playOpening(){
+    if(street||initialSight||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    const light=url.searchParams.get('light'),dayPreview=exploreOnArrival&&['park','rain'].includes(light);
+    const hour=dayPreview?12:taiwanHour;
+    let period=hour<5||hour>=19?'night':hour<9?'morning':hour<16?'noon':'dusk';
+    let wet=dayPreview&&light==='rain';
+    if(!dayPreview)try{
+      const data=JSON.parse(localStorage.getItem('atelier-taichung-current-v1'))?.data;
+      if(data&&Math.abs(Date.now()/1000-data.time)<5400)wet=data.precipitation>.015||data.weather_code>=51;
+    }catch{}
+    if(wet)period=period==='night'?'wet-night':'wet-noon';
+    const video=document.createElement('video');opening=video;
+    video.className='opening';video.muted=true;video.playsInline=true;video.autoplay=true;
+    video.setAttribute('aria-hidden','true');video.disablePictureInPicture=true;
+    video.addEventListener('playing',()=>{
+      video.classList.add('playing');stage.querySelector('.loader')?.remove();startClock();
+    },{once:true});
+    const shape=innerWidth<innerHeight?'portrait':'wide';
+    video.src=new URL('opening/'+period+'-'+shape+'.mp4',base);
+    stage.prepend(video);video.play().catch(()=>{if(opening===video)releaseOpening();});
+  }
   const pause=view.querySelector('#pause'),nav=view.querySelector('#explore'),copy=view.querySelector('#copy');
   const audio=view.querySelector('#audio');
   let sound,roomActive=false;
-  import(new URL('sound.js?v=open-studio-entry-1',base)).then(({townSound})=>{
+  import(new URL('sound.js?v=fast-street-1',base)).then(({townSound})=>{
     sound=townSound();sound.room(roomActive);
     audio.hidden=!(window.AudioContext||window.webkitAudioContext);
   });
@@ -69,7 +95,7 @@
   const climate=view.querySelector('#climate');
   const catalog=new URL(location.href);catalog.searchParams.delete('street');catalog.searchParams.delete('sight');catalog.searchParams.delete('light');catalog.searchParams.set('view','tools');enter.href=catalog;
   dialog.append(host);document.body.prepend(dialog);
-  const frame=document.createElement('iframe');frame.title='互動式 3D 微縮街區';const sceneUrl=new URL('scene.html?v=open-studio-entry-1',base);
+  const frame=document.createElement('iframe');frame.title='互動式 3D 微縮街區';const sceneUrl=new URL('scene.html?v=fast-street-1',base);
   const street=url.searchParams.get('street');if(exploreOnArrival&&['shopfront','shops','market','court','clinic','fruit','photo'].includes(street))sceneUrl.searchParams.set('street',street);
   frame.src=sceneUrl;
   const previousOverflow=document.documentElement.style.overflow;
@@ -101,7 +127,7 @@
   function stopCountdown(){counting=false;clearInterval(clock);count.hidden=true;}
   function enterPlatform(){
     if(!dialog.open)return;
-    stopCountdown();clearTimeout(loadingTimer);listeners.abort();sound?.close();
+    stopCountdown();clearTimeout(loadingTimer);clearTimeout(clockFallback);listeners.abort();releaseOpening();sound?.close();
     document.documentElement.style.overflow=previousOverflow;
     if(exploreOnArrival){url.searchParams.delete('view');url.searchParams.delete('street');url.searchParams.delete('sight');url.searchParams.delete('light');history.replaceState(history.state,'',url);}
     dialog.close();dialog.remove();
@@ -133,8 +159,11 @@
     sightNames=sights;for(const [id,place] of Object.entries(sights))placeNames[id]=place.name;
     return sights;
   });
-  const guideReady=import(new URL('guide.js',base)).then(m=>m.cityGuide(view,place=>post('go',{place})));
-  view.querySelector('#guide-launch').onclick=async()=>{stopCountdown();(await guideReady)();};
+  let guideReady;
+  view.querySelector('#guide-launch').onclick=async()=>{
+    stopCountdown();guideReady??=import(new URL('guide.js',base)).then(m=>m.cityGuide(view,place=>post('go',{place})));
+    (await guideReady)();
+  };
   function showPlace(place,travel){
     if(!placeNames[place])return;
     view.querySelector('#replay').hidden=true;
@@ -169,6 +198,7 @@
   function receive(event){
     if(event.origin!==location.origin||event.source!==frame.contentWindow||event.data?.channel!=='atelier')return;
     const {type,paused,place}=event.data;
+    if(type==='aligned'){releaseOpening();return;}
     if(type==='cue'){sound?.cue(event.data.name);return;}
     if(type==='toolsFor'){stationCatalog(event.data.station);return;}
     if(type==='climate'){
@@ -187,6 +217,8 @@
     if(type==='explore'){stopCountdown();return;}
     if(type==='place'||type==='travel'){if(type==='place'){roomActive=['film','record','podcast','store'].includes(place);sound?.room(roomActive);}showPlace(place,type==='travel');return;}
     if(type==='ready'){
+      if(opening&&opening.currentTime>0&&!paused)post('alignOpening',{seconds:opening.currentTime});
+      else releaseOpening();
       clearTimeout(loadingTimer);stage.className='ready';stage.querySelector('.loader')?.remove();
       pause.hidden=false;nav.hidden=false;climate.hidden=false;showPlace('street',false);startClock();
       if(exploreOnArrival&&['rain','park'].includes(url.searchParams.get('light'))){
@@ -227,7 +259,8 @@
   document.addEventListener('visibilitychange',()=>{syncClock();sound?.visibility();},options);
   window.addEventListener('pagehide',()=>sound?.close(),options);
   dialog.showModal();document.documentElement.style.overflow='hidden';
-  stage.append(frame);
+  playOpening();stage.append(frame);
+  const clockFallback=setTimeout(startClock,1500);
   // Even a failed module request leaves the separate catalog link usable throughout.
   loadingTimer=setTimeout(()=>poster(false),24000);
 })();

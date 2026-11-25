@@ -115,7 +115,7 @@ export function painted(canvas,unlit=false) {
   return unlit?new T.MeshBasicMaterial({map}):new T.MeshStandardMaterial({map,roughness:.88});
 }
 export function label(p,words,x,y,z,w,h,bg,fg,opts={}) {
-  const pixels=1024,ph=Math.max(96,Math.round(pixels*h/w));
+  const pixels=Math.min(1024,Math.max(192,Math.ceil(w*320))),ph=Math.max(56,Math.round(pixels*h/w));
   const art=makeCanvas(pixels,ph,(g,width,height)=>{
     g.fillStyle=bg;g.fillRect(0,0,width,height);
     if(opts.rule){g.strokeStyle=fg;g.globalAlpha=.55;g.lineWidth=Math.max(2,height*.022);g.strokeRect(8,8,width-16,height-16);g.globalAlpha=1}
