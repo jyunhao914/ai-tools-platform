@@ -1,10 +1,18 @@
 {
   "status": "released",
-  "version": "0.1.74",
-  "filename": "presentation-studio-text-0.1.74.zip",
-  "sha256": "5757832626e418b6efea3340a5fcce5a8b158d67db97d7b66fac762b753c055d",
-  "bytes": 2475274,
+  "version": "0.1.75",
+  "filename": "presentation-studio-text-0.1.75.zip",
+  "sha256": "fe423809d785010c74f937f0371f35e25060eb3a9b1299bffb3bffc908c7a956",
+  "bytes": 2485514,
   "release_date": "2026-11-28",
   "supported_client": "chatgpt_plugin",
-  "download_url": "https://drive.google.com/file/d/1bZEQLsYVFVEIrCc3feyUB1y-gCvR-Qkv/view?usp=drivesdk"
+  "download_url": "https://drive.google.com/file/d/1AjOsRw8MGIQ86sIahszG--dtnAvYpuGp/view?usp=drivesdk",
+  "work_entry": {
+    "scope": "confirmed_job_in_web_work",
+    "start": "skills/studio-production/references/work-start.md",
+    "layout": "skills/studio-production/scripts/compose-refined.py",
+    "chart_repair": "skills/studio-production/scripts/linked-chart-run.py",
+    "finish": "skills/studio-production/scripts/work-foreground.mjs",
+    "instruction": "Read the matching package and start from the confirmed source and accepted media permissions. For editable charts, compare the real Google render with the source labels and both axis scales. Apply each indicated repair, refresh and read back the same linked chart, then verify before delivering."
+  }
 }
