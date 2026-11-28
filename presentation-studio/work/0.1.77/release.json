@@ -1,0 +1,43 @@
+{
+  "package": "presentation-studio-text",
+  "version": "0.1.77",
+  "copy_header": "接續製作。請在 Work 依 Presentation Studio 0.1.77 正式流程執行。先讀 https://jyunhao914.github.io/ai-tools-platform/presentation-studio/work/0.1.77/release.json，核對同版工具並執行收件，再按下列已確認設定製作。\n精緻型依內容換構圖，小圖與圖示做真正透明背景；Google 使用可更新的連結圖表；刻度及資料標籤留在圖表本身，修改試算表時數值隨刷新改變。逐軸、逐筆核對圖表本身與實際投影片。\n只驗收本次所選成品。從 Drive 下載實際交付的 PPTX；Google 簡報用原生 API、PDF 及圖件或頁面縮圖核對，試算表用 Sheets 讀回。沿用既有私人權限，所選檔案全部通過，就在同一回合交付各自連結。略過 Google 簡報轉回 PPTX 和瀏覽器下載授權。",
+  "tools": {
+    "path": "tools.zip",
+    "url": "https://jyunhao914.github.io/ai-tools-platform/presentation-studio/work/0.1.77/tools.zip",
+    "sha256": "80b866758878104303e6dc848497cea93493b3e3bb8d5cb152d5b09d424be49f",
+    "bytes": 409899
+  },
+  "work": {
+    "scope": "Only in the real Work that received the user's confirmed settings.",
+    "bootstrap": [
+      "Use the installed toolkit of this version, or GET tools.url. Verify its byte length, SHA-256 and internal release.json before running it. No user data is needed by this public server.",
+      "Materialize the source using the user's selected attachment or authorized private source. Keep the user's pasted text, file identifiers, bytes and hash local to Work.",
+      "Use accept.receipt on the actual full pasted text. For an uploaded binary supply --source-id and --source-file. For an unsigned Drive reference also supply --drive-readback from the authenticated service.",
+      "Read references/chat-to-work.md. Register or reopen the matching private handoff and claim in this Work. Include --source-file and --start-dir on the confirmed, read-back claim to start production; execute each returned foreground_action until finished. When a job is intended to be refined, use layout from the same kit."
+    ],
+    "accept": {
+      "receipt": "scripts/web-confirmation.py open-portable COMMAND.txt STATE --surface work",
+      "private_card": "scripts/work-handoff-doc.py activate DOC.json COMMAND.txt --surface work",
+      "claim": "scripts/work-handoff-doc.py claim"
+    },
+    "start": "WORK-START.md",
+    "layout": "scripts/compose-refined.py",
+    "chart_repair": "scripts/linked-chart-run.py",
+    "composition_check": "python3 scripts/refined-design.py check SOURCE.pptx FINAL.pptx --plan PLAN.json",
+    "composition_repair": "python3 scripts/refined-design.py repair SOURCE.pptx FINAL.pptx --plan PLAN.json --out FIXED.pptx",
+    "chart_workbook": "python3 scripts/native-combo-workbook.py FINAL.pptx POWERPOINT.pdf CHARTS.xlsx --page PAGE",
+    "chart_import": "For dual-axis column/line charts import the resulting XLSX into Drive as a native Google spreadsheet, read the imported chartId and create a LINKED sheetsChart on the slide in the original frame. Refresh, export PDF and resolve visible label overlaps. The imported spreadsheet is the user's chart deliverable.",
+    "google_readback": "python3 scripts/native-delivery-objects.py FINAL.pptx NATIVE.json GOOGLE.pdf --id PRESENTATION_ID --revision REVISION",
+    "finish": "scripts/work-foreground.mjs",
+    "final_acceptance": "只驗收本次所選成品。從 Drive 下載實際交付的 PPTX；Google 簡報用原生 API、PDF 及圖件或頁面縮圖核對，試算表用 Sheets 讀回。沿用既有私人權限，所選檔案全部通過，就在同一回合交付各自連結。略過 Google 簡報轉回 PPTX 和瀏覽器下載授權。",
+    "acceptance": [
+      "Verify requested artifacts in their delivery formats at the accepted private destination. For the PPTX, download the delivered binary from its own Drive file ID, check its actual content and embedded workbook and render it. For Google Slides, read its native objects and linked Sheets chart, inspect its own exported PDF and corresponding image or page thumbnail. For Sheets, read back its ranges and chart.",
+      "At a successful readback of the final revisions and permitted file access, immediately return the chosen links in this Work response. Skip Slides-to-PPTX conversion, browser download and browser permission prompts for this check.",
+      "Match each layout to the page's editorial purpose. Inspect the exported slides for repeated photo/text positions.",
+      "For small illustrations and icons, verify a real alpha cutout or outline-only native geometry in the exported slide. Inspect these against the actual slide background.",
+      "Keep Google charts as refreshable linked Sheets chart objects. Keep data labels live in the chart series or linked to worksheet cells. Slides text overlays must never stand in for those labels. Compare source chart axis endpoints, every data label, legend and rendered overlapping text after refresh. Preserve embedded workbook in editable PowerPoint.",
+      "Preserve confirmed source text, protected screenshots and tables, order and page count. Return links to the requested verified outputs in the designated folder."
+    ]
+  }
+}
