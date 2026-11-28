@@ -684,6 +684,48 @@ function catalogSummary(card){
   if(text.length>70){var sentence=text.match(/^.{8,70}?[。！？]/);text=sentence?sentence[0]:Array.from(text).slice(0,68).join('')+'…';}
   return text;
 }
+function fullArticle(card){var ex=cardExtra(card);return ex.content&&ex.content.length>(card.content||'').length?ex.content:(card.content||'');}
+function downloadOptions(card){
+  // Both assistant editions are explained and linked within the same guide.
+  if(card.id==='1785291000000'||card.downloadGrant)return [];
+  var doc=new DOMParser().parseFromString(fullArticle(card),'text/html'),seen=new Set(),items=[];
+  doc.querySelectorAll('a[href]').forEach(function(a){
+    var raw=a.getAttribute('href'),url;
+    try{url=new URL(raw,document.baseURI)}catch(e){return}
+    if(!/^https?:$/.test(url.protocol))return;
+    var text=(a.textContent||'').replace(/\s+/g,' ').trim();
+    var direct=a.hasAttribute('download')||/\.(zip|dmg|exe|msi|pkg)(?:$|\?)/i.test(url.pathname);
+    var drive=url.hostname==='drive.google.com'&&/\/file\/d\//.test(url.pathname)&&/下載|macOS|Windows|Mac 版/i.test(text);
+    var appstore=url.hostname==='apps.apple.com';
+    if(!direct&&!drive&&!appstore||seen.has(url.href))return;
+    if(/建置中|尚未|準備中|即將/.test(text))return;
+    seen.add(url.href);
+    var label=appstore?'App Store':/Windows/i.test(text)?'Windows':/macOS|\bMac\b|DMG/i.test(text)?'macOS':'下載外掛';
+    if(/Apple Silicon/i.test(text))label+=' · Apple Silicon';
+    if(label==='Windows'&&/64/.test(text))label+=' · 64 位元';
+    var version=/Voicebox Lite/i.test(text)?'Voicebox Lite':(/\b\d+\.\d+\.\d+\b/.exec(text)||[])[0]||'';
+    items.push({url:url.href,label:label,meta:version,download:a.getAttribute('download')||''});
+  });
+  return items;
+}
+function setDownloadLink(a,item,card){
+  a.href=item.url;
+  if(item.download&&new URL(item.url).origin===location.origin)a.download=item.download;
+  else{a.target='_blank';a.rel='noopener noreferrer'}
+  a.onclick=function(){trackClick(card,null)};
+}
+function showDownloads(card,items,trigger){
+  var dialog=$('downloadDialog'),host=$('downloadOptions');host.innerHTML='';
+  $('downloadTitle').textContent=catalogTitle(card)+' · 選擇版本';
+  items.forEach(function(item){
+    var a=ce('a','download-option',uiIcon('download')+'<span><span class="download-label">'+esc(item.label)+'</span>'+(item.meta?'<span class="download-meta">'+esc(item.meta)+'</span>':'')+'</span>'+uiIcon('external'));
+    setDownloadLink(a,item,card);host.appendChild(a);
+  });
+  dialog._trigger=trigger;dialog.showModal();
+}
+$('downloadClose').onclick=function(){$('downloadDialog').close()};
+$('downloadDialog').addEventListener('click',function(e){if(e.target===this){var r=this.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)this.close()}});
+$('downloadDialog').addEventListener('close',function(){if(this._trigger&&this._trigger.isConnected)this._trigger.focus()});
 function articleLink(card,cls,label){
   var a=ce('a',cls,label);a.href='cards/'+encodeURIComponent(card.id)+'.html';
   a.onclick=function(e){if(e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;e.preventDefault();trackClick(card,null);openArticleReader(card)};
@@ -708,7 +750,15 @@ function renderCatalogCard(grid,card){
   body.appendChild(ce('p','card-desc',esc(catalogSummary(card))));
   var foot=ce('div','card-foot');
   if(isArticle){
-    foot.appendChild(articleLink(card,'card-link',esc('閱讀教學')+uiIcon('arrow')));
+    var items=downloadOptions(card);
+    if(items.length){
+      foot.appendChild(articleLink(card,'card-details','使用說明'));
+      var label=card.id==='presentation-studio'?'下載外掛':items[0].label==='App Store'?'App Store':'下載工具';
+      var dl=ce(items.length===1?'a':'button','card-link',uiIcon('download')+esc(label));
+      if(items.length===1)setDownloadLink(dl,items[0],card);
+      else{dl.type='button';dl.setAttribute('aria-haspopup','dialog');dl.setAttribute('aria-label','下載 '+title);dl.onclick=function(){showDownloads(card,items,dl)}}
+      foot.appendChild(dl);
+    }else foot.appendChild(articleLink(card,'card-link',esc('閱讀教學')+uiIcon('arrow')));
   }else if(isCopy){
     var copyContent=card.copyContent||extra.copyContent||m3.c||card.linkUrl||'';
     var copy=ce('button','card-link',uiIcon('copy')+esc(card.linkBtnLabel||extra.linkBtnLabel||card.meta2||card.btnLabel||'複製內容'));copy.type='button';
