@@ -1,10 +1,10 @@
 {
   "status": "released",
-  "version": "0.1.72",
-  "filename": "presentation-studio-text-0.1.72.zip",
-  "sha256": "43a3f1ae9c8419209dc6677a6bd5a6cbefa5de49f41086dc0115c5d91f30a5a6",
-  "bytes": 2427258,
+  "version": "0.1.73",
+  "filename": "presentation-studio-text-0.1.73.zip",
+  "sha256": "862acb4bb8737440c1eed7e216a533e388b96c7ddc196e07f1dbbdcfb086aa78",
+  "bytes": 2456785,
   "release_date": "2026-11-28",
   "supported_client": "chatgpt_plugin",
-  "download_url": "https://drive.google.com/file/d/1oJjlyHuyIYOCjn7u7s7JB83QTJfcsd2c/view?usp=drivesdk"
+  "download_url": "https://drive.google.com/file/d/1BlJ5M5cG-kKLDUHJSfNsoUpvb_pBo2l1/view?usp=drivesdk"
 }
