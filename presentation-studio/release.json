@@ -1,22 +1,23 @@
 {
   "status": "released",
-  "version": "0.1.77",
-  "filename": "presentation-studio-text-0.1.77.zip",
-  "sha256": "535a5da6f4cc4e805b96493b80fd795afd42ebafaa7c4dc953b115e2fb0bfd4c",
-  "bytes": 2514757,
+  "version": "0.1.78",
+  "filename": "presentation-studio-text-0.1.78.zip",
+  "sha256": "223b086bfa6290a99e81dd08fb6678acb86cdcd7e263afde836a50165d5afbdc",
+  "bytes": 2525948,
   "release_date": "2026-11-29",
   "supported_client": "chatgpt_plugin",
-  "download_url": "https://drive.google.com/file/d/1xd4uOJN0aqoD36ezYhtrOzVze_vpe1du/view",
+  "download_url": "https://drive.google.com/file/d/1aDfTdeJ8jZzLL3nCr7rVu7Hw5T2AFV0Y/view",
   "work_entry": {
     "scope": "confirmed_job_in_web_work",
     "start": "skills/studio-production/references/work-start.md",
     "layout": "skills/studio-production/scripts/compose-refined.py",
     "composition_review": "skills/studio-production/scripts/refined-design.py",
+    "source_labels": "skills/studio-production/scripts/source-chart-labels.py",
     "chart_workbook": "skills/studio-production/scripts/native-combo-workbook.py",
     "chart_repair": "skills/studio-production/scripts/linked-chart-run.py",
     "finish": "skills/studio-production/scripts/work-foreground.mjs",
     "final_acceptance": "Read each delivered artifact in its own format, then send the links immediately in this Work. The Google deck needs its native API, rendered PDF and image or page thumbnails. Skip Google Slides to PPTX conversion and browser download permissions.",
     "instruction": "Read the matching package and start from the confirmed source and accepted media permissions. For editable charts, compare the real Google render with the source labels and both axis scales. Apply each indicated repair, refresh and read back the same linked chart, then verify before delivering.",
-    "release_url": "https://jyunhao914.github.io/ai-tools-platform/presentation-studio/work/0.1.77/release.json"
+    "release_url": "https://jyunhao914.github.io/ai-tools-platform/presentation-studio/work/0.1.78/release.json"
   }
 }
