@@ -127,6 +127,8 @@ main:has(> article .ps-guide) > .cover,
 .ps-guide .ps-choices dt { color: var(--ink); font-weight: 700; }
 .ps-guide .ps-choices dd { margin: 0; overflow-wrap: anywhere; }
 .ps-guide details > summary { color: #164e49; line-height: 1.55; }
+.ps-guide details[id] { scroll-margin-top: 20px; }
+.ps-guide details:target { border-color: var(--teal); }
 .ps-guide figure:is(.ps-shot, .ps-style-index) { max-width: 46em; margin: 14px 0; }
 .ps-guide :is(.ps-shot, .ps-style-index) img {
   display: block;
