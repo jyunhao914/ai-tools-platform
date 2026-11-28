@@ -1,0 +1,39 @@
+{
+  "package": "presentation-studio-text",
+  "version": "0.1.76",
+  "copy_header": "接續製作。請在 Work 依 Presentation Studio 0.1.76 正式流程執行。先讀 https://jyunhao914.github.io/ai-tools-platform/presentation-studio/work/0.1.76/release.json，核對同版工具並執行收件，再按下列已確認設定製作。\n精緻型依內容換構圖，小圖與圖示做真正透明背景；Google 使用可更新的連結圖表，逐軸、逐筆核對原稿與實際匯出。",
+  "tools": {
+    "path": "tools.zip",
+    "url": "https://jyunhao914.github.io/ai-tools-platform/presentation-studio/work/0.1.76/tools.zip",
+    "sha256": "5ba129b46ea10e87208c38d2eb0588afa7219d0cb4f321d57494e85706704f1f",
+    "bytes": 400300
+  },
+  "work": {
+    "scope": "Only in the real Work that received the user's confirmed settings.",
+    "bootstrap": [
+      "Use the installed toolkit of this version, or GET tools.url. Verify its byte length, SHA-256 and internal release.json before running it. No user data is needed by this public server.",
+      "Materialize the source using the user's selected attachment or authorized private source. Keep the user's pasted text, file identifiers, bytes and hash local to Work.",
+      "Use accept.receipt on the actual full pasted text. For an uploaded binary supply --source-id and --source-file. For an unsigned Drive reference also supply --drive-readback from the authenticated service.",
+      "Read references/chat-to-work.md. Register or reopen the matching private handoff and claim in this Work. Include --source-file and --start-dir on the confirmed, read-back claim to start production; execute each returned foreground_action until finished. When a job is intended to be refined, use layout from the same kit."
+    ],
+    "accept": {
+      "receipt": "scripts/web-confirmation.py open-portable COMMAND.txt STATE --surface work",
+      "private_card": "scripts/work-handoff-doc.py activate DOC.json COMMAND.txt --surface work",
+      "claim": "scripts/work-handoff-doc.py claim"
+    },
+    "start": "WORK-START.md",
+    "layout": "scripts/compose-refined.py",
+    "chart_repair": "scripts/linked-chart-run.py",
+    "composition_check": "python3 scripts/refined-design.py check SOURCE.pptx FINAL.pptx --plan PLAN.json",
+    "composition_repair": "python3 scripts/refined-design.py repair SOURCE.pptx FINAL.pptx --plan PLAN.json --out FIXED.pptx",
+    "chart_workbook": "python3 scripts/native-combo-workbook.py FINAL.pptx POWERPOINT.pdf CHARTS.xlsx --page PAGE",
+    "chart_import": "For dual-axis column/line charts import the resulting XLSX into Drive as a native Google spreadsheet, read the imported chartId and create a LINKED sheetsChart on the slide in the original frame. Refresh, export PDF and resolve visible label overlaps. The imported spreadsheet is the user's chart deliverable.",
+    "finish": "scripts/work-foreground.mjs",
+    "acceptance": [
+      "Match each layout to the page's editorial purpose. Inspect the exported slides for repeated photo/text positions.",
+      "For small illustrations and icons, verify a real alpha cutout or outline-only native geometry in the exported slide. Inspect these against the actual slide background.",
+      "Keep Google charts as refreshable linked Sheets chart objects. Compare source chart axis endpoints, every data label, legend and rendered overlapping text after refresh. Preserve embedded workbook in editable PowerPoint.",
+      "Preserve confirmed source text, protected screenshots and tables, order and page count. Return links to the requested verified outputs in the designated folder."
+    ]
+  }
+}

@@ -1,18 +1,21 @@
 {
   "status": "released",
-  "version": "0.1.75",
-  "filename": "presentation-studio-text-0.1.75.zip",
-  "sha256": "fe423809d785010c74f937f0371f35e25060eb3a9b1299bffb3bffc908c7a956",
-  "bytes": 2485514,
-  "release_date": "2026-11-28",
+  "version": "0.1.76",
+  "filename": "presentation-studio-text-0.1.76.zip",
+  "sha256": "64b9d61f8e43a48081317f754a872341ce28dab89a40d5336aa2cb38d7ae66d0",
+  "bytes": 2503695,
+  "release_date": "2026-11-29",
   "supported_client": "chatgpt_plugin",
-  "download_url": "https://drive.google.com/file/d/1AjOsRw8MGIQ86sIahszG--dtnAvYpuGp/view?usp=drivesdk",
+  "download_url": "https://drive.google.com/file/d/1Al3LELCeki_fRSGbIEMOX1eex2MMIYJu/view",
   "work_entry": {
     "scope": "confirmed_job_in_web_work",
     "start": "skills/studio-production/references/work-start.md",
     "layout": "skills/studio-production/scripts/compose-refined.py",
+    "composition_review": "skills/studio-production/scripts/refined-design.py",
+    "chart_workbook": "skills/studio-production/scripts/native-combo-workbook.py",
     "chart_repair": "skills/studio-production/scripts/linked-chart-run.py",
     "finish": "skills/studio-production/scripts/work-foreground.mjs",
-    "instruction": "Read the matching package and start from the confirmed source and accepted media permissions. For editable charts, compare the real Google render with the source labels and both axis scales. Apply each indicated repair, refresh and read back the same linked chart, then verify before delivering."
+    "instruction": "Read the matching package and start from the confirmed source and accepted media permissions. For editable charts, compare the real Google render with the source labels and both axis scales. Apply each indicated repair, refresh and read back the same linked chart, then verify before delivering.",
+    "release_url": "https://jyunhao914.github.io/ai-tools-platform/presentation-studio/work/0.1.76/release.json"
   }
 }
